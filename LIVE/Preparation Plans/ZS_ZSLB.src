@@ -1,0 +1,56 @@
+$ACTION
+Case ACTION
+    When "OUVRE" : Gosub CHECK
+    When "AVANT_OK" : Gosub OK
+    When "SETBOUT" : Gosub LOAD
+    When default
+Endcase
+Return
+
+$CHECK
+If [M:PREP]PRLNUM = '' : Infbox 'Please open a plan first!' : Gosub FIN From GSAISIE : Endif
+Return
+
+$LOAD
+If !Clalev([ZPRH]) : Local File STOPREH[ZPRH] : Endif
+Local Integer i : i = 0
+Filter [ZPRH] Where STOFCY = [M:PREP]STOFCY & PRLNUM = [M:PREP]PRLNUM & DLVFLG = 1
+Read [ZPRH] first
+For [ZPRH]
+    i = i + 1
+Next
+
+[M:ZSLB]ZPREPNUM = [M:PREP]PRLNUM
+[M:ZSLB]ZNUMLBLS = num$(i)
+
+Affzo [M:ZSLB]ZPREPNUM
+Affzo [M:ZSLB]ZNUMLBLS
+Return
+
+$OK
+#Infbox 'OK :)'
+
+Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+TBPAR_BP(1) = "vcrdeb" : TBVAL_BP(1) = [M:PREP]PRLNUM
+TBPAR_BP(2) = "printcase"
+
+If [M:ZSLB]ZDISTCNT = 2
+    TBVAL_BP(2) = "2"
+    Call ETAT("ZSHIPLAB_BULK","","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+Else
+    TBVAL_BP(2) = "1"
+    Call ETAT("ZSHIPLAB_BULK","","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+Endif
+
+Return
+
+
+
+
+
+
+
+
+
+
+

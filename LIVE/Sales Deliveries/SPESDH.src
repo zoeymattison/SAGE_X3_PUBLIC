@@ -1,0 +1,12 @@
+$ACTION
+  Case ACTION 
+    when "APRES_CRE": gosub APRES_CRE
+  endcase
+Return
+
+$APRES_CRE
+  # & [F:YBPI]YSENDPRINT=2
+  if ([F:SDH]STOFCY='DC30' | [F:SDH]STOFCY='DC52' | [F:SDH]STOFCY='DC33' | [F:SDH]STOFCY='DC31') & [F:SDH]BETFCY = 2
+    Call PRINTSDH([F:SDH]SDHNUM) from YPRNSDH
+  endif
+Return

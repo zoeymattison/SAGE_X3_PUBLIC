@@ -1,0 +1,84 @@
+$ACTION
+Case ACTION
+ When default
+Endcase
+Return
+
+Subprog AS_LOCTYPDES(VALEUR)
+Variable Char    VALEUR()
+Local Integer NOL : [L]NOL = nolign-1
+
+If pat([M:SCS1]STOFCY, 'DC*') and [M:SCS1]STADES(NOL) = 'A' and [M:SCS1]STOFCY <> 'DC33'
+    If !clalev([ZST]) : Local File STOCK[ZST] : Endif
+    If !clalev([ZSL]) : Local File STOLOC[ZSL] : Endif
+    If !clalev([ZSL2]) : Local File STOLOC[ZSL2] : Endif
+    if !Clalev([ZSLR]) : Local File STOLOCRES[ZSLR] : Endif
+
+    Local Char ZLRES(20)(1..)
+    Local Integer ZLI : [L]ZLI = 1
+    Local Char ZDEF : [L]ZDEF = func AFNC.INTFLD('ITMFACILIT','DEFLOC(1)',[M:SCS1]ITMREF(NOL)+'~'+[M:SCS1]STOFCY)
+
+    Local Char ZSET_LOC
+    Local Char ZSET_LOCTYP
+
+    For [ZSLR]
+        [L]ZLRES(ZLI) = [ZSLR]LOC
+        [L]ZLI = [L]ZLI + 1
+    Next
+
+    Filter [ZST] Where STOFCY = [M:SCS1]STOFCY and ITMREF = [M:SCS1]ITMREF([L]NOL) and STA = 'A'
+    Filter [ZSL] Where STOFCY = [M:SCS1]STOFCY and !find(LOC,[L]ZLRES) and LOCTYP = 'WHS1' and LOC >= '23A1A' and LOC <= '72F6E' and OCPCOD = 1
+    Filter [ZSL2] Where LOC = [L]ZDEF and STOFCY = [M:SCS1]STOFCY and (OCPCOD = 1 OR MONITMFLG = 1)
+
+    Read [ZST] first # check for an existing stock record
+    If [S]Fstat # no record
+        Goto DEF_SEL # select the default location
+    Else
+        [L]ZSET_LOC = [ZST]LOC
+        [L]ZSET_LOCTYP = [ZST]LOCTYP
+        Goto SET_FIELD
+    Endif
+Goto CLOSE_FILE
+Endif
+End
+
+$DEF_SEL
+Read [ZSL2] first # read the defacult loation check that it is not in use
+If [S]Fstat
+    Goto LOC_SEL
+Else
+    #Infbox 'Inside DEF_SEL'
+    [L]ZSET_LOC = [ZSl2]LOC
+    [L]ZSET_LOCTYP = [ZSL2]LOCTYP
+    Goto SET_FIELD
+Endif
+End
+
+$LOC_SEL
+Read [ZSL] last # Read the first available open location
+If [S]Fstat
+    Infbox 'No locations available'
+    Goto CLOSE_FILE
+    End
+Else
+    [L]ZSET_LOC = [ZSL]LOC
+    [L]ZSET_LOCTYP = [ZSL]LOCTYP
+    Goto SET_FIELD
+Endif
+End
+
+$SET_FIELD
+[M:SCS1]LOCTYPDES(NOL) = [L]ZSET_LOCTYP : Affzo [M:SCS1]LOCTYPDES(NOL)
+[M:SCS1]LOCDES(NOL) = [L]ZSET_LOC : Affzo [M:SCS1]LOCDES(NOL)
+Goto CLOSE_FILE
+End
+
+$CLOSE_FILE
+Raz [L]ZSET_LOC, [L]ZSET_LOCTYP, [L]ZLRES
+Filter [ZST]
+Filter [ZSL]
+Filter [ZSL2]
+LogicClose File [ZST], [ZSL], [ZSL2]
+End
+
+

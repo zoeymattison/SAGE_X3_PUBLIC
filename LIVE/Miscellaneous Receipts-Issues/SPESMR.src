@@ -1,0 +1,46 @@
+
+# Mask management SMR1 (Specific)
+
+######################################################################################
+## Section automatically added (screen SMR1) 15/09/2023 15:08:24 (MOZM)
+######################################################################################
+$ACTION
+Case ACTION
+ When "OUVRE" : Gosub ZLOCK
+ When default
+Endcase
+Return
+
+Subprog AP_ITMREF(VALEUR)
+ Variable Char    VALEUR()
+ #If !Clalev([ZPTD]) : Local File PRECEIPTD[ZPTD] : Endif
+ If !clalev([ZPPL]) : Local File PPRICLIST [ZPPL] : Endif
+ If !Clalev([ZSTJ]) : Local File STOJOU[ZSTJ] : Endif
+   #Filter [ZPTD] Where ITMREF = VALEUR & pat(BPSNUM, 'V*') & CSTPUR > 0
+   Filter [ZSTJ] Where ITMREF = VALEUR & pat(BPRNUM, 'V*') & TRSTYP = 3
+#Read [ZPTD]PTD3 last
+Read [ZSTJ]STJ3 first
+if fstat = 0
+#[M:SMR1]PRI(nolign-1) = [F:ZPTD]CSTPUR
+[M:SMR1]PRI(nolign-1) = [F:ZSTJ]PRIORD
+Affzo [M:SMR1]PRI(nolign-1)
+Else 
+Read [ZPPL]PPL0='T20';VALEUR
+If fstat=0
+[M:SMR1]PRI(nolign-1) = [F:ZPPL]PRI(0)
+Affzo [M:SMR1]PRI(nolign-1)
+Endif
+Endif
+End
+
+
+#If !Clalev([ZSTJ]) : Local File STOJOU[ZSTJ] : Endif
+#Filter [ZSTJ] Where ITMREF = VALEUR & pat(BPRNUM, 'V*') & pat(VCRNUMORI, 'PO')
+#Read [ZSTJ]STJ3 first
+#[F:ZSTJ]PRIORD
+
+$ZLOCK
+If !GWEBSERV
+Grizo [M]VCRNUM
+Endif
+Return

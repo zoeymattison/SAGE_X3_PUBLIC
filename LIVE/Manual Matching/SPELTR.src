@@ -1,0 +1,43 @@
+$ACTION
+Case ACTION
+    When Default
+Endcase
+Return
+
+Subprog AM_BPR(VALEUR)
+Variable Char    VALEUR()
+If !clalev([F:BPR]) : Local File BPARTNER[F:BPR] : Endif
+If [F:BPR]BPRNUM <> VALEUR
+    Read [F:BPR]BPR0 = VALEUR
+    If fstat <> [V]CTS_AOK : Return : Endif
+Endif
+End
+
+Subprog AV_FCY(VALEUR)
+Variable Char    VALEUR()
+If [M:LTR]SOLSNS = 'CREDIT'
+    [M:LTR]SOLCPT = [M:LTR]SOLCPT*-1
+    Chgstl [M:LTR]SOLCPT With "BACKORANGE"
+Elsif [M:LTR]SOLSNS = 'DEBIT'
+    Chgstl [M:LTR]SOLCPT With "BACKGREEN"
+Else
+    Chgstl [M:LTR]SOLCPT With "NORMAL"
+Endif
+End
+
+Subprog AM_ZEDDRPT(VALEUR)
+Variable Integer VALEUR
+If VALEUR = 2 & [M:LTR]BPR <> "" & [M:LTR]ACC <> ""
+    Global Char ZG_EDDEML(250) : [V]ZG_EDDEML = func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[M:LTR]BPR+'~ADDR')
+    Global Char ZG_EDDBPR : [V]ZG_EDDBPR = [M:LTR]BPR
+    Local Char TBPAR(30)(0..),TBVAL(30)(0..)
+    Local Char ETAT(30) : [L]ETAT = "ZRPT_COLLECTION"
+    [L]TBPAR(0) = "bpdeb" : [L]TBVAL(0) = [V]ZG_EDDBPR
+    [L]TBPAR(1) = "bpfin" : [L]TBVAL(1) = [V]ZG_EDDBPR
+    [L]TBPAR(23) = "datedeb" : [L]TBVAL(23) = "07/01/2022"
+    [L]TBPAR(24) = "datefin" : [L]TBVAL(24) = num$(month(date$))+"/"+num$(day(date$))+"/"+num$(year(date$))
+    Call ETAT([L]ETAT,"EMAILX3","",0,"",[L]TBPAR,[L]TBVAL) From AIMP3
+    Kill [V]ZG_EDDEML, [V]ZG_EDDBPR
+Endif
+VALEUR = 1
+End

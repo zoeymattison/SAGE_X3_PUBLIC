@@ -1,0 +1,8 @@
+Subprog Z_ETIQ01
+For i = 0 to [M:SLP]NBLIG-1
+    If [M:SLP]TRT(i) = 2
+        [M:SLP]LBEFMT(i) = 'ETIQ01'
+        Affzo [M:SLP]LBEFMT(i)
+    Endif
+Next
+End

@@ -1,0 +1,11 @@
+If !Clalev([ZAC]) : Local File ACLOB[ZAC] : Endif
+
+[F:ZAC]CODBLB = 'CO_ITM'
+[F:ZAC]IDENT1 = 'ZOEYTEST'
+[F:ZAC]IDENT2 = ''
+[F:ZAC]IDENT3 = '1'
+[F:ZAC]CLOB = 'Test'
+
+Write [ZAC]
+
+

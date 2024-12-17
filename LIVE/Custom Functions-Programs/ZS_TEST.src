@@ -1,0 +1,36 @@
+Subprog OPENFILES
+  Local Char FILE1(250), FILE2(250)
+  Local Integer FSTAT1, FSTAT2
+  Local Char LINE1(250), LINE2(250)
+
+  FILE1 = "D:\Sage\X3\folders\LIVE\ZFILES\filenames.txt"
+  FILE2 = "D:\Sage\X3\folders\LIVE\ZFILES\filepaths.txt"
+
+  Openi FILE1 Using [ZFILE1]
+  Iomode adxifs chr$(13)+chr$(10) Using [ZFILE1]
+
+  Openi FILE2 Using [ZFILE2]
+  Iomode adxifs chr$(13)+chr$(10) Using [ZFILE2]
+
+  Repeat
+    Rdseq LINE1 Using [ZFILE1]
+    FSTAT1 = fstat
+
+    Rdseq LINE2 Using [ZFILE2]
+    FSTAT2 = fstat
+
+    If FSTAT1 = 0 And FSTAT2 = 0
+      If LINE1 <> "" And LINE2 <> "" Then
+        Infbox LINE1,LINE2
+      Endif
+    Else
+      Break
+    ENdif
+  Until FSTAT1 <> 0 Or FSTAT2 <> 0
+
+  Openi Using [ZFILE1]
+  Openi Using [ZFILE2]
+End
+
+
+

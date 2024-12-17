@@ -1,0 +1,7 @@
+Subprog AM_QTYPCUNEW(VALEUR)
+Variable Decimal VALEUR
+If VALEUR = 0 or VALEUR = val('')
+[M:SNL1]ZERSTOFLG(nolign-1) = 2
+Affzo [M:SNL1]ZERSTOFLG(nolign-1)
+Endif
+End

@@ -1,0 +1,15 @@
+If !Clalev([ZDD]) : Local File ZDOCDATA[ZDD] : Endif
+If !Clalev([ZPY]) : Local File PAYMENTH[ZPY] : Endif
+
+Filter [ZPY] Where pat(NUM, 'PAYET*') and STA = 9
+
+For [ZPY]
+    [F:ZDD]ZNUM = [F:ZPY]NUM
+    [F:ZDD]ZTYPE = 'PAYET'
+    [F:ZDD]ZNAME = 'MAILING'
+    [F:ZDD]CREDAT = [F:ZPY]CREDAT
+    Write [ZDD]
+Next
+
+Close Local File [ZDD], [ZPY]
+End

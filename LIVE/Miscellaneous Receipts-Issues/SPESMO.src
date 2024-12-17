@@ -1,0 +1,33 @@
+$ACTION
+Case ACTION
+    When "VERIF_CRE" : Gosub INFPV
+    When "APRES_CRE" : Gosub INFP
+    When default
+Endcase
+Return
+
+$INFPV
+If GUSER = 'INFP'
+    OK = 0
+Endif
+Return
+
+$INFP
+If GUSER = 'INFP'
+
+    Local Char MESSAGE(250)
+    Local Char DEST(250) : [L]DEST = "service@monk.ca;james.zabarauckas@monk.ca"
+    Local Char SUBJECT(250) : [L]SUBJECT = "InfoPOS Misc Issue created - "+[M:SMO0]VCRNUM
+    Local Char SENDER : [L]SENDER = "noreply@monk.ca"
+
+    [L]MESSAGE = "This is an automated message"+chr$(10)+chr$(10)+
+&    "InfoPOS created a misc issue! Please click here to go to it."+chr$(10)+chr$(10)+
+&    "https://sage.monk.ca/syracuse-main/html/main.html?url=/trans/x3/erp/LIVE/$sessions?f=GESSMO/0/SMO/M/"+[M:SMO0]VCRNUM+"~20"+chr$(10)+chr$(10)+
+&    "Thank you,"+chr$(10)+chr$(10)+
+&    "IT Department"
+
+
+Call EMAIL(DEST, SUBJECT, MESSAGE, SENDER) from ZS_PRINT
+
+Endif
+Return

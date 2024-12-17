@@ -1,0 +1,85 @@
+Funprog ZFUNC_ORDPIC(ZNUM)
+Value Char ZNUM
+Local Char RETVAL(200)
+Local Char ZORD
+If !clalev([ZPE]) : Local File STOPRED[ZPE] : Endif
+Filter [ZPE] Where ORINUM = ZNUM
+Read [ZPE] First
+ZORD = [ZPE]PRHNUM
+RETVAL = ZORD
+End RETVAL
+
+Funprog ZFUNC_AUTHTOT(ZNUM)
+Value Char ZNUM
+Local Decimal ZTOT : ZTOT = 0
+If !clalev([ZSE]) : Local File SEAUTH[ZSE] : Endif
+Filter [ZSE] Where SOHNUM = ZNUM
+For [ZSE]
+ZTOT = ZTOT + [ZSE]AUTAMT
+Next
+RETVAL = num$(ZTOT)
+End RETVAL
+
+Funprog ZFUNC_PICKLINES(ZNUM)
+Value Char ZNUM
+Local Char RETVAL(200)
+Local Integer ZCOUNT : ZCOUNT = 0
+If !clalev([ZPE]) : Local File STOPRED[ZPE] : Endif
+Filter [ZPE] Where PRHNUM = ZNUM
+For [ZPE]
+ZCOUNT = ZCOUNT + 1
+Next
+RETVAL = num$(ZCOUNT)
+End RETVAL
+
+Funprog ZFUNC_COUNTS(ZITM)
+Value Char ZITM
+Local Char RETVAL(200)
+Local Integer COUNT
+Local Char ZFISCALSTART : ZFISCALSTART = '0701'
+Local Char ZFISCALYEAR
+
+If !clalev([ZIV]) : Local File ITMMVT[ZIV] : Endif
+
+# Get today's date and determine the first year of the current fiscal
+Case month$(date$)
+    When "January"    : ZFISCALYEAR = num$(year(date$)-1)
+    When "February"   : ZFISCALYEAR = num$(year(date$)-1)
+    When "March"      : ZFISCALYEAR = num$(year(date$)-1)
+    When "April"      : ZFISCALYEAR = num$(year(date$)-1)
+    When "May"        : ZFISCALYEAR = num$(year(date$)-1)
+    When "June"       : ZFISCALYEAR = num$(year(date$)-1)
+    When "July"       : ZFISCALYEAR = num$(year(date$))
+    When "August"     : ZFISCALYEAR = num$(year(date$))
+    When "September"  : ZFISCALYEAR = num$(year(date$))
+    When "October"    : ZFISCALYEAR = num$(year(date$))
+    When "November"   : ZFISCALYEAR = num$(year(date$))
+    When "December"   : ZFISCALYEAR = num$(year(date$))
+    When Default
+Endcase
+
+# Create the fiscal start string by appending the above result to 0701
+Append ZFISCALYEAR, ZFISCALSTART
+
+# Calculate how many times the product has been counted since the ZFISCALEAR date, and return the value to the filter
+Filter [ZIV] Where ITMREF = ZITM and STOFCY = 'DC30'
+    Read [ZIV] First
+        If [ZIV]CUNDAT(0) >= ZFISCALYEAR : COUNT += 1 : Endif
+        If [ZIV]CUNDAT(1) >= ZFISCALYEAR : COUNT += 1 : Endif
+        If [ZIV]CUNDAT(2) >= ZFISCALYEAR : COUNT += 1 : Endif
+        If [ZIV]CUNDAT(3) >= ZFISCALYEAR : COUNT += 1 : Endif
+        RETVAL = num$(COUNT)
+        End RETVAL
+Raz ZITM, COUNT
+
+Funprog ZFUNC_BPTOTAL
+Local Decimal RETVAL
+If !clalev([ZSV]) : Local File SINVOICEV[ZSV] : Endif
+If !clalev([ZSI]) : Local File SINVOICE[ZSI] : Endif
+Local Decimal ZL_AMTATI
+Link [ZSV] With [ZSI]SIH0=[F:ZSV]NUM As [ZSH] Where ([F:ZSV]BPCORD = [M:BPC0]BPCNUM or [F:ZSV]BPCINV = [M:BPC0]BPCNUM)
+For [ZSH]
+[L]ZL_AMTATI += [F:ZSI]AMTATI*[F:ZSI]SNS
+Next
+Infbox num$([L]ZL_AMTATI)
+Raz [L]ZL_AMTATI

@@ -1,0 +1,49 @@
+$ACTION
+Case ACTION
+    When "SETBOUT" : Gosub SETBOUT
+    When "VERIF_CRE" : Gosub VERIF_CRE
+Endcase
+Return
+
+$SETBOUT
+Local File PINVOICE[ZPI]
+Columns [ZPI] (NUM, PAZ)
+If [M:PIH0]NUM<>""
+    Read [ZPI]PIH0 = [M:PIH0]NUM
+    If !fstat
+        If [F:ZPI]PAZ <> 4
+            CHMEN+="3B"
+            If val(func AFNC.INTFLD("AUTILIS","ZPAYAUT",GUSER))=2
+                CHMEN+="3c"
+            Endif
+        Endif
+    Endif
+Endif
+LogicClose File [ZPI]
+Return
+
+$VERIF_CRE
+If func AFNC.INTFLD("BPSUPPLIER","ZBPSAPP",[M:PIH0]BPR) <> "" and ([M:PIH0]PIVTYP = "DIR" or [M:PIH0]PIVTYP = "INV")
+   [M:PIH0]PAZ = 1
+Else
+    [M:PIH0]PAZ = 4
+Endif
+Affzo [M:PIH0]PAZ
+Return
+
+Subprog AM_BPRVCR(VALEUR)
+Variable Char    VALEUR()
+If !GIMPORT and VALEUR<>"" and (VALEUR<>[M:PIH1]BPRVCR or GREP="D")
+    Local File PINVOICE[ZPI]
+    Columns [ZPI] (NUM, BPRVCR, BPR)
+    Filter [ZPI] Where NUM <> [M:PIH0]NUM
+    Read [ZPI]PIH1 = [M:PIH0]BPR;VALEUR
+    If ![S]fstat
+        GMESSAGE = "Supplier document "+[F:ZPI]BPRVCR+" already exists on "+[F:ZPI]NUM
+        mkstat = 2
+    Endif
+    Filter [ZPI]
+    Columns [ZPI]
+    LogicClose File [ZPI]
+Endif
+End

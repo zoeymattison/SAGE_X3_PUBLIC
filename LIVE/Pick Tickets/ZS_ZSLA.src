@@ -1,0 +1,44 @@
+$ACTION
+Case ACTION
+    When "OUVRE" : Gosub CHECK
+    When "AVANT_OK" : Gosub OK
+    When default
+Endcase
+Return
+
+$CHECK
+If [M:PRH0]PRHNUM = '' : Infbox 'Please open a ticket first!' : Gosub FIN From GSAISIE : Endif
+Return
+
+
+$OK
+#Infbox 'OK :)'
+
+Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+TBPAR_BP(1) = "vcrdeb" : TBVAL_BP(1) = [M:PRH0]PRHNUM
+TBPAR_BP(2) = "printcase"
+TBPAR_BP(3) = "pagtot"
+TBPAR_BP(4) = "pagcur"
+
+If [M:ZSLA]ZVALEUR = ''
+    TBVAL_BP(3) = '1'
+Else
+    TBVAL_BP(3) = [M:ZSLA]ZVALEUR
+Endif
+
+If [M:ZSLA]ZDISTCNT = 2
+    For i = 1 to val(TBVAL_BP(3))
+        TBVAL_BP(2) = "2"
+        TBVAL_BP(4) = num$(i)
+        Call ETAT("ZSHIPLAB","","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+    Next
+Else
+    For i = 1 to val(TBVAL_BP(3))
+        TBVAL_BP(2) = "1"
+        TBVAL_BP(4) = num$(i)
+        Call ETAT("ZSHIPLAB","","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+    Next
+Endif
+Raz [M:ZSLA]ZVALEUR
+Raz [M:ZSLA]ZDISTCNT
+Return

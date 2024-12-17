@@ -1,0 +1,16 @@
+$ACTION
+Case ACTION
+ When default
+Endcase
+Return
+
+Subprog AM_QTYPCUNEW(VALEUR)
+Variable Decimal VALEUR
+If VALEUR < 1 or VALEUR = val('')
+[M:SNL0]ZERSTOFLG(nolign-1) = 2
+Affzo [M:SNL0]ZERSTOFLG(nolign-1)
+Endif
+End
+
+Subprog IB_PCUSTUNEW
+End

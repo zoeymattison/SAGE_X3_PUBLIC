@@ -1,0 +1,63 @@
+$ACTION
+Gosub ACTION From YSPEITM
+Case ACTION
+    When "VERIF_MOD" : Gosub VERIF_MOD
+    When "VERIF_CRE" : Gosub VERIF_CRE
+    When Default
+Endcase
+Return
+
+$VERIF_CRE
+Gosub ITM_GET_PRIO_COUNT
+Return
+
+$VERIF_MOD
+Gosub ITM_GET_PRIO_COUNT
+Local File ITMMASTER[ZIP]
+Columns [ZIP] (ITMREF, TSICOD(0))
+Read [ZIP]ITM0=[M:ITM0]ITMREF
+If [F:ZIP]TSICOD(0)="DS" or [F:ZIP]TSICOD(0)="DM" : Columns [ZIP] : LogicClose File [ZIP] : Return : Endif
+If ([M:ITM1]TSICOD(0)="DM" | [M:ITM1]TSICOD(0)="DS")
+    Local File ITMFACILIT[ZIF]
+    Columns [ZIF] (ITMREF, STOFCY, SAFSTO)
+    Global Char ZG_DISREC
+    Global Char ZG_DISFCY
+    Global Char ZG_DISITM
+    Global Integer ZG_DISSFT
+    Local Integer TYPEVT : [L]TYPEVT=1
+    Local Char CODEVT : [L]CODEVT="ZDC"
+    Local Char OPERAT : [L]OPERAT=""
+    Local Char CLEOBJ : [L]CLEOBJ=[F:ZIF]ITMREF
+    Filter [ZIF] Where ITMREF=[M:ITM0]ITMREF and SAFSTO > 0 and !pat(STOFCY, "CR*")
+    For [ZIF]
+        If pat([F:ZIF]STOFCY, "DC*")
+            [V]ZG_DISREC="service@monk.ca"
+        Else
+            [V]ZG_DISREC="store"+left$([F:ZIF]STOFCY,2)+"@monk.ca"
+        Endif
+        [V]ZG_DISFCY=[F:ZIF]STOFCY
+        [V]ZG_DISITM=[F:ZIF]ITMREF
+        [V]ZG_DISSFT=[F:ZIF]SAFSTO
+        Call WORKFLOW(TYPEVT,CODEVT,OPERAT,CLEOBJ) From AWRK
+        Raz ZG_DISFCY, ZG_DISITM, ZG_DISREC, ZG_DISSFT
+        Update [ZIF] Where ITMREF=[F:ZIF]ITMREF and STOFCY=[F:ZIF]STOFCY With SAFSTO=0
+    Next
+    Columns [ZIF]
+    Filter [ZIF]
+    LogicClose File [ZIF]
+Endif
+Columns [ZIP]
+LogicClose File [ZIP]
+Return
+
+$ITM_GET_PRIO_COUNT
+Local Integer ZL_PQ : [L]ZL_PQ = 0
+For I = 0 To [M:ITP]NBITP-1
+    If [M:ITP]PIO(I) = 0
+        [L]ZL_PQ += 1
+    Endif
+Next
+If ZL_PQ > 1
+    Gosub GET_PRIO_COUNT From ZS_PRINT
+Endif
+Return

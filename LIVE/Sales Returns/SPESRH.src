@@ -1,0 +1,142 @@
+$ACTION
+Case ACTION
+    When 'VERIF_CRE' : Gosub VERIF_CRE
+    When 'APRES_CRE' : Gosub APRES_CRE
+    When Default
+Endcase
+Return
+
+$VERIF_CRE
+If ([M:SRH0]STOFCY = 'DC30' or [M:SRH0]STOFCY = 'DC31') and GUSER <> 'MOAT' and GUSER <> 'MORHB'
+    Local Integer ZQTY
+    Local Integer OKCAN : OKCAN = 1
+    For I = 0 To [M:SRH1]NBLIG-1
+        If [M:SRH1]QTY(I) > 0
+            ZQTY = ZQTY + [M:SRH1]QTY(I)
+        Endif
+    Next
+
+    If ZQTY > 0
+        Call AVERTIR('Warning! A return quantity was entered for a warehouse return!', OKCAN) From GESECRAN
+        If OKCAN = 1
+            OK = 0 : Return
+        Endif
+    Endif
+Endif
+Return
+
+$APRES_CRE
+Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+Local Integer YN : YN = 2
+  If ([M:SRH0]STOFCY = 'DC30' | [M:SRH0]STOFCY = 'DC52' | [M:SRH0]STOFCY = 'DC33')
+    Call OUINON('Print RMA to Warehouse?', YN) From GESECRAN
+    If YN = 2
+      TBPAR_BP(1) = "transferdeb" : TBVAL_BP(1) = [M:SRH0]SRHNUM
+      Call ETAT("BONRETLIV","PICKTICK1","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+    Endif
+  Endif
+Return
+
+Subprog AM_RTNREN(VALEUR)
+Variable Char    VALEUR()
+If (GUSER = 'MOKH' or GUSER = 'MOZM')
+    If !clalev([ZPPL]) : Local File PPRICLIST[ZPPL] : Endif
+    If !clalev([ZST]) : Local File STOCK[ZST] : Endif
+    If !clalev([ZSL]) : Local File STOLOC[ZSL] : Endif
+    If !clalev([ZSL2]) : Local File STOLOC[ZSL2] : Endif
+    If !clalev([ZSLR]) : Local File STOLOCRES[ZSLR] : Endif
+
+    Local Char ZLRES(20)(1..)
+    Local Integer ZLI : ZLI = 1
+    Local Integer NOL : NOL = nolign-1
+    Local Char ZDEF : ZDEF = func AFNC.INTFLD('ITMFACILIT','DEFLOC(1)',[M:SRH1]ITMREF(NOL)+'~'+[M:SRH0]STOFCY)
+
+    Local Char ZSET_LOC
+    Local Char ZSET_LOCTYP
+    Local Char ZSET_STA
+
+    For [ZSLR]
+        ZLRES(ZLI) = [ZSLR]LOC
+        ZLI = ZLI + 1
+    Next
+
+    Filter [ZST] Where STOFCY = [M:SRH0]STOFCY and ITMREF = [M:SRH1]ITMREF(NOL) and STA = 'A'
+    Filter [ZSL] Where STOFCY = [M:SRH0]STOFCY and !find(LOC,ZLRES) and (LOCTYP = 'WHS1') and LOC >= '23A1A' and OCPCOD = 1
+    Filter [ZSL2] Where LOC = ZDEF and STOFCY = [M:SRH0]STOFCY and (OCPCOD = 1 or MONITMFLG = 1)
+
+    Read [ZST] First # check for an existing stock record
+    If fstat # no record
+        Gosub SRH_DEF_SEL # select the default location
+    Else
+        ZSET_LOC = [ZST]LOC
+        ZSET_LOCTYP = [ZST]LOCTYP
+        ZSET_STA = 'A'
+        Gosub SRH_SET_FIELD
+    Endif
+Endif
+End
+
+$SRH_DEF_SEL
+Read [ZSL2] First # read the defacult loation check that it is not in use
+If fstat
+    Gosub SRH_LOC_SEL
+Else
+    ZSET_LOC = [ZSL2]LOC
+    ZSET_LOCTYP = [ZSL2]LOCTYP
+    ZSET_STA = 'A'
+    Gosub SRH_SET_FIELD
+Endif
+Return
+
+$SRH_LOC_SEL
+Read [ZSL] First # Read the first available open location
+If fstat
+    Infbox 'No locations available'
+    Return
+Else
+    ZSET_LOC = [ZSL]LOC
+    ZSET_LOCTYP = [ZSL]LOCTYP
+    ZSET_STA = 'A'
+    Gosub SRH_SET_FIELD
+Endif
+Return
+
+$SRH_SET_FIELD
+If VALEUR <> 'DEF' & VALEUR <>'DAM' & VALEUR <> ''
+    [M:SRH1]STA(NOL) = ZSET_STA : Affzo [M:SRH1]STA(NOL)
+    [M:SRH1]LOCTYP(NOL) = ZSET_LOCTYP : Affzo [M:SRH1]LOCTYP(NOL)
+    [M:SRH1]LOC(NOL) = ZSET_LOC : Affzo [M:SRH1]LOC(NOL)
+    [M:SRH1]RTNCNOFLG(NOL) = 2 : Affzo [M:SRH1]RTNCNOFLG(NOL)
+    If VALEUR = 'MOT'
+        Read [ZPPL]PPL0 ='T20';[M:SRH1]ITMREF(NOL)
+        If !fstat
+            [M:SRH1]PRIORD(NOL) = [F:ZPPL]PRI(0)
+            Affzo [M:SRH1]PRIORD(NOL)
+        Endif
+    Endif
+Else
+    [M:SRH1]RTNSTOUPD(NOL) = 1 : Affzo [M:SRH1]RTNSTOUPD(NOL)
+    [M:SRH1]RTNCNOFLG(NOL) = 2 : Affzo [M:SRH1]RTNCNOFLG(NOL)
+Endif
+
+Raz ZSET_LOC, ZSET_LOCTYP, ZSET_STA, ZLRES
+Return
+
+Subprog AS_RTNREN(VALEUR)
+Variable Char    VALEUR()
+Local Integer NOL : NOL = nolign-1
+If (GUSER = 'MOAT' or GUSER = 'MORHB') and [M:SRH1]QTY > 0
+    [M:SRH1]LOCTYP(NOL) = 'WHSM' : Affzo [M:SRH1]LOCTYP(NOL)
+    [M:SRH1]LOC(NOL) = 'XMACHIN' : Affzo [M:SRH1]LOC(NOL)
+    [M:SRH1]STA(NOL) = 'A' : Affzo [M:SRH1]STA(NOL)
+    [M:SRH1]RTNCNOFLG(NOL) = 2 : Affzo [M:SRH1]RTNCNOFLG(NOL)
+Endif
+End
+
+Subprog AP_QTY(VALEUR)
+Variable Decimal VALEUR
+Local Integer NOL : NOL = nolign-1
+If (GUSER = 'MOAT' or GUSER = 'MORHB') and VALEUR > 0
+    [M:SRH1]RTNREN(NOL) = 'MOT' : Affzo [M:SRH1]RTNREN(NOL)
+Endif
+End

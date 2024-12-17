@@ -1,0 +1,106 @@
+$ACTIVATE_GLOBALS
+Global Clbfile ZG_MESSAGE(0)
+Global Char ZG_DEST(80)
+Global Char ZG_CCUSR(80)
+Global Char ZG_SUBJECT(250)
+Return
+
+
+$ZW_PRINT
+Local Integer TYPEVT : [L]TYPEVT = 1
+Local Char CODEVT : [L]CODEVT = "ZPT"
+Local Char OPERAT : [L]OPERAT = ""
+Local Char CLEOBJ : [L]CLEOBJ = ""
+Call WORKFLOW([L]TYPEVT,[L]CODEVT,[L]OPERAT,[L]CLEOBJ) From AWRK
+Kill [V]ZG_MESSAGE, [V]ZG_DEST, [V]ZG_CCUSR, [V]ZG_SUBJECT
+Return
+
+$GET_PRIO_COUNT
+Gosub ACTIVATE_GLOBALS
+[V]ZG_DEST = "james.zabarauckas@monk.ca"
+[V]ZG_CCUSR = "kirsten.luker@monk.ca;ross.fowlie@monk.ca;jessica.stewart@monk.ca"
+[V]ZG_SUBJECT = [M:ITM0]ITMREF-"has more than one priority 0 vendor"
+[V]ZG_MESSAGE = "This is an automated message. Shame, Shame, Shame!"+chr$(10)+chr$(10)
+&+"The above product record was modified or created and has more than one supplier record with a priority of 0."+chr$(10)
+&+"The record was modified by"-func AFNC.NOMUSER(GUSER)+"."+chr$(10)+chr$(10)
+For I = 0 To [M:ITP]NBITP-1
+    [V]ZG_MESSAGE += [M:ITP]BPSNUM(I)+": Priority "+num$([M:ITP]PIO(I))+chr$(10)
+Next
+[V]ZG_MESSAGE += chr$(10)+"Thank you,"+chr$(10)+chr$(10)
+&+"Zoey"+chr$(10)+chr$(10)
+&+"_____________________________________¶¶___________"+chr$(10)
+&+"________________________________¶1¶1111111¶_______"+chr$(10)
+&+"________¶¶111¶_______________¶¶¶¶111111111¶¶¶1____"+chr$(10)
+&+"_____¶1¶¶¶¶¶111111¶_________¶¶¶1¶¶¶11111111¶1¶¶___"+chr$(10)
+&+"___¶¶¶1¶1111111111¶¶1______¶¶1¶¶¶1111111111111¶¶__"+chr$(10)
+&+"__¶¶1¶¶1111111111111¶¶_____¶¶¶1¶¶¶¶1111111111111¶_"+chr$(10)
+&+"__¶¶_¶1111111111111111¶¶___¶¶¶¶¶¶11¶111111111111¶_"+chr$(10)
+&+"_11_¶11111111111111111¶¶_____¶¶¶¶__¶111111111111¶¶"+chr$(10)
+&+"¶¶¶¶1111111111111111¶¶¶¶_____1¶¶__11111111111111¶¶"+chr$(10)
+&+"¶¶¶¶11111111111¶¶¶¶¶¶¶______1¶1¶¶1111111111111111¶"+chr$(10)
+&+"¶¶1¶1111111111111¶¶¶¶¶¶_____¶¶¶¶¶¶11111111111111¶¶"+chr$(10)
+&+"¶¶11111111111111111111111¶¶___¶¶¶¶¶¶1111111111¶¶¶_"+chr$(10)
+&+"_1¶111111111111111111¶¶¶¶¶¶____¶¶¶¶11111111111¶1__"+chr$(10)
+&+"__¶¶11111111111111111¶¶¶_____¶¶¶1111111111111¶1___"+chr$(10)
+&+"___¶¶¶111111111111¶1¶¶¶____1¶¶111¶1111111¶11¶1____"+chr$(10)
+&+"____1¶¶¶11111111111¶¶¶¶111¶¶¶¶111111111¶11¶¶¶_____"+chr$(10)
+&+"______¶¶¶¶1111111111111¶¶¶¶1¶¶¶¶¶¶¶¶11¶11¶¶_______"+chr$(10)
+&+"_______¶¶¶¶¶11111111111¶111¶___¶¶¶111¶1¶¶¶________"+chr$(10)
+&+"_________¶¶¶¶¶¶111111111111¶__¶¶¶111¶¶¶1__________"+chr$(10)
+&+"____________1¶¶¶¶¶11111111¶¶_¶¶¶¶111¶¶____________"+chr$(10)
+&+"______________¶¶¶¶¶¶¶1111111_¶¶¶11¶¶1_____________"+chr$(10)
+&+"_________________1¶¶¶¶¶¶1111¶¶¶1¶¶¶¶______________"+chr$(10)
+&+"____________________¶¶¶¶¶¶1¶¶¶¶¶1¶________________"+chr$(10)
+&+"_______________________¶1¶¶¶1¶¶¶__________________"+chr$(10)
+&+"___________________________11¶____________________"
+Gosub ZW_PRINT
+Return
+
+$UNIQUE_REF
+Gosub ACTIVATE_GLOBALS
+[V]ZG_DEST = "ar@monk.ca"
+[V]ZG_CCUSR = "service@monk.ca;kaitlin.vandervlugt@monk.ca"
+[V]ZG_SUBJECT = "NOTICE - Duplicate InfoPOS Payment Created! - "+[M:PAY1]REF
+[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
+&+"A payment with an already-existing CB reference was created - "+[M:PAY1]REF+chr$(10)+chr$(10)
+&+"Thank you, "+chr$(10)+chr$(10)
+&+"IT Department"
+Gosub ZW_PRINT
+Return
+
+$SOH_BPCCHECK
+Gosub ZS_PRINT_GLOBALS From ZS_GLOBALS
+[V]ZG_DEST = "ar@monk.ca"
+[V]ZG_CCUSR = "service@monk.ca"
+[V]ZG_SUBJECT = "WARNING - Incorrect Bill-to On "+[M:SOH0]SOHNUM
+[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
+&+"A sales order was created with an incorrect bill-to."+chr$(10)+chr$(10)
+&+"The record was created by "+func AFNC.NOMUSER(GUSER)+chr$(10)+chr$(10)
+&+"Order: "+[M:SOH0]SOHNUM+chr$(10)
+&+"Sales site: "+[M:SOH0]SALFCY+chr$(10)
+&+"Sold-to: "+[M:SOH0]BPCORD+chr$(10)
+&+"Invoice: "+[M:SOH1]BPCINV+chr$(10)+chr$(10)
+&+"Thank you, "+chr$(10)+chr$(10)
+&+"IT Department"
+Gosub ZW_PRINT
+Return
+
+$SOH_SIGNATURE
+Gosub ACTIVATE_GLOBALS
+[V]ZG_DEST = "hello@monk.ca"
+[V]ZG_CCUSR = "zoey.mattison@monk.ca"
+[V]ZG_SUBJECT = "NOTICE - Monk Office Order for your Approval "+[F:SOH]SOHNUM
+[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
+&+"A sales order was created that needs approval!"+chr$(10)+chr$(10)
+&+"Order: "+[F:SOH]SOHNUM+chr$(10)
+&+"Sold-to: "+[F:SOH]BPCORD+chr$(10)
+&+"Valuation: $"+num$([F:SOH]ORDINVATI)+chr$(10)+chr$(10)
+&+func ZS_MONK.ZFUNC_SOHLINES([F:SOH]SOHNUM)
+&+chr$(10)
+&+"Thank you,"+chr$(10)+chr$(10)
+&+"IT Department"+chr$(10)
+Gosub ZW_PRINT
+Return
+
+
+

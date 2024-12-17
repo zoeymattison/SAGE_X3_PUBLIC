@@ -1,0 +1,21 @@
+# Mask management ZSHIPLAB (Specific)
+
+######################################################################################
+## Section automatically added (screen ZSHIPLAB) 20/11/2023 16:04:50 (MOZM)
+######################################################################################
+Subprog AM_ZVALEUR(VALEUR)
+Variable Char    VALEUR()
+If pat(VALEUR, '*#*!*')
+Infbox 'Please enter a number'
+Endif
+End
+
+
+######################################################################################
+
+
+
+
+
+
+

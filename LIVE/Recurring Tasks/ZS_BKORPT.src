@@ -1,0 +1,48 @@
+Local Integer  STA
+Local Integer  TRACE
+Local Char      FIC_TRACE(250)
+Local Char      ISSUERMAIL(250)
+Local Char      A_USER(250)(1..)
+Local Char      CC_USER(250)(1..)
+Local Char      HEADER(250)
+Local Clbfile   BODY(0)
+Local Char      ATTACHMENTS(250)(1..)
+
+A_USER(1)="kaitlin.vandervlugt@monk.ca"
+#A_USER(2)="james.zabarauckas@monk.ca"
+A_USER(3)="adam.taft@monk.ca"
+HEADER="Sales & Sites Backorder Reports - "+num$(format$("MM[/]DD[/]YYYY",date$))
+ISSUERMAIL="noreply@monk.ca"
+ATTACHMENTS(1) = "D:\Sage\X3\folders\LIVE\ZATTACH\BKORPT_INTERSITES_"+num$(format$("YYYYMMDD",date$))+".xlsx"
+ATTACHMENTS(2) = "D:\Sage\X3\folders\LIVE\ZATTACH\BKORPT_COMMFURNIT_"+num$(format$("YYYYMMDD",date$))+".xlsx"
+ATTACHMENTS(3) = "D:\Sage\X3\folders\LIVE\ZATTACH\BKORPT_STATIONMOT_"+num$(format$("YYYYMMDD",date$))+".xlsx"
+TRACE = 2
+
+Append BODY , "This is an automated message."+chr$(10)+chr$(10)
+Append BODY , "Please find attached the sales & sites backorder reports for "+num$(format$("MM[/]DD[/]YYYY",date$))+"."+chr$(10)+chr$(10)
+Append BODY , "Thank you,"+chr$(10)+chr$(10)
+Append BODY , "IT Department"
+
+STA =func ASYRMAIL.ASEND_MAIL(GACTX,ISSUERMAIL,A_USER,CC_USER,HEADER,BODY,ATTACHMENTS,TRACE)
+If STA <> [V]CST_AOK Then
+   Infbox( mess(1163,196,1))
+Endif
+
+Local Char PATH1(200) : [L]PATH1 = "D:\Sage\X3\folders\LIVE\ZATTACH\BKORPT_INTERSITES_"+num$(format$("YYYYMMDD",date$))+".xlsx"
+Local Char PATH2(200) : [L]PATH2 = "D:\Sage\X3\folders\LIVE\ZATTACH\BKORPT_COMMFURNIT_"+num$(format$("YYYYMMDD",date$))+".xlsx"
+Local Char PATH3(200) : [L]PATH3 = "D:\Sage\X3\folders\LIVE\ZATTACH\BKORPT_STATIONMOT_"+num$(format$("YYYYMMDD",date$))+".xlsx"
+Local Char DESPATH(200) : [L]DESPATH = "D:\Sage\X3\folders\LIVE\ZATTACH\ZARCHIVE"
+Local Integer STAT : [L]STAT = 1
+
+Call MOVE([L]PATH1, [L]DESPATH, [L]STAT) From ORDSYS
+Call MOVE([L]PATH2, [L]DESPATH, [L]STAT) From ORDSYS
+Call MOVE([L]PATH3, [L]DESPATH, [L]STAT) From ORDSYS
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,43 @@
+Subprog AM_STOFCY(VALEUR)
+Variable Char VALEUR()
+Case VALEUR
+    When "DC30" : [M:DIA]FOR1 = "ALL" : Affzo [M:DIA]FOR1
+    When "DC31" : Gosub AUTPREP_FURN
+When Default
+Endcase
+End
+
+Subprog AM_FOR1(VALEUR)
+Variable Char VALEUR()
+If VALEUR = "FRN" or VALEUR = "ALL" or VALEUR = "RET" or VALEUR = "PM" or VALEUR = "BTS" or VALEUR = "SCP" or VALEUR = "SHP" or VALEUR = "SLP"
+    If VALEUR = "FRN" : Gosub AUTPREP_FURN : Endif
+    If VALEUR = "RET" : Gosub AUTPREP_RETAIL : Endif
+    If VALEUR = "PM" : Gosub AUTPREP_ALL_CUST : Endif
+    If VALEUR = "ALL" : Gosub AUTPREP_ALL_CUST : Endif
+    If VALEUR = "SCP" : Gosub AUTPREP_ALL_CUST : Endif
+Else
+    Call ERREURT("Invalid option - "+VALEUR, 1) From GESECRAN
+    mkstat = 2
+Endif
+End
+
+$AUTPREP_ALL_CUST
+[M:DIA]STOFCY = "DC30" : Affzo [M:DIA]STOFCY
+[M:DIA]ORDRUP = 2 : Affzo [M:DIA]ORDRUP
+[M:DIA]BPDRUP = 1 : Affzo [M:DIA]BPDRUP
+Return
+
+$AUTPREP_RETAIL
+[M:DIA]STOFCY = "DC30" : Affzo [M:DIA]STOFCY
+[M:DIA]ORDRUP = 1 : Affzo [M:DIA]ORDRUP
+[M:DIA]BPDRUP = 2 : Affzo [M:DIA]BPDRUP
+Return
+
+$AUTPREP_FURN
+[M:DIA]STOFCY = "DC31" : Affzo [M:DIA]STOFCY
+[M:DIA]BPRFLG = 1 : Affzo [M:DIA]BPRFLG
+[M:DIA]BPRNAM = "" : Affzo [M:DIA]BPRNAM
+[M:DIA]BPRDEN = "" : Affzo [M:DIA]BPRDEN
+[M:DIA]BPRSRV = "" : Affzo [M:DIA]BPRSRV
+[M:DIA]BPRIMP = "" : Affzo [M:DIA]BPRIMP
+Return

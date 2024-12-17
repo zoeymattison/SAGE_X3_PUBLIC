@@ -1,0 +1,108 @@
+
+######################################################################################
+## Modified: 2023-10-05                                                             ##
+## Author (Company): TAC                                                            ##
+## Notes: ACTION modifications made in YSPESIH                                      ##
+######################################################################################
+## APRES_CRE in YSPESIH                                                             ##
+## VERIF_CRE in YSPESIH                                                             ##
+## VERIF_MOD in YSPESIH                                                             ##
+######################################################################################
+
+$ACTION
+  Case ACTION 
+    When "APRES_CRE" : Gosub ZMAIL : Gosub APRES_CRE From YSPESIH : Gosub APRES_CRE
+    When "VERIF_CRE" : Gosub BPCINV : Gosub VERIF_CRE From YSPESIH : Gosub REP_FIL : Gosub PTE_CHK
+    When "VERIF_MOD" : Gosub VERIF_MOD From YSPESIH
+  Endcase
+Return
+
+$APRES_CRE
+If func AFNC.INTFLD("BPCUSTOMER","ZSIHEML",[F:SIV]BPCORD) = num$(2) and [M:SIH4]INVATI > 0
+Local Char TBPAR(50)(1..50),TBVAL(50)(1..50)
+TBPAR(1) = "sihnum" : TBVAL(1) = [F:SIH]NUM
+Call ETAT("ZRPT_INVOICE2","EMAILX3","",0,"",TBPAR,TBVAL) From AIMP3
+Endif
+Return
+
+$BPCINV
+Local Integer OKCAN : OKCAN = 1
+If !GWEBSERV
+  If (pat([M:SIH0]BPCINV, '*-*') & !pat([M:SIH0]BPCINV, 'GAIN*')) | pat([M:SIH0]BPCINV, 'GAIN-*-*')
+    Call AVERTIR('Warning! A dash account may not be used in the bill-to.'+chr$(10)+'Click cancel to go back.', OKCAN) From GESECRAN
+      If OKCAN = 1
+        OK = 0 : Return
+      Endif
+  Endif
+Endif
+Return
+
+$ZMAIL
+If !GWEBSERV
+  If (pat([M:SIH0]BPCINV, '*-*') & !pat([M:SIH0]BPCINV, 'GAIN*')) | pat([M:SIH0]BPCINV, 'GAIN-*-*')
+    Local Char ZIDENT : ZIDENT = "BPCINV"
+    Call ZMAIL(ZIDENT) from ZMAIL
+  Endif
+Endif
+
+Return
+
+$REP_FIL
+If GUSER = 'YMIRA' and [M:SIH1]REP = ''
+[M:SIH1]REP(0) = '90'
+Affzo [M:SIH1]REP(0)
+  For i = 0 to [M:SIH4]NBLIG-1
+    [M:SIH4]REP1(i) = '90'
+    Affzo [M:SIH4]REP1(i)
+  Next
+Endif
+Return
+
+
+
+$PTE_CHK
+If [M:SIH2]PTE = "CREDITCARDP" and [M:SIH4]INVATI = 0
+[M:SIH2]PTE = "NET30"
+Affzo [M:SIH2]PTE
+Endif
+
+Return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

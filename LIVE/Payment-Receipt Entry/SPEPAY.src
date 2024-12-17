@@ -1,0 +1,107 @@
+$ACTION
+Case ACTION
+    When "VERIF_CRE" : Gosub UPDSEBPC From YSPEPAY : Gosub UNIQUE_REF
+    When "VERIF_MOD" : Gosub UPDSEBPC From YSPEPAY
+    When "STYLE" : Gosub STYLE
+    When Default
+Endcase
+Return
+
+$STYLE
+If !pat([M:PAY0]NUM, "IP*")
+    Gosub INITIALIZATION
+    For I=0 To [M:PAY1]NBLIG-1
+        If (!pat([M:PAY1]VCRNUM(I), "ORD*") and !pat([M:PAY1]VCRNUM(I), "BTS*") and !pat([M:PAY1]VCRNUM(I), "WEB*"))
+            Filter [ZGA] Where TYP=[M:PAY1]VCRTYP(I) and NUM=[M:PAY1]VCRNUM(I)
+            Read [ZGA] First
+            If ![S]fstat
+                If [ZGA]BPR<>"V5555"
+                    [M:PAY1]ZOKYAKU(I)=[ZGA]BPR+" - "+func AFNC.INTFLD("BPARTNER","BPRNAM",[ZGA]BPR)
+                    Gosub AFFZO_ZOKYAKU
+                Endif
+                If [ZGA]BPR="V5555" and pat([M:PAY1]VCRNUM(I), "P*")
+                    Filter [ZPI] Where NUM=[M:PAY1]VCRNUM(I) and NUMORI<>""
+                    Read [ZPI] First
+                    If ![S]fstat
+                        [M:PAY1]ZOKYAKU(I)=func AFNC.INTFLD("PRECEIPT","BPSNUM",[ZPI]NUMORI)+" - "+func AFNC.INTFLD("BPARTNER","BPRNAM",func AFNC.INTFLD("PRECEIPT","BPSNUM",[ZPI]NUMORI))
+                        Gosub AFFZO_ZOKYAKU
+                    Endif
+                    Filter [ZPI]
+                Endif
+                If [ZGA]BPR="V5555" and pat([M:PAY1]VCRNUM(I), "D*")
+                    Filter [ZPH] Where NUM=[M:PAY1]VCRNUM(I)
+                    Read [ZPH] First
+                    If ![S]fstat
+                        [M:PAY1]ZOKYAKU(I)="DIRECT - "+[ZPH]BPR+" - "+[ZPH]BPRVCR+" - "+[ZPH]DES
+                        Gosub AFFZO_ZOKYAKU
+                    Endif
+                    Filter [ZPH]
+                Endif
+            Endif
+            Filter [ZGA]
+        Else
+            [M:PAY1]ZOKYAKU(I)=func AFNC.INTFLD("SORDER","BPCINV",[M:PAY1]VCRNUM(I)+"~")+" - "+func AFNC.INTFLD("SORDER","BPINAM",[M:PAY1]VCRNUM(I)+"~")
+            Gosub AFFZO_ZOKYAKU
+        Endif
+    Next I
+Gosub CLOSING_ACTIONS
+Endif
+Return
+
+$INITIALIZATION
+Local File PINVOICED[ZPI]
+Local File PINVOICE[ZPH]
+Local File GACCENTRYD[ZGA]
+Columns [ZPI] (NUM, NUMORI)
+Columns [ZPH] (NUM, BPR, BPRVCR, DES)
+Columns [ZGA] (NUM, BPR, TYP)
+Return
+
+$CLOSING_ACTIONS
+Columns [ZPI]
+Columns [ZPH]
+Columns [ZGA]
+LogicClose File [ZPI], [ZPH], [ZGA]
+Return
+
+$AFFZO_ZOKYAKU
+Affzo [M:PAY1]ZOKYAKU(I)
+Return
+
+Subprog AS_BAN(VALEUR)
+Variable Char    VALEUR()
+Case GFLAG
+    When "EFT" : [M:PAY1]BAN="BANK1" : Gosub AFFZO_BAN
+    When "PAYCC" : [M:PAY1]BAN="BANK5" : Gosub AFFZO_BAN
+    When "PAYET" : Gosub USD_SEL
+    When Default
+Endcase
+End
+
+$USD_SEL
+If func AFNC.INTFLD("BPADDRESS","CRY",num$(1)+"~"+[M:PAY1]BPR+"~"+[M:PAY1]BPAINV)="US"
+    [M:PAY1]BAN="BANK3"
+Else
+    [M:PAY1]BAN="BANK1"
+Endif
+Gosub AFFZO_BAN
+End
+
+$AFFZO_BAN
+Affzo [M:PAY1]BAN
+Return
+
+$UNIQUE_REF
+If pat([M:PAY1]REF, "CB000*")
+    Local File PAYMENTH[ZPY]
+    Columns [ZPY] (NUM, REF)
+    Filter [ZPY] Where REF=[M:PAY1]REF
+    Read [ZPY] First
+    If ![S]fstat
+        Gosub UNIQUE_REF From ZS_PRINT
+    Endif
+    Columns [ZPY]
+    Filter [ZPY]
+    LogicClose File [ZPY]
+Endif
+Return

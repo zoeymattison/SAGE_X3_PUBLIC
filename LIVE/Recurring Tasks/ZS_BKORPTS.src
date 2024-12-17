@@ -1,0 +1,11 @@
+Local Integer TYPEVT : TYPEVT = 1				
+Local Char CODEVT : [L]CODEVT = "ZBS"				
+Local Char OPERAT : [L]OPERAT = ""					
+Local Char CLEOBJ : [L]CLEOBJ = ""
+Call WORKFLOW([L]TYPEVT,[L]CODEVT,[L]OPERAT,[L]CLEOBJ) From AWRK
+
+Local Char PATH(200) : [L]PATH = "D:\Sage\X3\folders\LIVE\ZATTACH\BackOrderReportSameday_"+num$(format$("YYYYMMDD",date$))+".xlsx"
+Local Char DESPATH(200) : [L]DESPATH = "D:\Sage\X3\folders\LIVE\ZATTACH\ZARCHIVE"
+Local Integer STAT : [L]STAT = 1
+
+Call MOVE([L]PATH, [L]DESPATH, [L]STAT) FROM ORDSYS
