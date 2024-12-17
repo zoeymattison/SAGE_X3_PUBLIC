@@ -1,0 +1,101 @@
+$ACTION
+Case ACTION
+    When Default
+Endcase
+Return
+
+Subprog AP_STA(VALEUR)
+Variable Char   VALEUR()
+If VALEUR = 'A' & [M:ENT]STOFCY = 'DC30'
+    Gosub ENT_SET_PARAMS
+    Gosub ENT_GET_RESERVED_LOCLIST
+    Gosub ENT_OPEN_TABLES
+    Gosub ENT_SELECT_EXISTING_LOC
+Endif
+End
+
+$ENT_SET_PARAMS
+Local Integer ZL_NOL : [L]ZL_NOL = nolign-1
+Local Char ZL_DEF : [L]ZL_DEF = func AFNC.INTFLD('ITMFACILIT','DEFLOC(1)',[M:ENT]ITMREF([L]ZL_NOL)+'~'+[M:ENT]STOFCY)
+Local Char ZL_SETLOC
+Local Char ZL_SETTYP
+Local Char ZL_SETSTA
+Return
+
+$ENT_GET_RESERVED_LOCLIST
+Local File STOLOCRES[ZSLR]
+Local Char ZL_RES(20)(1..)
+Local Integer ZL_I1 : [L]ZL_I1 = 1
+Columns [ZSLR] (LOC)
+For [ZSLR]
+    [L]ZL_RES([L]ZL_I1) = [ZSLR]LOC
+    [L]ZL_I1 += 1
+Next
+Columns [ZSLR]
+LogicClose File [ZSLR]
+Return
+
+$ENT_OPEN_TABLES
+Local File STOCK[ZST], STOLOC[ZSL], STOLOC[ZSL2]
+Columns [ZST] (STOFCY, ITMREF, STA, LOC, LOCTYP)
+Columns [ZSL] (STOFCY, LOC, LOCTYP, OCPCOD)
+Columns [ZSL2] (STOFCY, LOC, LOCTYP, OCPCOD, MONITMFLG)
+Filter [ZST] Where STOFCY = [M:ENT]STOFCY & ITMREF = [M:ENT]ITMREF([L]ZL_NOL) & STA = 'A'
+Filter [ZSL] Where STOFCY = [M:ENT]STOFCY & !find(LOC,[L]ZL_RES) & (LOCTYP = 'WHS1') & LOC >= '23A1A' & OCPCOD = 1
+Filter [ZSL2] Where LOC = [L]ZL_DEF & STOFCY = [M:ENT]STOFCY & (OCPCOD = 1 or MONITMFLG = 1)
+Return
+
+$ENT_SELECT_EXISTING_LOC
+Read [ZST] First
+If [S]fstat
+    Gosub ENT_SELECT_DEFAULT_LOC
+Else
+    [L]ZL_SETLOC = [ZST]LOC
+    [L]ZL_SETTYP = [ZST]LOCTYP
+    [L]ZL_SETSTA = 'A'
+    Gosub ENT_SET_FIELDS
+Endif
+Return
+
+$ENT_SELECT_DEFAULT_LOC
+Read [ZSL2] First
+If [S]fstat
+    Gosub ENT_SELECT_NEW_LOC
+Else
+    [L]ZL_SETLOC = [ZSL2]LOC
+    [L]ZL_SETTYP = [ZSL2]LOCTYP
+    [L]ZL_SETSTA = 'A'
+    Gosub ENT_SET_FIELDS
+Endif
+Return
+
+$ENT_SELECT_NEW_LOC
+Read [ZSL] First
+If [S]fstat
+    Infbox 'NO LOCATIONS AVAILABLE'
+    Gosub ENT_CLOSING_ACTIONS
+Else
+    [L]ZL_SETLOC = [ZSL]LOC
+    [L]ZL_SETTYP = [ZSL]LOCTYP
+    [L]ZL_SETSTA = 'A'
+    Gosub ENT_SET_FIELDS
+Endif
+Return
+
+$ENT_SET_FIELDS
+[M:ENT]STA([L]ZL_NOL) = [L]ZL_SETSTA : Affzo [M:ENT]STA([L]ZL_NOL)
+[M:ENT]LOCTYP([L]ZL_NOL) = [L]ZL_SETTYP : Affzo [M:ENT]LOCTYP([L]ZL_NOL)
+[M:ENT]LOC([L]ZL_NOL) = [L]ZL_SETLOC : Affzo [M:ENT]LOC([L]ZL_NOL)
+Gosub ENT_CLOSING_ACTIONS
+Return
+
+$ENT_CLOSING_ACTIONS
+Raz [L]ZL_NOL, [L]ZL_DEF, [L]ZL_SETLOC, [L]ZL_SETTYP, [L]ZL_SETSTA, [L]ZL_RES, [L]ZL_I1
+Filter [ZST]
+Filter [ZSL]
+Filter [ZSL2]
+Columns [ZST]
+Columns [ZSL]
+Columns [ZSL2]
+LogicClose File [ZST], [ZSL], [ZSL2]
+Return

@@ -1,0 +1,65 @@
+$ACTION
+Case ACTION
+    When "SETBOUT" : Gosub SETBOUT
+    When "VERIF_CRE" : Gosub VERIF_CRE
+    When Default
+Endcase
+Return
+
+# Processing for button activation.
+
+$SETBOUT
+Local File PINVOICE[ZPI]
+Columns [ZPI] (NUM, PAZ)
+If [M:BIS0]NUM<>""
+    Read [ZPI]PIH0 = [M:BIS0]NUM
+    If !fstat
+        If [F:ZPI]PAZ <> 4
+            CHMEN+="GO"
+            If val(func AFNC.INTFLD("AUTILIS","ZPAYAUT",GUSER))=2
+                CHMEN+="Gz"
+            Endif
+        Endif
+    Endif
+Endif
+Columns [ZPI]
+LogicClose File [ZPI]
+Return
+
+# Processing for modification of the XFLGPAZ field when creating new documents.
+
+$VERIF_CRE
+If func AFNC.INTFLD("BPSUPPLIER","ZBPSAPP",[M:BIS0]BPR) <> "" & ([M:BIS0]PIVTYP = "DIR" or [M:BIS0]PIVTYP = "INV")
+    [M:BIS1]XFLGPAZ = 1
+Else
+    [M:BIS1]XFLGPAZ = 4
+Endif
+Affzo [M:BIS1]XFLGPAZ
+Return
+
+# Processing for modification of the BPRVCR field - checking whether the entered value already exists on
+# another document, and preventing the entry if true.
+
+Subprog AM_BPRVCR(VALEUR)
+Variable Char    VALEUR()
+If !GIMPORT and VALEUR<>"" and (VALEUR<>[M:BIS1]BPRVCR or GREP="D")
+    Local File PINVOICE[ZPI]
+    Columns [ZPI] (NUM, BPRVCR, BPR)
+    Filter [ZPI] Where NUM <> [M:BIS0]NUM
+    Read [ZPI]PIH1 = [M:BIS0]BPR;VALEUR
+    If ![S]fstat
+        GMESSAGE = "Identical vendor document number is prohibited."
+        mkstat = 2
+    Endif
+    Filter [ZPI]
+    Columns [ZPI]
+    LogicClose File [ZPI]
+Endif
+End
+
+# Trying to automatically set the value of PIVTYP to DIR
+
+Subprog D_PIVTYP(VALEUR)
+Variable Char    VALEUR()
+[M:BIS0]PIVTYP = 'DIR' : Affzo [M:BIS0]PIVTYP
+End

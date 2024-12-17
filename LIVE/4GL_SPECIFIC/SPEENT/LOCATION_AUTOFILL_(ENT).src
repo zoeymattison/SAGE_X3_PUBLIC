@@ -1,0 +1,144 @@
+# Sage X3 Automatic Location Entry for detailed line modification during intersite receiving
+# Purpose: To automatically select a location when changing the status and receiving location in detailed line entry of intersite receipts.
+# Author: Zoey Mattison
+# Revision: 2.0
+# Last update: 2024-12-06
+
+# After leving the status field, we need to set up a group of variables with values and open the necessary
+# database tables. After doing so, the main body of the function will run.
+
+Subprog AP_STA(VALEUR)
+Variable Char   VALEUR()
+If VALEUR = 'A' & [M:ENT]STOFCY = 'DC30'
+    Gosub ENT_SET_PARAMS
+    Gosub ENT_GET_RESERVED_LOCLIST
+    Gosub ENT_OPEN_TABLES
+    Gosub ENT_SELECT_EXISTING_LOC
+Endif
+End
+
+# Define local variables and set values for some of them.
+# 1.    ZL_NOL (nolign placeholder) will be set to nolign-1
+# 2.    ZL_DEF (default location) will be set to the default location of the product in question from the ITMMASTER table
+# 3.    ZL_SETLOC - variable for location to be used
+# 5.    ZL_SETTYP - variable for location type to be used
+# 6.    ZL_SETSTA - variable for status to be used
+
+$ENT_SET_PARAMS
+Local Integer ZL_NOL : [L]ZL_NOL = nolign-1
+Local Char ZL_DEF : [L]ZL_DEF = func AFNC.INTFLD('ITMFACILIT','DEFLOC(1)',[M:ENT]ITMREF([L]ZL_NOL)+'~'+[M:ENT]STOFCY)
+Local Char ZL_SETLOC
+Local Char ZL_SETTYP
+Local Char ZL_SETSTA
+Return
+
+# Here, we need to compile a list of currently reserved locations from the table STOLOCRES
+# 1.    Use a FOR loop to iterate through list, and append each reserved location to a an array variable ZL_RES
+# 2.    I've declared variable ZL_I1 here to use as the index for the for loop.
+
+$ENT_GET_RESERVED_LOCLIST
+Local File STOLOCRES[ZSLR]
+Local Char ZL_RES(20)(1..)
+Local Integer ZL_I1 : [L]ZL_I1 = 1
+Columns [ZSLR] (LOC)
+For [ZSLR]
+    [L]ZL_RES([L]ZL_I1) = [ZSLR]LOC
+    [L]ZL_I1 += 1
+Next
+Columns [ZSLR]
+LogicClose File [ZSLR]
+Return
+
+# All of the necessary tables required for processing this function are being opened here, with specific WHERE
+# clauses to identify a location to use within them
+# 1.    STOCK [ZST] - Filter for any STOCK entry with product from the line in question and with an A status
+# 2.    STOLOC [ZSL] - Filter for any STOLOC location where the location is within type WHS1, greater than or equal to 
+#       23A1A, not occupied, and not existing within the ZL_RES array from earlier (reserved location list)
+# 3.    STOLOC2 [ZSL2] - Filtrer for any STOLOC location where the location is equal to the default location of
+#       the product, the stock site is the same stock site as the receiving site, and the location is not in use
+#       OR single item flag is set to yes (for determining default locations that are not in use)
+
+$ENT_OPEN_TABLES
+Local File STOCK[ZST], STOLOC[ZSL], STOLOC[ZSL2]
+Columns [ZST] (STOFCY, ITMREF, STA, LOC, LOCTYP)
+Columns [ZSL] (STOFCY, LOC, LOCTYP, OCPCOD)
+Columns [ZSL2] (STOFCY, LOC, LOCTYP, OCPCOD, MONITMFLG)
+Filter [ZST] Where STOFCY = [M:ENT]STOFCY & ITMREF = [M:ENT]ITMREF([L]ZL_NOL) & STA = 'A'
+Filter [ZSL] Where STOFCY = [M:ENT]STOFCY & !find(LOC,[L]ZL_RES) & (LOCTYP = 'WHS1') & LOC >= '23A1A' & OCPCOD = 1
+Filter [ZSL2] Where LOC = [L]ZL_DEF & STOFCY = [M:ENT]STOFCY & (OCPCOD = 1 or MONITMFLG = 1)
+Return
+
+# First, we will try to select an existing product location if it's already in stock at the stock site
+# 1.    Read STOCK first record, and if unsuccessful, go to next selection function (try default location)
+# 2.    If the read was successful, we will set our 3 variables to the location, location type and status, and
+#       proceed to the very end, ENT_SET_FIELDS, to update the screen
+
+$ENT_SELECT_EXISTING_LOC
+Read [ZST] First
+If [S]fstat
+    Gosub ENT_SELECT_DEFAULT_LOC
+Else
+    [L]ZL_SETLOC = [ZST]LOC
+    [L]ZL_SETTYP = [ZST]LOCTYP
+    [L]ZL_SETSTA = 'A'
+    Gosub ENT_SET_FIELDS
+Endif
+Return
+
+# Second, we were unable to find an existing location, so let's check if the product's default location is not in use
+# 1.    Read STOLOC2 first record, and if unsuccessful, go to the next selection function (get a new location).
+# 2.    If the read was successful, we will set our 3 variables to the location, location type and status, and
+#       proceed to the very end, ENT_SET_FIELDS, to update the screen
+
+$ENT_SELECT_DEFAULT_LOC
+Read [ZSL2] First
+If [S]fstat
+    Gosub ENT_SELECT_NEW_LOC
+Else
+    [L]ZL_SETLOC = [ZSL2]LOC
+    [L]ZL_SETTYP = [ZSL2]LOCTYP
+    [L]ZL_SETSTA = 'A'
+    Gosub ENT_SET_FIELDS
+Endif
+Return
+
+# Finally, we were unable to find an existing or default location, so we need to select the next first available location.
+# 1.    Read STOLOC first record, and if unsuccessful, well, there are no free locations within our filter parameters. Go
+#       to the closing actions.
+# 2.    If the read was successful, we will set our 3 variables to the location, location type and status, and
+#       proceed to the very end, ENT_SET_FIELDS, to update the screen
+
+$ENT_SELECT_NEW_LOC
+Read [ZSL] First
+If [S]fstat
+    Infbox 'NO LOCATIONS AVAILABLE'
+    Gosub ENT_CLOSING_ACTIONS
+Else
+    [L]ZL_SETLOC = [ZSL]LOC
+    [L]ZL_SETTYP = [ZSL]LOCTYP
+    [L]ZL_SETSTA = 'A'
+    Gosub ENT_SET_FIELDS
+Endif
+Return
+
+# This function simple updates the screen with the values we set previously.
+
+$ENT_SET_FIELDS
+[M:ENT]STA([L]ZL_NOL) = [L]ZL_SETSTA : Affzo [M:ENT]STA([L]ZL_NOL)
+[M:ENT]LOCTYP([L]ZL_NOL) = [L]ZL_SETTYP : Affzo [M:ENT]LOCTYP([L]ZL_NOL)
+[M:ENT]LOC([L]ZL_NOL) = [L]ZL_SETLOC : Affzo [M:ENT]LOC([L]ZL_NOL)
+Gosub ENT_CLOSING_ACTIONS
+Return
+
+# This function closes all tables and clears all variables.
+
+$ENT_CLOSING_ACTIONS
+Raz [L]ZL_NOL, [L]ZL_DEF, [L]ZL_SETLOC, [L]ZL_SETTYP, [L]ZL_SETSTA, [L]ZL_RES, [L]ZL_I1
+Filter [ZST]
+Filter [ZSL]
+Filter [ZSL2]
+Columns [ZST]
+Columns [ZSL]
+Columns [ZSL2]
+LogicClose File [ZST], [ZSL], [ZSL2]
+Return
