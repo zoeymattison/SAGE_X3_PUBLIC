@@ -1,7 +1,7 @@
 $ACTION
 Case ACTION
-    When "MESSAGE" : If GUSER = "MOZM" : Gosub MESSAGE : Endif
-    When default
+    When "MESSAGE" : Gosub MESSAGE
+    When Default
 Endcase
 Return
 
@@ -10,7 +10,7 @@ Local Char FICHIER(240)
 Local Integer STAT
 Case [F:AWA]CODE
 When "ZW_SIHPRNM" : [L]FICHIER=filpath("","","")+"\"+[M:SIH0]NUM+".pdf" : Gosub RENAME
-When default
+When Default
 Endcase
 Return
 
@@ -18,6 +18,3 @@ $RENAME
 Call MOVE (PCEJOI(NBJOI),FICHIER,STAT) From ORDSYS
 PCEJOI(NBJOI)=FICHIER
 Return
-
-
-
