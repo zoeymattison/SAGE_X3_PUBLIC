@@ -51,13 +51,6 @@ Return
 $STYLE
 Diszo [M:POH0]ZSCNLN
 Diszo [M:POH0]ZSCNQY
-Local Integer I
-       For I = 0 To [M:POH2]NBLIG - 1
-        [M:POH2]YITMBPS(I)=func AFNC.INTFLD('ITMBPS','ITMREFBPS',[M:POH2]ITMREF(I)+'~'+[M:POH0]BPSNUM)
-        [M:POH2]ZITMSTA(I)=func AFNC.INTFLD('ITMMASTER','TSICOD(0)',[M:POH2]ITMREF(I))
-        Affzo [M:POH2]YITMBPS(I)
-        Affzo [M:POH2]ZITMSTA(I)
-       Next
 Return
 
 $APRES_CRE
@@ -98,43 +91,6 @@ Subprog AP_TSSCOD(VALEUR)
 Variable Char    VALEUR()
 End
 
-Subprog AP_YEXPDAT(VALEUR)
-Variable Date    VALEUR
-Local Integer I : I= [M:POH2]NBLIG
-Local Integer NEEDUPDATE : NEEDUPDATE = 0
-Local Integer YN : YN = 2 :# By default points on Yes
-
-If num$(VALEUR) <> "00/00/0000"
-    For I = 0 To [M:POH2]NBLIG - 1
-       If [M:POH2]EXTRCPDAT(I) <> VALEUR and [M:POH2]LINCLEFLG(I) < 2
-         NEEDUPDATE = 1
-         Break
-       Endif
-    Next
-Endif
-If NEEDUPDATE = 1
-    Call OUINON("Do you want to update all lines with new expected receive date?", YN) From GESECRAN
-   If YN = 2
-       For I = 0 To [M:POH2]NBLIG - 1
-          If [M:POH2]EXTRCPDAT(I) <> VALEUR and [M:POH2]LINCLEFLG(I) < 2
-             [M:POH2]EXTRCPDAT(I) = VALEUR
-             Affzo [M:POH2]EXTRCPDAT(I)
-          Endif
-       Next
-    Endif
-Endif
-End
-
-Subprog AS_EXTRCPDAT(VALEUR)
-Variable Date    VALEUR
-Local Integer I : I = nolign - 1
-If [M:POH0]YEXPDAT <> VALEUR and num$([M:POH0]YEXPDAT) <> "00/00/0000"
-    VALEUR = [M:POH0]YEXPDAT
-    [M:POH2]EXTRCPDAT(I) = VALEUR
-    Affzo [M:POH2]EXTRCPDAT(I)
-Endif
-End
-
 Subprog AP_ITMREF(VALEUR)
 Variable Char    VALEUR()
 Local Char ZSITE : ZSITE = [M:POH0]BPSNUM
@@ -157,9 +113,7 @@ If ZSTA = 'DS' or ZSTA = 'DM'
 Endif
 Endif
 
-[M:POH2]YITMBPS(nolign-1)=func AFNC.INTFLD('ITMBPS','ITMREFBPS',VALEUR+'~'+[M:POH0]BPSNUM)
 [M:POH2]ZITMSTA(nolign-1)=ZSTA
-Affzo [M:POH2]YITMBPS(nolign-1)
 Affzo [M:POH2]ZITMSTA(nolign-1)
 End
 
