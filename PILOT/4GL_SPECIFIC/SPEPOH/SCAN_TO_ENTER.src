@@ -1,37 +1,36 @@
-Sage X3 Scannable product entry for PO intersite creation
+# Sage X3 Scannable product entry for PO intersite creation
+# Purpose: To allow retail stores to scan a UPC, enter a quantity and have that translated into the screen grid, without the user ever having to interact with it or use the mouse.
+# Author: Zoey Mattison
+# Revision: 2.1.1
+# Last update: 2024-12-16
 
-Purpose: To allow retail stores to scan a UPC, enter a quantity and have that translated into the screen grid, without the user ever having to interact with it or use the mouse.
+# Requirements
+# 1.	A field to scan a UPC into and have it automatically changed to the linked product code
+# 2a.	A field for the user to enter the desired quantity
+# 2b.	Pressing enter or tab after typing in the quantity will add the product and quantity to the screen grid as a new line
+# 2c.	Entering a product and quantity that already exists in the lines should add to the existing line instead of creating a new line
+# 3.	Control for the maximum allowable quantity
+# 4.	Chronological process control – the user should not be able to exit the quantity field without confirming cancellation of the entire action
+# 5.	Ability to engage modification of an existing PO when interacting with the new product entry field\
+# 6.	Limit usage to a specific entry transaction for POs
+# 7.	Limit usage to intersite entry only
+# 8.	Perform a hard check on whether the product entered exists in the receiving site – throw an error if not
 
-Requirements
-1.	A field to scan a UPC into and have it automatically changed to the linked product code
-2.	A field for the user to enter the desired quantity
-a.	Pressing enter or tab after typing in the quantity will add the product and quantity to the screen grid as a new line
-b.	Entering a product and quantity that already exists in the lines should add to the existing line instead of creating a new line
-3.	Control for the maximum allowable quantity
-4.	Chronological process control – the user should not be able to exit the quantity field without confirming cancellation of the entire action
-5.	Ability to engage modification of an existing PO when interacting with the new product entry field\
-6.	Limit usage to a specific entry transaction for POs
-7.	Limit usage to intersite entry only
-8.	Perform a hard check on whether the product entered exists in the receiving site – throw an error if not
-
-Implementation
-New fields created
-1.	POH0 -> ZSCNLN -> Type ITM (allows for product browser to be used if UPC does not scan or no UPC is present)
-2.	POH0 -> ZSCNQY > Type QTY (integer, no decimal allowed)
-New field actions created
-1.	POH0 -> BPSNUM -> AM_BPSNUM (after modification, we want to check if the site is an intersite, and activate the new product field)
-2.	POH0 -> ZSCNLN -> AM_ZSCNLN (after modification, we will perform several functions related to the processing of this field)
-3.	POH0 -> ZSCNQY -> AP_ZSCNQY (after exit of the field, we will perform several functions related to the processing of this field)
-4.	POH0 -> ZSCNQY -> C_ZSCNQY (control of the field to catch quantity of 0 and prevent quantity greater than 1000)
-New buttons created
-1.	OPOH -> Button Menu Z -> “Custom Functions”
-2.	OPOH -> Button Menu Line Za -> “Enable scan to enter” (when opening an existing PO, if the PO is an intersite, the user can click this button to activate modification mode, and enable the new product field)
-New entry transactions created
-1.	Purchasing -> Orders -> RET Retail Intersite Entry (A highly limited entry transaction that hides all fields except those necessary for intersite creation)
-a.	This has been combined with an authored view to further limit the layout of the screen
-
-Development
-All development was written in SPEPOH. I have simplified the code and removed all other modifications for the sake of this email.
+# Implementation
+# New fields created
+# 1.	POH0 -> ZSCNLN -> Type ITM (allows for product browser to be used if UPC does not scan or no UPC is present)
+# 2.	POH0 -> ZSCNQY > Type QTY (integer, no decimal allowed)
+# New field actions created
+# 1.	POH0 -> BPSNUM -> AM_BPSNUM (after modification, we want to check if the site is an intersite, and activate the new product field)
+# 2.	POH0 -> ZSCNLN -> AM_ZSCNLN (after modification, we will perform several functions related to the processing of this field)
+# 3.	POH0 -> ZSCNQY -> AP_ZSCNQY (after exit of the field, we will perform several functions related to the processing of this field)
+# 4.	POH0 -> ZSCNQY -> C_ZSCNQY (control of the field to catch quantity of 0 and prevent quantity greater than 1000)
+# New buttons created
+# 1.	OPOH -> Button Menu Z -> “Custom Functions”
+# 2.	OPOH -> Button Menu Line Za -> “Enable scan to enter” (when opening an existing PO, if the PO is an intersite, the user can click this button to activate modification mode, and enable the new product field)
+# New entry transactions created
+# 1.	Purchasing -> Orders -> RET Retail Intersite Entry (A highly limited entry transaction that hides all fields except those necessary for intersite creation)
+# a.	This has been combined with an authored view to further limit the layout of the screen
 
 $ACTION
 Case ACTION
