@@ -1,12 +1,11 @@
 $ACTION
 Case ACTION
+    When "SETBOUT" : Gosub SETBOUT
+    When "AVANTBOUT" Gosub AVANTBOUT
     When "APRES_CRE" : Gosub APRES_CRE
     When "APRES_MOD" : Gosub APRES_MOD
     When "VERIF_CRE" : Gosub VERIF_CRE
     When "VERIF_MOD" : Gosub VERIF_MOD
-    When "STYLE" : Gosub STYLE
-    When "SETBOUT" : Gosub SETBOUT
-    When "AVANTBOUT" Gosub AVANTBOUT
 When Default
 Endcase
 Return
@@ -96,24 +95,6 @@ RETURNN
 
 # Before creation
 $VERIF_CRE
-Local Decimal YSURCHARGE
-Local File FACILITY[YFCY]
-Columns [YFCY] (FCY, YFUECHA)
-Read [YFCY]FCY0=[M:SOH0]SALFCY
-If ![S]fstat
-    [L]YSURCHARGE=[F:YFCY]YFUECHA
-Else
-    [L]YSURCHARGE=0
-Endif
-Columns [YFCY]
-LogicClose File [YFCY]
-If [M:SOH3]INVDTAAMT(2)>=[L]YSURCHARGE
-    [M:SOH3]INVDTAAMT(2)=[M:SOH3]INVDTAAMT(2) - [L]YSURCHARGE
-    [M:SOH3]INVDTAAMT(3)=[L]YSURCHARGE
-    Affzo [M:SOH3]INVDTAAMT(2)
-    Affzo [M:SOH3]INVDTAAMT(3)
-Endif
-Gosub UPDSEBPC
 If !GWEBSERV
     Gosub REMOVE_FSCS
     Local Integer ZL_I1 : [L]ZL_I1=0
@@ -155,7 +136,6 @@ Return
 
 # Before modification
 $VERIF_MOD
-Gosub UPDSEBPC
 If !GWEBSERV
     Gosub REMOVE_FSCS
 Endif
@@ -184,282 +164,13 @@ If ([M:SOH2]DRN = 23
 Endif
 Return
 
-# Remove default credit card
-$UPDSEBPC
-Local Char YBPCNUM
-[L]YBPCNUM=[M:SOH1]BPCPYR
-Local File SEBPC [YSEB]
-Columns [YSEB] (BPCNUM, FLDEF)
-Update [YSEB] Where BPCNUM=[L]YBPCNUM and FLDEF=2 With FLDEF=1
-Columns [YSEB]
-LogicClose File [YSEB]
-Return
-
-# Update FMI
-$UPDATEFMI
-For I=0 To [M:SOH4]NBLIG-1
-    Update [SOQ] Where SOHNUM=[M:SOH0]SOHNUM and SOPLIN=[M:SOH4]SOPLIN(I) With FMI=[M:SOH4]FMI(I)
-Next
-Return
-
-# When opening a document, give values to custom fields
-$STYLE
-Local Decimal YCALCPFM : [L]YCALCPFM=0
-Local Decimal YCALCTOTPFM : [L]YCALCTOTPFM=0
-For I=0 To [M:SOH4]NBLIG-1
-    #PFM FIELDS
-    If [M:SOH4]NETPRI(I)>0
-        #(R-C)/R
-        If ([M:SOH4]YMONKCOST(I)<>0)
-            [L]YCALCPFM=[M:SOH4]NETPRI(I)-[M:SOH4]YMONKCOST(I)
-        Else
-            [L]YCALCPFM=[M:SOH4]NETPRI(I)-[M:SOH4]CPRPRI(I)
-        Endif
-        [L]YCALCTOTPFM+=[L]YCALCPFM*[M:SOH4]QTY(I)
-        [M:SOH4]YPFMPCT(I)=100*([L]YCALCPFM/[M:SOH4]NETPRI(I))
-        [M:SOH4]PFM(I)=[L]YCALCPFM
-        Affzo [M:SOH4]PFM(I)
-        Affzo [M:SOH4]YPFMPCT(I)
-    Endif
-    #STATUS FIELD
-    If [M:SOH4]OPRQTY(I)>0
-        [M:SOH4]YLINSTA(I)='PICKNG'
-        Affzo [M:SOH4]YLINSTA(I)
-    Endif
-    If [M:SOH4]SHTQTY(I)<>0
-        [M:SOH4]YLINSTA(I)='SHORT'
-        Affzo [M:SOH4]YLINSTA(I)
-    Endif
-    If [M:SOH4]FMI(I)<>1 and [M:SOH4]FMINUM(I)=''
-        [M:SOH4]YLINSTA(I)='NO PO'
-        If [M:SOH4]FMI(I)<>1 and [M:SOH4]YMONKCOST(I)=0
-            [M:SOH4]YLINSTA(I)='B2BCST'
-        Endif
-        Affzo [M:SOH4]YLINSTA(I)
-    Endif
-    If [M:SOH4]DEMSTA(I)=2
-        [M:SOH4]YLINSTA(I)="PLANNED"
-        Affzo [M:SOH4]YLINSTA(I)
-    Endif
-    If [M:SOH4]SOQSTA(I)=3
-        [M:SOH4]YLINSTA(I)='CLOSED'
-        Affzo [M:SOH4]YLINSTA(I)
-    Endif
-
-    #Back order quantity: BO Qty=Qty ordered - Qty delivered - Qty allocated
-    [M:SOH4]YBOQTY(I)=[M:SOH4]QTY(I)-[M:SOH4]DLVQTY(I)-[M:SOH4]ALLQTY(I)-[M:SOH4]ODLQTY(I)-[M:SOH4]OPRQTY(I)-[M:SOH4]LPRQTY(I)
-    If [M:SOH4]YBOQTY(I)<0 : [M:SOH4]YBOQTY(I)=0 : Endif
-    Affzo [M:SOH4]YBOQTY(I)
-
-    Local Decimal QTYAVL
-    [L]QTYAVL=func YTAC.QTYAVL([M:SOH4]DSTOFCY(I),[M:SOH4]ITMREF(I))
-    [M:SOH4]YQTYAVL(I)=[L]QTYAVL
-    Affzo [M:SOH4]YQTYAVL(I)
-Next
-If [M:SOH4]ORDNOT>0
-    [M:SOH4]YPFMTOT=100*(YCALCTOTPFM/[M:SOH4]ORDNOT)
-    [M:SOH4]PFMTOT=[L]YCALCTOTPFM
-    Affzo [M:SOH4]PFMTOT
-    Affzo [M:SOH4]YPFMTOT
-Endif
-Return
-
-######################
-##  FIELD ACTIONS   ##
-######################
-
-# After ITMREF field
-Subprog AP_ITMREF(VALEUR)
-Variable Char VALEUR()
-Local Shortint NOL : [L]NOL=nolign-1
-If VALEUR<>[M:SOH4]ITMREF([L]NOL)
-    Local File ITMBPS[YITP]
-    Columns [YITP] (ITMREF, CTMBPSFLG, BPSNUM)
-    Filter [YITP] Where ITMREF=VALEUR and CTMBPSFLG=2
-    Read [YITP] First
-    If ![S]fstat
-        [M:SOH4]YB2BBPS(NOL)=[F:YITP]BPSNUM
-        Affzo [M:SOH4]YB2BBPS(NOL)
-    Endif
-    Filter [YITP]
-    Columns [YITP]
-    LogicClose File [YITP]
-Endif
-End
-
-# Control of YB2BBPS field
-Subprog C_YB2BBPS(VALEUR)
-Variable Char VALEUR()
-Local Shortint NOL : [L]NOL=nolign-1
-Local Integer YN  : [L]YN=2
-If VALEUR<>[M:SOH4]YB2BBPS(NOL)
-    Local File ITMBPS[YITP]
-    Columns [YITP] (ITMREF, BPSNUM, ITMREF, ITMREFBPS, BPSNUM, CTMBPSFLG, PIO)
-    Filter [YITP] Where ITMREF=[M:SOH4]ITMREF(NOL) & BPSNUM=VALEUR
-    Read [YITP] First
-    If ![S]fstat
-        Call OUINON(VALEUR-"for"-[M:SOH4]ITMREF(NOL)-"doesn't exist, do you want to create it?", YN) From GESECRAN
-        If YN = 2
-            [F:YITP]ITMREF=[M:SOH4]ITMREF(NOL)
-            [F:YITP]ITMREFBPS=[M:SOH4]ITMREF(NOL)
-            [F:YITP]BPSNUM=VALEUR
-            [F:YITP]CTMBPSFLG=1
-            [F:YITP]PIO=9
-            Write [YITP]
-        Else
-            VALEUR=[M:SOH4]YB2BBPS(NOL)
-        Endif
-    Endif
-    Filter [YITP]
-    Columns [YITP]
-    LogicClose File [YITP]
-Endif
-End
-
-# After modification of ITMREF field
-Subprog AM_ITMREF(VALEUR)
-Variable Char VALEUR()
-Local Decimal QTYAVL
-Call AM_ITMREF(VALEUR) From SUBSOH
-[L]QTYAVL=func YTAC.QTYAVL([M:SOH4]DSTOFCY(nolign-1),VALEUR)
-[M:SOH4]YQTYAVL(nolign-1)=[L]QTYAVL
-Affzo [M:SOH4]YQTYAVL(nolign-1)
-Local File ITMMASTER [YITM]
-Read [YITM]ITM0=VALEUR
-If ![S]fstat
-    If [F:YITM]YDC33PSTEX=2 and [M:SOH4]DSTOFCY(nolign-1)='DC33'
-        If [M:SOH4]VACITM1(nolign-1)="PST"
-            [M:SOH4]VACITM1(nolign-1)=""
-            [M:SOH4]VAT1(nolign-1)=""
-            Affzo [M:SOH4]VACITM1(nolign-1)
-            Affzo [M:SOH4]VAT1(nolign-1)
-        Endif
-        If [M:SOH4]VACITM2(nolign-1)="PST"
-            [M:SOH4]VACITM2(nolign-1)=""
-            [M:SOH4]VAT2(nolign-1)=""
-            Affzo [M:SOH4]VACITM2(nolign-1)
-            Affzo [M:SOH4]VAT2(nolign-1)
-        Endif
-        If [M:SOH4]VACITM3(nolign-1)="PST"
-            [M:SOH4]VACITM3(nolign-1)=""
-            [M:SOH4]VAT3(nolign-1)=""
-            Affzo [M:SOH4]VACITM3(nolign-1)
-            Affzo [M:SOH4]VAT3(nolign-1)
-        Endif
-    Endif
-Endif
-End
-
-# After modification of DSTOFCY field
-Subprog AM_DSTOFCY(VALEUR)
-Variable Char VALEUR()
-Local Decimal QTYAVL
-[L]QTYAVL = func YTAC.QTYAVL(VALEUR, [M:SOH4]ITMREF(nolign-1))
-[M:SOH4]YQTYAVL(nolign-1)=[L]QTYAVL
-Affzo [M:SOH4]YQTYAVL(nolign-1)
-End
-
-# After modification of QTY field
-Subprog AM_QTY(VALEUR)
-Variable Decimal VALEUR
-Local Char YTSICOD
-[L]YTSICOD=func AFNC.INTFLD("ITMMASTER","TSICOD(0)",[M:SOH4]ITMREF(nolign-1))
-If ([L]YTSICOD="DM" or [L]YTSICOD="DS") and VALEUR>[M:SOH4]YQTYAVL(nolign-1)
-    Infbox "Product discontinued and quantity is greater than quantity available, please reduce quantity"
-Endif
-End
-
-Subprog AP_CUSORDREF(VALEUR)
-Variable Char VALEUR()
-If func AFNC.INTFLD("BPCUSTOMER","YPOREQD",[M:SOH1]BPCINV)="2" and VALEUR=""
-    Infbox "PO required"
-    zonsui="[M:SOH0]CUSORDREF"
-Endif
-End
-
-# After field BPCORD
-Subprog AP_BPCORD(VALEUR)
-Variable Char VALEUR()
-Local Char YBPCINV : [L]YBPCINV=func AFNC.INTFLD('BPCUSTOMER','BPCINV',VALEUR)
-Local Char YBPCORD : [L]YBPCORD=VALEUR
-If func AFNC.INTFLD('BPCUSTOMER','YPOREQD',[L]YBPCINV)='2' & [M:SOH0]CUSORDREF='' Then
-    Infbox "PO required"
-    zonsui="[M:SOH0]CUSORDREF"
-Else
-    If func AFNC.INTFLD('BPCUSTOMER','YPOREQD',[L]YBPCORD)='2' & [M:SOH0]CUSORDREF='' Then
-        Infbox "PO required"
-        zonsui="[M:SOH0]CUSORDREF"
-    Endif
-Endif
-End
-
-# After modification of field YPRODSRC
-Subprog AM_YPRODSRC(VALEUR)
-Variable Integer VALEUR
-Local Integer YN : [L]YN=2
-If VALEUR<>[M]YPRODSRC
-    Call OUINON("Update all unordered back to back sales order lines to new setting?", [L]YN) From GESECRAN
-    If [L]YN = 2
-        Call UPDFMI(VALEUR) From YUPDFMI
-    Endif
-Endif
-End
-
-# Control of field DDEMDLVDAT
-Subprog C_DDEMDLVDAT(VALEUR)
-Variable Date    VALEUR
-End
-
-# After modificaiton of field SALFCY
-Subprog AM_SALFCY(VALEUR)
-Variable Char VALEUR()
-Local Decimal YSURCHARGE
-Local File FACILITY[YFCY]
-Columns [YFCY] (FCY, YFUECHA)
-Read [YFCY]FCY0=VALEUR
-If ![S]fstat
-    [L]YSURCHARGE=[F:YFCY]YFUECHA
-Else
-    [L]YSURCHARGE=0
-Endif
-If !GWEBSERV
-    [M:SOH3]INVDTAAMT(3)=[L]YSURCHARGE
-    Affzo [M:SOH3]INVDTAAMT(3)
-Endif
-Columns [YFCY]
-LogicClose File [YFCY]
-End
-
-# After modification of field BPCORD
-Subprog AM_BPCORD(VALEUR)
-Variable Char VALEUR()
-Local Decimal YSURCHARGE
-Local File FACILITY [YFCY]
-Columns [YFCY] (FCY, YFUECHA)
-Read [YFCY]FCY0=[M:SOH0]SALFCY
-If ![S]fstat
-    [L]YSURCHARGE=[F:YFCY]YFUECHA
-Else
-    [L]YSURCHARGE=0
-Endif
-If !GWEBSERV
-    [M:SOH3]INVDTAAMT(3)=[L]YSURCHARGE
-    Affzo [M:SOH3]INVDTAAMT(3)
-Endif
-Columns [YFCY]
-LogicClose File [YFCY]
-End
-
-# After field VACBPR
 Subprog AP_VACBPR(VALEUR)
 Variable Char VALEUR()
 If VALEUR <> func AFNC.INTFLD("BPCUSTOMER","VACBPR",[M:SOH1]BPCINV) and [M:SOH1]BETFCY = 1
     Infbox "Bill-to tax rule mismatch!"
 Endif
 End
-######################################################################################
-## Section automatically added (screen SOH4) 09/18/2024 08:19:36 (MOZM)
-######################################################################################
+
 Subprog C_ITMREF(VALEUR)
 Variable Char    VALEUR()
 If !clalev([ZITM]) : Local File ITMMASTER[ZITM] : Endif
@@ -473,6 +184,3 @@ Endif
 Columns [ZITM]
 LogicClose File [ZITM]
 End
-
-
-######################################################################################
