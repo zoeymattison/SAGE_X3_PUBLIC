@@ -1,0 +1,272 @@
+Subprog BPTOTAL
+
+Local Decimal RETVAL
+Local Decimal ZL_AMTATI_DEB
+Local Decimal ZL_AMTATI_CRD
+Local Decimal ZL_AMTATI_DEB_365
+Local Decimal ZL_AMTATI_CRD_365
+Local Integer ZL_AVG
+Local Integer ZL_AVG_365
+
+If !clalev([ZSV]) : Local File SINVOICEV[ZSV] : Endif
+If !clalev([ZSI]) : Local File SINVOICE[ZSI] : Endif
+
+Link [ZSV] With [ZSI]SIH0=[F:ZSV]NUM As [ZSH] Where ([F:ZSV]BPCORD = [M:BPC0]BPCNUM or [F:ZSV]BPCINV = [M:BPC0]BPCNUM)
+
+# All-Time
+For [ZSH]
+If [F:ZSI]SNS = 1 : [L]ZL_AMTATI_DEB += [F:ZSI]AMTATI : [L]ZL_AVG += 1 : Endif
+If [F:ZSI]SNS < 0 : [L]ZL_AMTATI_CRD += [F:ZSI]AMTATI : Endif
+Next
+
+# last 365 Days
+For [ZSH]
+If [F:ZSI]SNS = 1 and [F:ZSI]CREDAT >= date$-365 : [L]ZL_AMTATI_DEB_365 += [F:ZSI]AMTATI : [L]ZL_AVG_365 += 1 : Endif
+If [F:ZSI]SNS < 0 and [F:ZSI]CREDAT >= date$-365 : [L]ZL_AMTATI_CRD_365 += [F:ZSI]AMTATI : Endif
+Next
+
+Infbox ""
+& ,"DEBIT ----- "+num$([L]ZL_AMTATI_DEB)+" (Average: "+num$(ar2([L]ZL_AMTATI_DEB/[L]ZL_AVG))+")                          "
+& ,"CREDIT ---- "+num$([L]ZL_AMTATI_CRD)
+& ,"TOTAL ----- "+num$([L]ZL_AMTATI_DEB-[L]ZL_AMTATI_CRD)
+& ," "
+& ,"DEBIT (-365) ----- "+num$([L]ZL_AMTATI_DEB_365)+" (Average: "+num$(ar2([L]ZL_AMTATI_DEB_365/[L]ZL_AVG_365))+")"
+& ,"CREDIT (-365) ---- "+num$([L]ZL_AMTATI_CRD_365)
+& ,"TOTAL (-365) ----- "+num$([L]ZL_AMTATI_DEB_365-[L]ZL_AMTATI_CRD_365)
+
+Raz [L]ZL_AMTATI_DEB, [L]ZL_AMTATI_CRD, [L]ZL_AMTATI_DEB_365, [L]ZL_AMTATI_CRD_365, [L]ZL_AVG, [L]ZL_AVG_365
+End
+
+Subprog ZSUB_POHRPT
+Local File PORDER[ZPO]
+Update [ZPO] Where POHNUM = [M:POH0]POHNUM With ZPOSND = date$, ZPOSNU = func AFNC.NOMUSER(GUSER)
+LogicClose File [ZPO]
+End
+
+Subprog ZSUB_ETIQ01
+For I=0 To [M:SLP]NBLIG-1
+    [M:SLP]LBEFMT(I)='ETIQ01'
+    Affzo [M:SLP]LBEFMT(I)
+Next
+End
+
+Subprog ZSUB_PINAPPROVAL
+If GFONCTION = "GESPIH" : Goto PIHINV : Else If GFONCTION = "GESBIS" : Goto BISINV : Endif : Endif
+End
+
+$PIHINV
+Global Char ZG_PINREC(200) : [V]ZG_PINREC = func AFNC.INTFLD("BPSUPPLIER","ZBPSAPP",[M:PIH0]BPR)
+Global Char ZG_PINVCR(100) : [V]ZG_PINVCR = [M:PIH0]NUM
+Global Char ZG_BPSVCR(100) : [V]ZG_BPSVCR = [M:PIH1]BPRVCR
+Global Char ZG_PINBPS(100) : [V]ZG_PINBPS = [M:PIH0]BPR
+Global Decimal ZG_PINATI : [V]ZG_PINATI = [M:PIH4]AMTATI
+Global Char ZG_PINCM1(100) : [V]ZG_PINCM1 = [M:PIH1]DES(0)
+Global Char ZG_PINCM2(100) : [V]ZG_PINCM2 = [M:PIH1]DES(1)
+Global Char ZG_PINCM3(100) : [V]ZG_PINCM3 = [M:PIH1]DES(2)
+Global Char ZG_PINUSR(100) : [V]ZG_PINUSR = GUSER
+Global Char ZG_PINFUN(100) : [V]ZG_PINFUN = GFONCTION
+Goto PINAPPROVAL_WRK
+End
+
+$BISINV
+Global Char ZG_PINREC(200) : [V]ZG_PINREC = func AFNC.INTFLD("BPSUPPLIER","ZBPSAPP",[M:BIS0]BPR)
+Global Char ZG_PINVCR(100) : [V]ZG_PINVCR = [M:BIS0]NUM
+Global Char ZG_BPSVCR(100) : [V]ZG_BPSVCR = [M:BIS1]BPRVCR
+Global Char ZG_PINBPS(100) : [V]ZG_PINBPS = [M:BIS0]BPR
+Global Decimal ZG_PINATI : [V]ZG_PINATI = [M:BIS1]AMTATI
+Global Char ZG_PINCM1(100) : [V]ZG_PINCM1 = [M:BIS1]DES(0)
+Global Char ZG_PINCM2(100) : [V]ZG_PINCM2 = [M:BIS1]DES(1)
+Global Char ZG_PINCM3(100) : [V]ZG_PINCM3 = [M:BIS1]DES(2)
+Global Char ZG_PINUSR(100) : [V]ZG_PINUSR = GUSER
+Global Char ZG_PINFUN(100) : [V]ZG_PINFUN = GFONCTION
+Goto PINAPPROVAL_WRK
+End
+
+$PINAPPROVAL_WRK
+Global Char ZG_PINATT(250)
+Local File AOBJTXT[ZAT]
+Columns [ZAT] (IDENT1, NAM)
+Filter [ZAT] Where IDENT1 = ZG_PINVCR
+Read [ZAT]First
+    [V]ZG_PINATT = [F:ZAT]NAM
+    Local Integer TYPEVT : TYPEVT = 1
+    Local Char CODEVT : [L]CODEVT = "ZPA"
+    Local Char OPERAT : [L]OPERAT = ""
+    Local Char CLEOBJ : [L]CLEOBJ = ""
+    Call WORKFLOW([L]TYPEVT,[L]CODEVT,[L]OPERAT,[L]CLEOBJ) From AWRK
+    Raz [V]ZG_PINREC, [V]ZG_PINVCR, [V]ZG_BPSVCR, [V]ZG_PINBPS, [V]ZG_PINATI, [V]ZG_PINCM1, [V]ZG_PINCM2, [V]ZG_PINCM3, [V]ZG_PINUSR, [V]ZG_PINFUN, [V]ZG_PINATT
+    Columns [ZAT]
+    Filter [ZAT]
+    LogicClose File [ZAT]
+End
+
+Subprog ZSUB_APPRUPD
+Local Char ZL_NUM
+If GFONCTION = "GESBIS"
+  [L]ZL_NUM = [M:BIS0]NUM
+Endif
+If GFONCTION = "GESPIH"
+  [L]ZL_NUM = [M:PIH0]NUM
+Endif
+If [L]ZL_NUM = "" : Call ECR_TRACE("Button cannot be used in this context.",1) From GESECRAN : End : Endif
+Local File PINVOICE[ZPI]
+Local File GACCDUDATE[ZDU]
+Local Integer ZL_I
+Columns [ZPI] (NUM, PAZ, GTE)
+Columns [ZDU] (NUM, FLGPAZ, TYP)
+Read [ZPI]PIH0 = [L]ZL_NUM
+If ![S]fstat
+  If [F:ZPI]PAZ = 4 : Infbox "Document is already approved for payment!" : Columns [ZPI] : Columns [ZDU] : LogicClose File [ZPI], [ZDU] : End : Endif
+  Update [ZPI] Where NUM = [L]ZL_NUM With PAZ = 4
+  If ![S]fstat
+    [L]ZL_I += 1
+  Else
+    Call ECR_TRACE("Error. The update failed. [PINVOICE]",1) From GESECRAN
+  Endif
+  Update [ZDU] Where NUM = [L]ZL_NUM and TYP = [F:ZPI]GTE With FLGPAZ = 4
+  If ![S]fstat
+    [L]ZL_I += 1
+  Else
+    Call ECR_TRACE("Error. The update failed. [GACCDUDATE]",1) From GESECRAN
+  Endif
+  If [L]ZL_I = 2
+    Infbox "Record updated successfully. Please refresh the screen."
+  Else
+    Call ECR_TRACE("Error. Something went wrong. Please contact service and cite the document number.",1) From GESECRAN
+  Endif
+Else
+  Call ECR_TRACE("Error. Problem reading the record.",1) From GESECRAN
+Endif
+Columns [ZPI]
+Columns [ZDU]
+LogicClose File [ZPI], [ZDU]
+Raz [L]ZL_I
+End
+
+Subprog ZSUB_POHCLEUPD
+[M:ZPOH]ZPOCLD = date$
+[M:ZPOH]ZPOCLU = func AFNC.NOMUSER(GUSER)
+Affzo [M:ZPOH]ZPOCLD
+Affzo [M:ZPOH]ZPOCLU
+End
+
+Subprog ZSUB_POHPRNUPD
+Local File PORDER[ZPO]
+Update [ZPO] Where POHNUM = [V]ZG_POHNUM With ZPOSND = date$
+Update [ZPO] Where POHNUM = [V]ZG_POHNUM With ZPOSNU = func AFNC.NOMUSER(GUSER)
+Raz [V]ZG_POHNUM
+LogicClose File [ZPO]
+End
+
+Subprog ZSUB_ZBPCINV
+  If [M:BIC0]NUM <> ''
+    Global Char GBPCINVE(100) : GBPCINVE = func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[M:BIC0]BPR+'~ADDR')
+    Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+    If GBPCINVE = '' : Infbox 'No email on file!' : End : Endif
+    Local Integer OK : OK = 1
+    Local Char LINPUT(100) : LINPUT = GBPCINVE
+    Local Char ZTITLE : ZTITLE = 'Customer BP Invoice Mailing'
+    Local Char ZFLDTIT : ZFLDTIT = 'Email(s)'
+    Call SAICAR(LINPUT,ZTITLE,ZFLDTIT,'CLE',0,0,'',OK) From GESECRAN
+    If OK = 2 and LINPUT <> ''
+      GBPCINVE = LINPUT
+      TBPAR_BP(1) = "vcrdeb" : TBVAL_BP(1) = [M:BIC0]NUM
+      Call ETAT("ZBPCINV","EMAILX3","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3 : End
+    Endif
+    Raz GBPCINVE
+  Else Infbox 'Please open or create a document first!'
+  Endif
+End
+
+Subprog ZSUB_PODATA
+Local File SPRICLIST[ZSP]
+Local File ORDERS[ZWP]
+Local File ZPODATA[ZPD]
+
+Local Integer ZL_OK
+Local Integer ZL_ABCA
+Local Integer ZL_ABCB
+Local Integer ZL_ABCC
+Local Decimal ZL_BKAMT
+
+Columns [ZSP] (PLI, PRI, PLICRD, PLICRI1)
+Columns [ZWP] (STOFCY, ITMREF, SHTQTY, VCRTYP, VCRNUM)
+
+For I=0 To [M:POH2]NBLIG-1
+    If [M:POH2]LINCLEFLG = 1
+        If func AFNC.INTFLD("ITMMASTER","TSICOD(0)",[M:POH2]ITMREF(I)) = "OK"
+            [L]ZL_OK += 1
+        Endif
+        If func AFNC.INTFLD("ITMFACILIT","ABCCLS",[M:POH2]ITMREF(I)+'~'+[M:POH2]PRHFCY(I)) = num$(1)
+            [L]ZL_ABCA += 1
+        Endif
+        If func AFNC.INTFLD("ITMFACILIT","ABCCLS",[M:POH2]ITMREF(I)+'~'+[M:POH2]PRHFCY(I)) = num$(2)
+            [L]ZL_ABCB += 1
+        Endif
+        If func AFNC.INTFLD("ITMFACILIT","ABCCLS",[M:POH2]ITMREF(I)+'~'+[M:POH2]PRHFCY(I)) = num$(3)
+            [L]ZL_ABCC += 1
+        Endif
+        Filter [ZWP] Where ITMREF = [M:POH2]ITMREF(I) and (pat(VCRNUM, "WEB*") or pat(VCRNUM, "ORD*")) and STOFCY = "DC30" and SHTQTY > 0
+        For [ZWP]
+            If func AFNC.INTFLD("SORDER","BETFCY",[F:ZWP]VCRNUM) = num$(1)
+                Filter [ZSP] Where PLI = "11" and PLICRI1 = "PL2" and PLICRD = [M:POH2]ITMREF(I)
+                Read [ZSP] First
+                [L]ZL_BKAMT += [F:ZWP]SHTQTY*[F:ZSP]PRI
+                Filter [ZSP]
+            Endif
+        Next
+        Filter [ZWP]
+    Endif
+Next
+
+[F:ZPD]ZPOHNUM = [M:POH0]POHNUM
+[F:ZPD]ZPOHABCA = num$([L]ZL_ABCA)
+[F:ZPD]ZPOHABCB = num$([L]ZL_ABCB)
+[F:ZPD]ZPOHABCC = num$([L]ZL_ABCC)
+[F:ZPD]ZPOHSALBK = num$([L]ZL_BKAMT)
+[F:ZPD]ZPOHTOTOK = num$([L]ZL_OK)
+
+Look [ZPD]ZPD0 = [M:POH0]POHNUM
+If ![S]fstat
+DeleteByKey [ZPD]ZPD0 = [M:POH0]POHNUM
+Endif
+Write [ZPD]
+
+Raz [L]ZL_OK, [L]ZL_ABCA, [L]ZL_ABCB, [L]ZL_ABCC, [L]ZL_BKAMT
+
+Columns [ZWP]
+Columns [ZSP]
+LogicClose File [ZWP],[ZSP],[ZPD]
+End
+
+Subprog ZSUB_RECMAIL
+If pat([M:PAY0]NUM, 'RECC*')
+Global Char GBPEM(100) : GBPEM = func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[M:PAY1]BPR+'~ADDR')
+
+Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+Local Integer YN : YN = 2
+
+If GBPEM <> ""
+Call OUINON('Send receipt to email on file? - '+GBPEM, YN) From GESECRAN
+                If YN = 2
+      TBPAR_BP(1) = "regdeb" : TBVAL_BP(1) = [M:PAY0]NUM
+      Call ETAT("ZRECEIPT_B","EMAILX3","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+    Endif
+Else Infbox "No email on file..."
+Endif
+Raz GBPEM
+Else Infbox 'Please open or create a credit card receiept first!'
+Endif
+End
+
+Subprog ZSUB_RECMAIL_W
+If pat([M:PAY0]NUM, 'RECC*')
+Global Char GBPEM2(100) : GBPEM2 = func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[M:PAY1]BPR+'~ADDR')
+If GBPEM2 = "" : GBPEM2 = "noemailonfile@monk.ca" : Endif
+Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+TBPAR_BP(1) = "regdeb" : TBVAL_BP(1) = [M:PAY0]NUM
+Call ETAT("ZRECEIPT","EMAILX3","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+Raz GBPEM2
+Else Infbox 'Please open or create a credit card receiept first!'
+Endif
+End
