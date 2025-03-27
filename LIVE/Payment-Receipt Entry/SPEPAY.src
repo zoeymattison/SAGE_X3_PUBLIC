@@ -74,6 +74,7 @@ Case GFLAG
     When "EFT" : [M:PAY1]BAN="BANK1" : Gosub AFFZO_BAN
     When "PAYCC" : [M:PAY1]BAN="BANK5" : Gosub AFFZO_BAN
     When "PAYET" : Gosub USD_SEL
+    When "PAYEM" : [M:PAY1]BAN="EMPCL" : Gosub AFFZO_BAN
     When Default
 Endcase
 End
@@ -105,3 +106,27 @@ If pat([M:PAY1]REF, "CB000*")
     LogicClose File [ZPY]
 Endif
 Return
+
+######################################################################################
+## MODIFIED: 2023-10-05                                                             ##
+## AUTHOR (COMPANY): TAC                                                            ##
+## NOTES: ACTION MODIFICATIONS MADE IN YSPEPAY                                      ##
+######################################################################################
+## VERIF_CRE IN YSPEPAY                                                             ##
+## VERIF_MOD IN YSPEPAY                                                             ##
+######################################################################################
+
+######################################################################################
+## WHEN THE RECORD IS OPENED, DISPLAY THE ORIGINAL CUSTOMER IN A NEW FIELD          ##
+## DATE CREATED: 2024-01-09                                                         ##
+## DATE MODIFIED: 2024-01-10                                                        ##
+## AUTHOR (COMPANY): MOZM (MONK OFFICE)                                             ##
+## NOTES: 1. DISREGARD INFOPOS RECORDS. MOST DO NOT CONTAIN PAY1 MASK.              ##
+##        2. DISREGARD SALES ORDER PREPAYMENTS UNTIL END AND USE INTFLD ONLY (THEY DO ##
+##           NOT EXIST IN GACCENTRYD)                                               ##
+##        3. USE GACCENTRYD TABLE FOR ALL OTHER RECORDS EXCEPT V5555 VENDOR CODE.   ##
+##        4. IF V5555, USE PIVOICED AND PULL BP FROM ASSOCIATED PINVOICED NUMORI DOC. ##
+######################################################################################
+
+
+

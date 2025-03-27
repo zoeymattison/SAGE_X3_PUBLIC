@@ -1,18 +1,23 @@
-# Mask management SNL1 (Specific)
+# Mask management ZSHIPLAB (Specific)
 
 ######################################################################################
-## Section automatically added (screen SNL1) 06/26/2024 13:42:45 (MOZM)
+## Section automatically added (screen ZSHIPLAB) 20/11/2023 16:04:50 (MOZM)
 ######################################################################################
-Subprog AM_QTYPCUNEW(VALEUR)
-Variable Decimal VALEUR
-If VALEUR = 0 or VALEUR = val('')
-[M:SNL1]ZERSTOFLG(nolign-1) = 2
-Affzo [M:SNL1]ZERSTOFLG(nolign-1)
+Subprog AM_ZVALEUR(VALEUR)
+Variable Char    VALEUR()
+If pat(VALEUR, '*#*!*')
+Infbox 'Please enter a number'
 Endif
 End
 
 
 ######################################################################################
+
+
+
+
+
+
 
 
 

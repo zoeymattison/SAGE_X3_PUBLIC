@@ -1,0 +1,680 @@
+$_________________SECTION_01
+$_________________WINDOW_ACTIONS
+Return
+
+$ACTION
+Case ACTION
+    When "OUVRE" : Gosub OUVRE # At the very beginning of the template
+    When "DEBUT" : Gosub DEBUT # After displaying the entry window
+    When "AP_CHOIX" : Gosub AP_CHOIX # As early as clicking on a button or menu
+    When "APRES_MODIF" : Gosub APRES_MODIF
+    When "SETBOUT" : Gosub SETBOUT
+    When "END" : Gosub CLOSE_WINDOW # When the window is trying to close
+    When Default
+Endcase
+Return
+
+$OUVRE
+#If GUSER<>"MOZM"
+#    Infbox "Under construction! Check back later or email service@monk.ca"
+#    FIN=1
+#    Return
+#Endif
+Return
+
+$DEBUT
+# INITALIZE GLOBAL VARIABLES
+Call INITIALIZATION()
+Gosub OPEN_TABLES
+Return
+
+$AP_CHOIX
+# 1801: CREATE THE PURCHASE RECEIPT
+# 1802: CLEAR THE SCREEN
+Case num$(REPONSE)
+    When "1801" : Call CREATE_RECEIPT()
+    When "1802" : Gosub CLEAR_SCREEN
+Endcase
+Return
+
+$APRES_MODIF
+If !find(COUZON,"ITMREFPKE")
+    Call SAVE_DATA()
+Endif
+Return
+
+$SETBOUT
+For I=0 To [M:ZRR1]NBLIG-1
+    If [M:ZRR1]ZRHSTA(I)=2
+        Diszo [M:ZRR1]QTYRCP(I)
+    Endif
+Next
+If func AFNC.INTFLD("ZINTRH","ZRHSTA",[V]ZV_SESSID)="2"
+    Diszo [ZRR0]
+    Diszo [ZRR1]
+    Diszo [ZRR2]
+Endif
+If [M:ZRR0]ZRHNUM=""
+    Diszo [M:ZRR0]ZRHSTA
+Else
+    If func AFNC.INTFLD("ZINTRH","ZRHSTA",[V]ZV_SESSID)="1"
+        Actzo [M:ZRR0]ZRHSTA
+    Endif
+Endif
+Return
+
+$CLOSE_WINDOW
+# CHECK IF THERE IS A QUANTITY TO SAVE AND SAVE IT
+Call SAVE_DATA()
+Call PERFORM_CLEANUP()
+FIN=1
+Return
+
+$OPEN_TABLES
+If !clalev([ZRH]) : Local File ZINTRH [ZRH]    : Endif
+If !clalev([ZRD]) : Local File ZINTRD [ZRD]    : Endif
+If !clalev([ZSH]) : Local File SDELIVERY [ZSH] : Endif
+If !clalev([ZSD]) : Local File SDELIVERYD [ZSD]: Endif
+Return
+
+$CLEAR_SCREEN
+Call PERFORM_CLEANUP()
+Raz [ZRR0],[ZRR1],[ZRR2]
+Call AFFZO_MASKS()
+Call INITIALIZATION()
+Gosub OPEN_TABLES
+Return
+
+$_________________SECTION_02
+$_________________SCREEN_SUBPROGRAMS
+Return
+
+Subprog AM_SDHNUM(VALEUR)
+Variable Char VALEUR
+If VALEUR<>""
+    # STEP 1: OPEN THE INTERSITE TRANSFER CONTAINING THE DELIVERY IF NO DELIVERY HAS BEEN ENTERED YET
+    #
+    # STEP 2: WRITE THE DELIVERY TO THE DATABASE IF NOT OPENED
+    #         A) POPULATE THE NEWLY WRITTEN LINES TO THE ZRR1 GRID
+    #
+    # STEP 1: OPEN THE INTERSITE TRNASFER IF IT ALREADY EXISTS
+    Filter [ZRD] Where SDHNUM=VALEUR
+    Read [ZRD] First
+    If ![S]fstat
+        # CHECK IF THE SCREEN IS ALREADY POPULATED AND THE DELIVERY DOESN'T EXIST IN IT
+        If [M:ZRR1]SDHNUM(0)<>""
+            Call ERREURT("Delivery "+[F:ZRD]SDHNUM+" already exists on\transfer "+[F:ZRD]ZRHNUM+"!", 1) From GESECRAN
+            mkstat=2 : End
+        Endif
+        Call OPEN_DELIVERY(VALEUR)
+        VALEUR=""
+    Else
+        Call CREATE_DELIVERY(VALEUR)
+        VALEUR=""
+    Endif
+Endif
+End
+
+Subprog C_SDHNUM(VALEUR)
+Variable Char VALEUR
+If VALEUR<>""
+    If find(VALEUR,[M:ZRR1]SDHNUM(0..[M:ZRR1]NBLIG-1))
+        GMESSAGE=VALEUR+" has already been added to the screen!"
+        VALEUR=""
+        mkstat=2 : End
+    Endif
+    Read [ZSH]SDH0=VALEUR
+    If [S]fstat
+        GMESSAGE="Delivery "+VALEUR+" does not exist!"
+        VALEUR=""
+        mkstat=2 : End
+    Else
+        If [F:ZSH]BETFCY=1
+            GMESSAGE="Delivery "+VALEUR+" is not an intersite!"
+            VALEUR=""
+            mkstat=2 : Read [ZSH] : End
+        Endif
+        If [F:ZSH]CFMFLG=1
+            GMESSAGE="Delivery "+VALEUR+" has not been validated!"
+            VALEUR=""
+            mkstat=2 : Read [ZSH] : End
+        Endif
+        If !clalev([ALK]) : Local File APLLCK [ALK] : Endif
+        Look [ALK]LCKCLE='SDH'+VALEUR;0
+        If !fstat
+            GMESSAGE="Delivery "+VALEUR+" is locked by another user!"
+            VALEUR=""
+            mkstat=2 : If clalev([ALK]) : Close File [ALK] : Endif : Read [ZSH] : End
+        Endif
+        If clalev([ALK]) : Close File [ALK] : Endif
+        Read [ZSH]
+    Endif
+Endif
+End
+
+Subprog AM_ITMREF(VALEUR)
+Variable Char VALEUR
+If VALEUR<>""
+    [M:ZRR0]ITMDES1=func AFNC.INTFLD("ITMMASTER","ITMDES1",VALEUR)
+    [M:ZRR0]ITMDES2=func AFNC.INTFLD("ITMMASTER","ITMDES2",VALEUR)
+    If func AFNC.INTFLD("SPRICLIST","PRI","102"+"~"+VALEUR+"~"+num$(1000))=""
+        [M:ZRR0]PRI=val(func AFNC.INTFLD("SPRICLIST","PRI","10"+"~"+VALEUR+"~"+num$(1000)))
+    Else
+        [M:ZRR0]PRI=val(func AFNC.INTFLD("SPRICLIST","PRI","102"+"~"+VALEUR+"~"+num$(1000)))
+    Endif
+    Call AFFZO_MASKS()
+    zonsui="[M:ZRR0]QTYADD"
+Endif
+End
+
+Subprog C_ITMREF(VALEUR)
+Variable Char VALEUR
+If VALEUR<>""
+    If !find(VALEUR,[M:ZRR1]ITMREF(0..max([M:ZRR1]NBLIG)-1))
+        GMESSAGE = VALEUR+" not found on any entered delivery!"
+        [M:ZRR0]ITMREF=""
+        Call AFFZO_MASKS()
+        mkstat=2 : End
+    Endif
+Endif
+End
+
+Subprog AM_QTYADD(VALEUR)
+Variable Decimal VALEUR
+If VALEUR>0
+    Call ADD_QUANTITY(VALEUR)
+    [M:ZRR0]ITMREF=""
+    [M:ZRR0]QTYADD=0
+    [M:ZRR0]PRI=0
+    [M:ZRR0]ITMDES1=""
+    [M:ZRR0]ITMDES2=""
+    Call AFFZO_MASKS()
+    For I=0 To [M:ZRR1]NBLIG-1
+        If [M:ZRR1]QTYDLV(I)=[M:ZRR1]QTYRCP(I)
+            [M:ZRR1]LINSTA(I)="COMPLETE"
+        Endif
+    Next
+    Call AFFZO_MASKS()
+    Call SAVE_DATA()
+    zonsui="[M:ZRR0]ITMREF"
+Endif
+End
+
+Subprog C_QTYADD(VALEUR)
+Variable Decimal VALEUR
+If VALEUR>0
+    If VALEUR>500
+        GMESSAGE="Please enter quantities of no more than 500 at a time!"
+        [M:ZRR0]QTYADD=0
+        Affzo [M:ZRR0]QTYADD
+        mkstat=2 : End
+    Endif
+    If [M:ZRR0]ITMREF=""
+        GMESSAGE="A product is required!"
+        [M:ZRR0]QTYADD=0
+        Affzo [M:ZRR0]QTYADD
+        mkstat=2 : End
+    Endif
+    Local Integer ZL_QTYOVR : [L]ZL_QTYOVR=0 # OVERAGE QTY
+    Local Decimal ZL_QTYALO : [L]ZL_QTYALO=0 # ALLOWABLE QUANTITY
+    For I=0 To [M:ZRR1]NBLIG-1
+        If [M:ZRR1]ITMREF(I)=[M:ZRR0]ITMREF and [M:ZRR1]ZRHSTA(I)=1
+            [L]ZL_QTYALO+=([M:ZRR1]QTYDLV(I)-[M:ZRR1]QTYRCP(I))
+        Endif
+    Next
+    If VALEUR>[L]ZL_QTYALO
+        [L]ZL_QTYOVR=([L]ZL_QTYALO-VALEUR)
+        Call ERREURT("Maximum quantity allowable for "+[M:ZRR0]ITMREF+" is "+num$([L]ZL_QTYALO), 1) From GESECRAN
+        [M:ZRR0]QTYADD=0
+        Affzo [M:ZRR0]QTYADD
+        mkstat=2 : End
+    Endif
+Endif
+End
+
+Subprog AM_QTYRCP(VALEUR)
+Variable Decimal VALEUR
+If VALEUR=[M:ZRR1]QTYDLV(nolign-1)
+    [M:ZRR1]LINSTA(nolign-1)="COMPLETE"
+Endif
+If VALEUR<[M:ZRR1]QTYDLV(nolign-1)
+    [M:ZRR1]LINSTA(nolign-1)="SHORT"
+Endif
+Affzo [M:ZRR1]LINSTA(nolign-1)
+End
+
+Subprog C_QTYRCP(VALEUR)
+Variable Decimal VALEUR
+Local Integer ZL_QTYRCP : [L]ZL_QTYRCP=[M:ZRR1]QTYRCP(nolign-1)
+If VALEUR>[M:ZRR1]QTYDLV(nolign-1)
+    Call ERREURT("Entered quantity cannot be greater than expected quantity of "+num$([M:ZRR1]QTYDLV(nolign-1))+"!", 1) From GESECRAN
+    VALEUR=[L]ZL_QTYRCP
+Endif
+End
+
+Subprog AM_ITMREFPKE(VALEUR)
+Variable Char    VALEUR()
+[M:ZRR2]ITMDES1(nolign-1)=func AFNC.INTFLD("ITMMASTER","ITMDES1",VALEUR)
+[M:ZRR2]SDHNUM(nolign-1)=[V]ZV_SDHNUM
+[M:ZRR2]QTYUOM(nolign-1)=func AFNC.INTFLD("ITMMASTER","STU",VALEUR)
+Affzo [M:ZRR2]ITMDES1(nolign-1)
+Affzo [M:ZRR2]QTYUOM(nolign-1)
+Affzo [M:ZRR2]SDHNUM(nolign-1)
+End
+
+Subprog C_QTY(VALEUR)
+Variable Decimal VALEUR
+If VALEUR=0 and [M:ZRR2]ITMREFPKE(nolign-1)<>""
+    mkstat=2
+Endif
+End
+
+Subprog AM_ZRHSTA(VALEUR)
+Variable Integer VALEUR
+Local Integer ZL_OKCAN : [L]ZL_OKCAN=2
+If VALEUR=2
+Call AVERTIR("WARNING! This will mark the receipt as completed, and\the transfer claim will be transmitted. Continue?", [L]ZL_OKCAN) From GESECRAN
+If [L]ZL_OKCAN=2
+    Read [ZRH]ZRH0=[V]ZV_SESSID
+    [F:ZRH]ZRHSTA=2
+    Rewrite [ZRH]
+    Diszo [M:ZRR0]ZRHSTA
+Endif
+Endif
+End
+
+
+$_________________SECTION_03
+$_________________CUSTOM_SUBPROGRAMS
+Return
+
+Subprog INITIALIZATION
+Global Char ZV_SDHNUM(20) : [V]ZV_SDHNUM="" # LAST ENTERED DELIVEY NUMBER
+Global Char ZV_SESSID(150)                  # SESSION ID
+  [V]ZV_SESSID=GUSER+"-"
+&+format$("YYMMDD[-]hhmmss",date$)
+Diszo [ZRR0]
+Diszo [ZRR1]
+Diszo [ZRR2]
+Actzo [M:ZRR0]SDHNUM
+End
+
+Subprog OPEN_DELIVERY(ZL_SDHNUM)
+Variable Char ZL_SDHNUM
+Local Char ZL_ZRHNUM(50)
+Local Shortint ZL_NOL : [L]ZL_NOL=0
+[V]ZV_SDHNUM=[L]ZL_SDHNUM
+If [M:ZRR1]SDHNUM(0)<>"" : [L]ZL_NOL=[M:ZRR1]NBLIG : Endif
+Filter [ZRD] Where SDHNUM=[L]ZL_SDHNUM
+Read [ZRD] First
+# SET UP THE SESSION ID IF IT HAS NOT YET BEEN SET
+If ![S]fstat
+    Read [ZRH]ZRH0=[F:ZRD]ZRHNUM
+    If ![S]fstat
+        If [M:ZRR0]ZRHNUM=""
+            [M:ZRR0]ZRHNUM=[F:ZRD]ZRHNUM
+            [M:ZRR0]ZRHSTA=[F:ZRH]ZRHSTA
+            [V]ZV_SESSID=[F:ZRD]ZRHNUM
+            Affzo [ZRR0]
+        Endif
+    Else
+        # ERROR IF WE CAN'T READ [ZRH] THEN ROLLBACK
+    Endif
+Else
+# ERROR IF WE CAN'T READ [ZRD] TO GET THE SESSION ID
+Endif
+Read [ZRH]
+Read [ZRD]
+Filter [ZRD]
+Filter [ZRD] Where ZRHNUM=[V]ZV_SESSID and find(LINSTA,"SHORT","COMPLETE")
+# START BY UPDATING ANY DELIVERED QUANTITIES AND DELETE LINES THAT HAVE NOT BEEN FOUND IF THE ZINTR DELIVERY HAS NOT BEEN RECEIVED YET
+For [ZRD]
+    Filter [ZSD] Where SDHNUM=[F:ZRD]SDHNUM and SDDLIN=[F:ZRD]SDDLIN and ITMREF=[F:ZRD]ITMREF and RCPQTYSTU=0
+    Read [ZSD] First
+    If ![S]fstat
+        If [F:ZSD]QTY <> [F:ZRD]QTYDLV
+            [F:ZRD]QTYDLV = [F:ZSD]QTY
+        Endif
+        Rewrite [ZRD]
+    Else
+        If [F:ZRD]QTYRCP=0
+            Read [ZRH]ZRH0=[F:ZRD]ZRHNUM
+            If ![S]fstat
+                If [F:ZRH]ZRHSTA=1
+                    Delete [ZRD]
+                Endif
+            Endif
+        Endif
+    Endif
+Next
+Filter [ZSD]
+Read [ZRH]
+Default Mask [ZRR1]
+For [ZRD]
+    If !find([F:ZRD]SDHNUM,[M:ZRR1]SDHNUM(0..[M:ZRR1]NBLIG-1))
+        [M:ZRR1]SDHNUM([L]ZL_NOL)=[F:ZRD]SDHNUM
+        [M:ZRR1]SDDLIN([L]ZL_NOL)=[F:ZRD]SDDLIN
+        [M:ZRR1]ITMREF([L]ZL_NOL)=[F:ZRD]ITMREF
+        [M:ZRR1]ITMDES1([L]ZL_NOL)=[F:ZRD]ITMDES1
+        [M:ZRR1]QTYDLV([L]ZL_NOL)=[F:ZRD]QTYDLV
+        [M:ZRR1]QTYRCP([L]ZL_NOL)=[F:ZRD]QTYRCP
+        [M:ZRR1]QTYUOM([L]ZL_NOL)=[F:ZRD]QTYUOM
+        [M:ZRR1]LINSTA([L]ZL_NOL)=[F:ZRD]LINSTA
+        [M:ZRR1]ZRHSTA([L]ZL_NOL)=[F:ZRD]ZRHSTA
+        [L]ZL_NOL+=1
+    Endif
+Next
+
+Read [ZRD]
+Filter [ZRD]
+[M:ZRR1]NBLIG=[L]ZL_NOL
+[L]ZL_NOL=0
+If [M:ZRR2]SDHNUM(0)<>"" : [L]ZL_NOL=[M:ZRR2]NBLIG : Endif
+Filter [ZRD] Where ZRHNUM=[V]ZV_SESSID and find(LINSTA,"RETURN","KEEP")
+Default Mask [ZRR2]
+For [ZRD]
+    If !find([F:ZRD]SDHNUM,[M:ZRR2]SDHNUM(0..[M:ZRR2]NBLIG-1))
+        [M:ZRR2]SDHNUM([L]ZL_NOL)=[F:ZRD]SDHNUM
+        [M:ZRR2]SDDLIN([L]ZL_NOL)=[F:ZRD]SDDLIN
+        [M:ZRR2]ITMREFPKE([L]ZL_NOL)=[F:ZRD]ITMREF
+        [M:ZRR2]ITMDES1([L]ZL_NOL)=[F:ZRD]ITMDES1
+        [M:ZRR2]QTY([L]ZL_NOL)=[F:ZRD]QTYRCP
+        [M:ZRR2]QTYUOM([L]ZL_NOL)=[F:ZRD]QTYUOM
+        Case [F:ZRD]LINSTA
+            When "RETURN" : [M:ZRR2]PCKERR([L]ZL_NOL)=1
+            When "KEEP" : [M:ZRR2]PCKERR([L]ZL_NOL)=2
+        Endcase
+        [L]ZL_NOL+=1
+    Endif
+Next
+Filter [ZRD]
+[M:ZRR2]NBLIG=[L]ZL_NOL
+[L]ZL_NOL=0
+[M:ZRR0]SDHNUM=""
+Call AFFZO_MASKS
+Actzo [M:ZRR0]ITMREF
+Actzo [M:ZRR0]QTYADD
+Actzo [ZRR2]
+Actzo [M:ZRR1]
+If !clalev([ALK]) : Local File APLLCK [ALK] : Endif
+For I=0 To [M:ZRR1]NBLIG-1
+    Look [ALK]LCKCLE='SDH'+[M:ZRR1]SDHNUM(I);0
+    If [S]fstat : Lock ='SDH'+[M:ZRR1]SDHNUM(I) : Endif
+Next
+If clalev([ALK]) : Close File [ALK] : Endif
+Call SAVE_DATA()
+End
+
+Subprog CREATE_DELIVERY(ZL_SDHNUM)
+Variable Char ZL_SDHNUM
+Local Shortint ZL_SDHADD : [L]ZL_SDHADD=0
+Local Char ZL_STADES(1)
+
+
+If [M:ZRR0]ZRHNUM<>""
+    [M:ZRR0]ZRHNUM=[V]ZV_SESSID
+    Affzo [M:ZRR0]ZRHNUM
+Endif
+
+Filter [ZSD] Where SDHNUM=[L]ZL_SDHNUM and RCPQTYSTU=0
+For [ZSD]
+    [F:ZRD]ZRHNUM=[V]ZV_SESSID
+    [F:ZRD]RECFCY=func AFNC.INTFLD("SDELIVERY","PRHFCY",[F:ZSD]SDHNUM)
+    [F:ZRD]SUPFCY=func AFNC.INTFLD("SDELIVERY","STOFCY",[F:ZSD]SDHNUM)
+    [F:ZRD]SDHNUM=[F:ZSD]SDHNUM
+    [F:ZRD]SDDLIN=[F:ZSD]SDDLIN
+    [F:ZRD]ITMREF=[F:ZSD]ITMREF
+    [F:ZRD]ITMDES1=[F:ZSD]ITMDES1
+    [F:ZRD]QTYDLV=[F:ZSD]QTY
+    [F:ZRD]QTYRCP=0
+    [F:ZRD]QTYUOM=[F:ZSD]SAU
+    [F:ZRD]LINSTA="SHORT"
+    [F:ZRD]ZRHSTA=1
+    Write [ZRD]
+    [L]ZL_SDHADD+=1
+Next
+Filter [ZSD]
+
+# IF WE WERE SUCCESSFULLY ABLE TO WRITE LINES TO THE DETAILS TABLE, THEN WE NEED TO CREATE THE HEADER AS WELL
+If [L]ZL_SDHADD>0
+
+    # SET THE REST OF THE HEADER DETAILS AND WRITE TO ZINTRH
+    # A) READ THE SDELIVERY HEADER
+    # B) SET THE APPROPRIATE FIELDS TO THEIR VALUES
+    # C) WRITE IT TO THE DATABASE
+
+    Read [ZSH]SDH0=[L]ZL_SDHNUM
+    If ![S]fstat
+        [F:ZRH]ZRHNUM=[V]ZV_SESSID
+        [F:ZRH]ZRHSTA=1
+        Write [ZRH]
+    Else
+        # IF THERE WAS AN ISSUE WRITING THE HEADER, WE'LL DELETE THE DETAILS AS WELL
+        Call ERREURT("Delivery "+[L]ZL_SDHNUM+" read error! Changes have been rolled-back.", 1) From GESECRAN
+        Delete [ZRD] Where SDHNUM=[L]ZL_SDHNUM
+        mkstat=2 : End
+    Endif
+    Read [ZSH]
+    Call OPEN_DELIVERY(ZL_SDHNUM)
+Else
+    # IF THE DELIVERY HAD NO DETAIL LINES WRITTEN, THROW AN ERROR
+    Call ERREURT("Delivery "+[L]ZL_SDHNUM+" has no lines to add!", 1) From GESECRAN
+    mkstat=2 : End
+Endif
+End
+
+Subprog ADD_QUANTITY(ZL_QTYADD)
+Variable Decimal ZL_QTYADD
+Local Integer ZL_QTYALO : [L]ZL_QTYALO=0
+For I=0 To [M:ZRR1]NBLIG-1
+    If [M:ZRR1]ITMREF(I)=[M:ZRR0]ITMREF and [L]ZL_QTYADD>0 and [M:ZRR1]ZRHSTA(I)=1
+        [L]ZL_QTYALO=min([M:ZRR1]QTYDLV(I)-[M:ZRR1]QTYRCP(I),[L]ZL_QTYADD)
+        [M:ZRR1]QTYRCP(I)+=[L]ZL_QTYALO
+        [L]ZL_QTYADD-=[L]ZL_QTYALO
+    Endif
+Next
+Call SAVE_DATA()
+End
+
+Subprog SAVE_DATA
+For I=0 To [M:ZRR1]NBLIG-1
+    Read [ZRD]ZRD0=[M:ZRR1]SDHNUM(I);[M:ZRR1]SDDLIN(I);[M:ZRR1]ITMREF(I)
+    If ![S]fstat
+        [F:ZRD]QTYRCP=[M:ZRR1]QTYRCP(I)
+        [F:ZRD]LINSTA=[M:ZRR1]LINSTA(I)
+        [F:ZRD]ZRHSTA=[M:ZRR1]ZRHSTA(I)
+        Rewrite [ZRD]
+    Endif
+Next
+For I=0 To [M:ZRR2]NBLIG-1
+    # Use the correct grid line index (I) for all fields
+    Read [ZRD]ZRD0=[M:ZRR2]SDHNUM(I);[M:ZRR2]SDDLIN(I);[M:ZRR2]ITMREFPKE(I)
+    If [S]fstat
+        # New record: Populate all fields
+        [F:ZRD]SDHNUM=[M:ZRR2]SDHNUM(I)
+        [F:ZRD]SDDLIN=[M:ZRR2]SDDLIN(I)
+        [F:ZRD]ITMREF=[M:ZRR2]ITMREFPKE(I)
+        [F:ZRD]ITMDES1=[M:ZRR2]ITMDES1(I)
+        [F:ZRD]QTYDLV=0
+        [F:ZRD]QTYRCP=[M:ZRR2]QTY(I)
+        [F:ZRD]QTYUOM=[M:ZRR2]QTYUOM(I)
+        Case num$([M:ZRR2]PCKERR(I))
+            When "1" : [F:ZRD]LINSTA="RETURN"
+            When "2" : [F:ZRD]LINSTA="KEEP"
+        Endcase
+        Write [ZRD]
+    Else
+        # Existing record: Update only necessary fields
+        [F:ZRD]QTYRCP=[M:ZRR2]QTY(I)
+        Case num$([M:ZRR2]PCKERR(I))
+            When "1" : [F:ZRD]LINSTA="RETURN"
+            When "2" : [F:ZRD]LINSTA="KEEP"
+        Endcase
+        Rewrite [ZRD]
+    Endif
+Next
+# STAGE TO DELETE PICKING ERROR LINES WHICH WERE REMOVED
+Local Char ZL_PKEDEL(150)(0..)
+Local Char ZL_LINSTA(30)
+For I=0 To [M:ZRR2]NBLIG-1
+    Case num$([M:ZRR2]PCKERR(I))
+        When "1" : [L]ZL_LINSTA="RETURN"
+        When "2" : [L]ZL_LINSTA="KEEP"
+    Endcase
+    [L]ZL_PKEDEL(I)=[M:ZRR2]ITMREFPKE(I)+num$([M:ZRR2]SDDLIN(I))+[L]ZL_LINSTA
+Next
+Filter [ZRD] Where ZRHNUM=[V]ZV_SESSID and find(LINSTA,"RETURN","KEEP")
+For [ZRD]
+    # Step 3: Check if the record exists in the grid
+    Local Shortint RECORD_FOUND
+    [L]RECORD_FOUND=0
+    # Loop through the ZL_PKEDEL array to check for a match
+    For J=0 To [M:ZRR2]NBLIG-1
+        If [L]ZL_PKEDEL(J)=[F:ZRD]ITMREF+num$([F:ZRD]SDDLIN)+[F:ZRD]LINSTA
+            [L]RECORD_FOUND=1
+            Break
+        Endif
+    Next
+    # Step 4: Delete the record if it is not found in the grid
+    If [L]RECORD_FOUND=0
+        Delete [ZRD]
+    Endif
+Next
+Filter [ZRD]
+For I=0 To [M:ZRR2]NBLIG-1
+    If [M:ZRR2]QTY(I)=0
+        Delete [ZRD]ZRD0=[M:ZRR2]SDHNUM(I);[M:ZRR2]SDDLIN(I);[M:ZRR2]ITMREFPKE(I)
+    Endif
+Next
+End
+
+Subprog AFFZO_MASKS
+Affzo [ZRR0]
+Affzo [ZRR1]
+Affzo [ZRR2]
+End
+
+Subprog PERFORM_CLEANUP
+Call SAVE_DATA()
+If !clalev([ALK]) : Local File APLLCK [ALK] : Endif
+For I=0 To [M:ZRR1]NBLIG-1
+    If [M:ZRR1]SDHNUM(I)<>""
+        Look [ALK]LCKCLE='SDH'+[M:ZRR1]SDHNUM(I);0
+        If ![S]fstat : Unlock ='SDH'+[M:ZRR1]SDHNUM(I) : Endif
+    Endif
+Next
+If clalev([ALK]) : Close File [ALK] : Endif
+If clalev([ZRH]) : Close File [ZRH] : Endif
+If clalev([ZRD]) : Close File [ZRD] : Endif
+If clalev([ZSDH]) : Close File [ZSH] : Endif
+If clalev([ZSDD]) : Close File [ZSD] : Endif
+Kill [V]ZV_SDHNUM,[V]ZV_SESSID
+End
+
+Subprog CREATE_RECEIPT
+
+Call SAVE_DATA()
+If [M:ZRR0]ZRHNUM="" : Call ERREURT("Please enter a delivery first!", 1) From GESECRAN : End : Endif
+If func AFNC.INTFLD("ZINTRH","ZRHSTA",[M:ZRR0]ZRHNUM)=num$(2) : Call ERREURT("No more receipts possible for this document!", 1) From GESECRAN : End : Endif
+Local Integer ZL_QTYRCP : [L]ZL_QTYRCP=0
+For I=0 To [M:ZRR1]NBLIG-1
+    If [M:ZRR1]ZRHSTA(I)=1
+        [L]ZL_QTYRCP+=[M:ZRR1]QTYRCP(I)
+    Endif
+Next
+If ![L]ZL_QTYRCP
+    Call ERREURT("No products to receive!", 1) From GESECRAN
+    End
+Endif
+Local Integer ZL_OKCAN : [L]ZL_OKCAN=2
+Call AVERTIR("WARNING! Successfully received lines can\no longer be modified. Continue?", [L]ZL_OKCAN) From GESECRAN
+If [L]ZL_OKCAN=1
+    End
+Else
+    Local Char WNOMFIC(250) : WNOMFIC=filpath("","YIMPORT\IntersiteReceiving_"+[V]ZV_SESSID,"")
+    Local Char ZL_LOCDES(30) : [L]ZL_LOCDES=""
+    Local Char ZL_STADES(30) : [L]ZL_STADES=""
+    Local Char ZL_WARHSE(1) : [L]ZL_WARHSE=""
+    Local Char ZL_CURREC(5) : [L]ZL_CURREC=""
+    Local Char ZL_CURSUP(5) : [L]ZL_CURSUP=""
+    Local Integer ZL_IMPERR : [L]ZL_IMPERR=0
+
+    Openo WNOMFIC Using [ZZZ]
+    adxifs=chr$(9)
+    adxirs=chr$(13)+chr$(10)
+
+    Filter [ZRD] Where ZRHNUM=[V]ZV_SESSID
+    For [ZRD]
+        If [F:ZRD]QTYRCP>0 and [F:ZRD]ZRHSTA=1
+            If left$([F:ZRD]RECFCY,2)='DC' : [L]ZL_STADES='Q' : [L]ZL_LOCDES='RTLR' : Else : [L]ZL_STADES='A' : [L]ZL_LOCDES='' : Endif
+            If find(left$([F:ZRD]SUPFCY,2),"DC","CR") : [L]ZL_WARHSE="I" : Else : [L]ZL_WARHSE="" : Endif
+            If [F:ZRD]SUPFCY<>[L]ZL_CURSUP or [F:ZRD]RECFCY<>[L]ZL_CURREC
+                [L]ZL_CURREC=[F:ZRD]RECFCY
+                [L]ZL_CURSUP=[F:ZRD]SUPFCY
+                Wrseq "H",[F:ZRD]RECFCY,[L]ZL_WARHSE+[F:ZRD]SUPFCY,[V]ZV_SESSID Using [ZZZ]
+                Wrseq "D",[F:ZRD]SDHNUM,[F:ZRD]SDDLIN,[F:ZRD]ITMREF,[F:ZRD]QTYUOM,[F:ZRD]QTYUOM,[F:ZRD]QTYRCP,[F:ZRD]QTYRCP Using [ZZZ]
+                Wrseq "S",[L]ZL_STADES,[L]ZL_LOCDES,'',[F:ZRD]QTYUOM,[F:ZRD]QTYRCP Using [ZZZ]
+            Else
+                Wrseq "D",[F:ZRD]SDHNUM,[F:ZRD]SDDLIN,[F:ZRD]ITMREF,[F:ZRD]QTYUOM,[F:ZRD]QTYUOM,[F:ZRD]QTYRCP,[F:ZRD]QTYRCP Using [ZZZ]
+                Wrseq "S",[L]ZL_STADES,[L]ZL_LOCDES,'',[F:ZRD]QTYUOM,[F:ZRD]QTYRCP Using [ZZZ]
+            Endif
+        Endif
+    Next
+    Filter [ZRD]
+    #For I=0 To [M:ZRR1]NBLIG-1
+    #    If [M:ZRR1]QTYRCP(I)>0
+    #        Wrseq "D",[M:ZRR1]SDHNUM(I),[M:ZRR1]SDDLIN(I),[M:ZRR1]ITMREF(I),[M:ZRR1]QTYUOM(I),[M:ZRR1]QTYUOM(I),[M:ZRR1]QTYRCP(I),[M:ZRR1]QTYRCP(I) Using [ZZZ]
+    #        Wrseq "S",[L]ZL_STADES,[L]ZL_LOCDES,'',[M:ZRR1]QTYUOM(I),[M:ZRR1]QTYRCP(I) Using [ZZZ]
+    #    Endif
+    #Next
+    Openo Using [ZZZ]
+
+    Call OUVRE_TRACE("IntersiteReceiving_"+[V]ZV_SESSID) From LECFIC
+    Call IMPORTSIL("ZINTRIMP",WNOMFIC) From GIMPOBJ
+    If GERRTRACE
+        [L]ZL_IMPERR=1
+    Endif
+    Call FERME_TRACE From LECFIC
+    Call LEC_TRACE From LECFIC
+    If [L]ZL_IMPERR
+        Call ERREURT("One or more delivery lines encountered an error, please try to\create the receipt again.", 1) From GESECRAN
+    Endif
+    # FIND AND UPDATE RECEIVED LINES ZRHSTA=2
+    # Filter ZPTD For the matching delivery line, and if found, update the ZRHSTA
+    If !clalev([ZPTD]) : Local File PRECEIPTD [ZPTD] : Endif
+    Columns [ZPTD] (SDHNUM,SDDLIN,ITMREF,QTYUOM)
+    Local Decimal ZL_QTYRCP : [L]ZL_QTYRCP=0
+    For I=0 To [M:ZRR1]NBLIG-1
+        Filter [ZPTD] Where SDHNUM=[M:ZRR1]SDHNUM(I) and SDDLIN=[M:ZRR1]SDDLIN(I) and ITMREF=[M:ZRR1]ITMREF(I)
+        For [ZPTD]
+            [L]ZL_QTYRCP+=[F:ZPTD]QTYUOM
+        Next
+        If [L]ZL_QTYRCP>0
+            [M:ZRR1]ZRHSTA(I)=2
+            [L]ZL_QTYRCP=0
+        Endif
+    Next
+    If clalev([ZPTD]) : Close File [ZPTD] : Endif
+    Call AFFZO_MASKS
+    Call SAVE_DATA()
+    Local Shortint ZL_ZRHSTA : [L]ZL_ZRHSTA=2
+    For I=0 To [M:ZRR1]NBLIG-1
+        If [M:ZRR1]ZRHSTA(I)=1
+            [L]ZL_ZRHSTA=1 : Break
+        Endif
+    Next
+    If [L]ZL_ZRHSTA=2
+        Read [ZRH]ZRH0=[V]ZV_SESSID
+        [F:ZRH]ZRHSTA=2
+        Rewrite [ZRH]
+        Diszo [ZRR0]
+        Diszo [ZRR1]
+        Diszo [ZRR2]
+    Endif
+    Raz [M:ZRR0]ITMREF,[M:ZRR0]QTYADD,[M:ZRR0]ITMDES1,[M:ZRR0]ITMDES2,[M:ZRR0]PRI
+    Call AFFZO_MASKS
+Endif
+End
+
+
+

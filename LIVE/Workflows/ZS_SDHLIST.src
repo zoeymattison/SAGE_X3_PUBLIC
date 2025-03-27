@@ -1,0 +1,19 @@
+If !clalev([ZSDH2]) : Local File SDELIVERY [ZSDH2] : Endif
+Local Integer ZL_CURTIM : [L]ZL_CURTIM = val(format$("hhmm",func TIMEZONE_CSTD.TO_LOCAL("Pacific Standard Time",gdatetime$(datetime$))))-100
+Local Shortint I : [L]I = 0
+Columns [ZSDH2] (CREDATTIM, CREDAT, CFMFLG, INVFLG, BETFCY)
+Filter [ZSDH2] Where CREDAT >= gdat$(1,1,25) and  (CFMFLG = 1 or (CFMFLG = 2 and BETFCY = 1 and INVFLG = 1))
+For [ZSDH2]
+    If val(format$("D:YYYYMMDDhhmm",datetime$))-val(format$("D:YYYYMMDDhhmm",[F:ZSDH2]CREDATTIM))>=100
+        [L]I+=1
+    Endif
+Next
+If [L]I>0
+    Local Integer TYPEVT : [L]TYPEVT=1
+    Local Char CODEVT : [L]CODEVT="ZDL"
+    Local Char OPERAT : [L]OPERAT=""
+    Local Char CLEOBJ : [L]CLEOBJ=""
+    Call WORKFLOW(TYPEVT,CODEVT,OPERAT,CLEOBJ) From AWRK
+Endif
+
+

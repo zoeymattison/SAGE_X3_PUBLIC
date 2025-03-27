@@ -8,11 +8,11 @@ Local Char      HEADER(250)
 Local Clbfile   BODY(0)
 Local Char      ATTACHMENTS(250)(1..)
 
-A_USER(1)="kaitlin.vandervlugt@monk.ca"
+A_USER(1)=""
 #A_USER(2)="james.zabarauckas@monk.ca"
-A_USER(3)="adam.taft@monk.ca"
+A_USER(3)="a"
 HEADER="Sales & Sites Backorder Reports - "+num$(format$("MM[/]DD[/]YYYY",date$))
-ISSUERMAIL="noreply@monk.ca"
+ISSUERMAIL=""
 ATTACHMENTS(1) = "D:\Sage\X3\folders\LIVE\ZATTACH\BKORPT_INTERSITES_"+num$(format$("YYYYMMDD",date$))+".xlsx"
 ATTACHMENTS(2) = "D:\Sage\X3\folders\LIVE\ZATTACH\BKORPT_COMMFURNIT_"+num$(format$("YYYYMMDD",date$))+".xlsx"
 ATTACHMENTS(3) = "D:\Sage\X3\folders\LIVE\ZATTACH\BKORPT_STATIONMOT_"+num$(format$("YYYYMMDD",date$))+".xlsx"

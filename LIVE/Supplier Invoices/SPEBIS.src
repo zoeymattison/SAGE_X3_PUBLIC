@@ -63,3 +63,6 @@ Subprog D_PIVTYP(VALEUR)
 Variable Char    VALEUR()
 [M:BIS0]PIVTYP = 'DIR' : Affzo [M:BIS0]PIVTYP
 End
+
+
+

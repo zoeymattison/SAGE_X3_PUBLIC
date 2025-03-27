@@ -1,0 +1,32 @@
+
+######################################################################################
+## Modified: 2023-10-05                                                             ##
+## Author (Company): TAC                                                            ##
+## Notes: ACTION modifications made in YSPEPRH                                      ##
+######################################################################################
+## EXEBOUT in YSPEPRH                                                               ##
+######################################################################################
+#    When "EXEBOUT" : Gosub EXEBOUT From YSPEPRH
+$ACTION
+  Case ACTION
+    When Default
+  Endcase
+Return
+
+# 2023-11-27 I removed the link to TAC's EXEBOUT action call. I've rewritten the functioning of the button to print our new labels which
+# can be printed with or without a prep plan and after the pick ticket has gone into delivery status.
+# For a full list of the new modiciations related to this, please contact me - zoey.mattison@monk.ca
+# The new scripts are located in ZSHIPLAB (for individual pick tickets) and ZSHIPBULKLBL (For prep plan mass label printing)
+
+
+
+
+
+
+
+
+
+
+
+
+

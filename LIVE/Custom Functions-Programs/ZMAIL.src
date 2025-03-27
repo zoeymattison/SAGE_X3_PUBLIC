@@ -1,0 +1,115 @@
+Subprog ZMAIL(ZIDENT)
+ Variable Char ZIDENT()
+ Local Integer  STA
+ Local Integer  TRACE
+ Local Char      FIC_TRACE(250)
+ Local Char      ISSUERMAIL(250)
+ Local Char      A_USER(250)(1..)
+ Local Char      CC_USER(250)(1..)
+ Local Char      HEADER(250)
+ Local Clbfile   BODY(0)
+ Local Char      ATTACHMENTS(250)(1..)
+ #Infbox ZIDENT
+
+Case ZIDENT
+ When "BPCINV" : Goto BPCINV
+ When "BPCINVS" : Goto BPCINVS
+ When "SOHSIG" : Goto SOHSIG
+ When default
+Endcase
+
+End
+
+$BPCINV
+    A_USER(1)="service@monk.ca"
+    A_USER(2)="ar@monk.ca"
+    HEADER='WARNING - INCORRECT BILL-TO ON '+[M:SIH0]NUM
+    ISSUERMAIL='noreply@monk.ca'
+    TRACE = 2
+ 
+    Append BODY , 'This is an automated message.'+chr$(10)
+    Append BODY , 'An invoice was created with an incorrect bill-to.'+chr$(10)+chr$(10)
+    Append BODY , 'The record was created by'-GUSER+chr$(10)
+    Append BODY , chr$(10)
+    Append BODY , 'Invoice: '+[M:SIH0]NUM+chr$(10)
+    Append BODY , 'Sales site: '+[M:SIH0]SALFCY+chr$(10)
+    Append BODY , 'Sold-to: '+[M:SIH1]BPCORD+chr$(10)
+    Append BODY , 'Invoice: '+[M:SIH0]BPCINV+chr$(10)
+    Append BODY , chr$(10)
+    Append BODY , 'Thank you,'+chr$(10)+chr$(10)
+    Append BODY , 'IT Department'+chr$(10)
+    
+    STA =func ASYRMAIL.ASEND_MAIL(GACTX,ISSUERMAIL,A_USER,CC_USER,HEADER,BODY,ATTACHMENTS,TRACE)
+    If STA <> [V]CST_AOK Then
+       infbox( mess(1163,196,1))
+    Endif
+End
+
+$BPCINVS
+    A_USER(1)="service@monk.ca"
+    A_USER(2)="ar@monk.ca"
+    HEADER='WARNING - INCORRECT BILL-TO ON '+[M:SOH0]SOHNUM
+    ISSUERMAIL='noreply@monk.ca'
+    TRACE = 2
+ 
+    Append BODY , 'This is an automated message.'+chr$(10)
+    Append BODY , 'A sales order was created with an incorrect bill-to.'+chr$(10)+chr$(10)
+    Append BODY , 'The record was created by'-GUSER+chr$(10)
+    Append BODY , chr$(10)
+    Append BODY , 'Order: '+[M:SOH0]SOHNUM+chr$(10)
+    Append BODY , 'Sales site: '+[M:SOH0]SALFCY+chr$(10)
+    Append BODY , 'Sold-to: '+[M:SOH0]BPCORD+chr$(10)
+    Append BODY , 'Invoice: '+[M:SOH1]BPCINV+chr$(10)
+    Append BODY , chr$(10)
+    Append BODY , 'Thank you,'+chr$(10)+chr$(10)
+    Append BODY , 'IT Department'+chr$(10)
+    
+    STA =func ASYRMAIL.ASEND_MAIL(GACTX,ISSUERMAIL,A_USER,CC_USER,HEADER,BODY,ATTACHMENTS,TRACE)
+    If STA <> [V]CST_AOK Then
+       infbox( mess(1163,196,1))
+    Endif
+End
+
+$SOHSIG
+    #A_USER(1)="zoey.mattison@monk.ca"
+    A_USER(1)="hello@monk.ca"
+    #CC_USER(1)="jennifer.subasic@monk.ca"
+    #CC_USER(2)="kelly.mcguire@monk.ca"
+    CC_USER(1)="zoey.mattison@monk.ca"
+
+    HEADER='Monk Office Order for your Approval'-[F:SOH]SOHNUM
+    ISSUERMAIL='noreply@monk.ca'
+    TRACE = 2
+ 
+    Append BODY , 'This is an automated message.'+chr$(10)
+    Append BODY , 'A sales order was created that needs approval!'+chr$(10)+chr$(10)
+    Append BODY , 'Order: '+[F:SOH]SOHNUM+chr$(10)
+    Append BODY , 'Sold-to: '+[F:SOH]BPCORD+chr$(10)
+    Append BODY , 'Valuation: $'+num$([F:SOH]ORDINVATI)+chr$(10)+chr$(10)
+    Append BODY , func ZMONK.GetLines([F:SOH]SOHNUM)
+    Append BODY , chr$(10)
+    Append BODY , 'Thank you,'+chr$(10)+chr$(10)
+    Append BODY , 'IT Department'+chr$(10)
+    
+    STA =func ASYRMAIL.ASEND_MAIL(GACTX,ISSUERMAIL,A_USER,CC_USER,HEADER,BODY,ATTACHMENTS,TRACE)
+    If STA <> [V]CST_AOK Then
+       infbox( mess(1163,196,1))
+    Endif
+End
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

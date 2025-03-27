@@ -2,8 +2,28 @@ $ACTION
 Case ACTION
     When 'VERIF_CRE' : Gosub VERIF_CRE
     When 'APRES_CRE' : Gosub APRES_CRE
+    When "SETBOUT" : Gosub SETBOUT
+    When "APRES_CHOI" : Gosub APRES_CHOI
     When Default
 Endcase
+Return
+
+$SETBOUT
+If [M:SRH0]SRHNUM<>""
+   CHMEN+="Za"
+Endif
+Return
+
+$APRES_CHOI
+Case num$(REPONSE)
+    When "2001" : Gosub PRINT_RETURN
+Endcase
+Return
+
+$PRINT_RETURN
+Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+TBPAR_BP(1) = "transferdeb" : TBVAL_BP(1) = [M:SRH0]SRHNUM
+Call ETAT("BONRETLIV","PREVIEW","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
 Return
 
 $VERIF_CRE
@@ -140,3 +160,12 @@ If (GUSER = 'MOAT' or GUSER = 'MORHB') and VALEUR > 0
     [M:SRH1]RTNREN(NOL) = 'MOT' : Affzo [M:SRH1]RTNREN(NOL)
 Endif
 End
+
+
+
+
+
+
+
+
+

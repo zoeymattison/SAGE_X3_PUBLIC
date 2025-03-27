@@ -1,0 +1,194 @@
+Funprog ZSOHLAUG(ZNUM)
+	Value Char ZNUM
+	Local Clbfile RETVAL (6)
+	RETVAL=''
+		If !clalev([F:ZSOP]) : Local File SORDERP[ZSOP] : Endif
+		If !clalev([F:ZSOQ]) : Local File SORDERQ[ZSOQ] : Endif
+		Link [ZSOP] With [ZSOQ]SOQ0=[F:ZSOP]SOHNUM;[F:ZSOP]SOPLIN;[F:ZSOP]SOPSEQ As [ZSO]
+		Filter [ZSO] Where SOHNUM = ZNUM
+		Read [ZSO] First
+		If fstat = 0
+			For [ZSO]
+					RETVAL += num$([F:ZSO]SOPLIN/1000)+'. '-[F:ZSO]ITMREF-mess(1,16807,1)-[F:ZSO]ITMDES-mess(1,16807,1)-num$([F:ZSOQ]SHTQTY)-[F:ZSO]SAU-mess(1,16807,1)+' - DC30 has '+func AFNC.INTFLD('ITMMVT',
+& 'PHYSTO',[F:ZSO]ITMREF+'~'+'DC30')+chr$(13)+chr$(13)+chr$(13)+chr$(10)+chr$(10)
+			Next
+		Endif
+	RETVAL+=''
+	End RETVAL
+
+Subprog ZPAYETRPT
+If !clalev([ZPYH]): Local File PAYMENTH[ZPYH] : Endif
+Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+Global Char GPAYNUM
+Global Char GPAYBPR
+Filter [ZPYH] Where pat(NUM, 'PAYET*') and CREDAT = date$()-1
+For [ZPYH]
+GPAYNUM = [F:ZPYH]NUM
+GPAYBPR = [F:ZPYH]BPR
+TBPAR_BP(1) = "regdeb" : TBVAL_BP(1) = [F:ZPYH]NUM
+TBPAR_BP(2) = "regfin" : TBVAL_BP(2) = [F:ZPYH]NUM
+Call ETAT("ZPAYRPTA","EMAILX3","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+Raz GPAYNUM, GPAYBPR
+Next
+Return
+End
+
+
+
+
+
+
+###########################################################################
+# Stock Count filter for ABC counting                                     #
+# Author (Company) : MOZM (MONK)                                          #
+# Notes: Calculated the start of the fiscal year and how many times the   #
+#        inputted item code has been counted since then. To be used in    #
+#        the "totals formula" field. Codes Z0 through 3                   #
+###########################################################################
+
+Funprog GETCOUNT(ZITM)
+Value Char ZITM
+Local Char RETVAL(200)
+Local Integer COUNT
+Local Char ZFISCALSTART : ZFISCALSTART = '0701'
+Local Char ZFISCALYEAR
+
+If !clalev([ZIV]) : Local File ITMMVT[ZIV] : Endif
+
+# Get today's date and determine the first year of the current fiscal
+Case month$(date$)
+    When "January"    : ZFISCALYEAR = num$(year(date$)-1)
+    When "February"   : ZFISCALYEAR = num$(year(date$)-1)
+    When "March"      : ZFISCALYEAR = num$(year(date$)-1)
+    When "April"      : ZFISCALYEAR = num$(year(date$)-1)
+    When "May"        : ZFISCALYEAR = num$(year(date$)-1)
+    When "June"       : ZFISCALYEAR = num$(year(date$)-1)
+    When "July"       : ZFISCALYEAR = num$(year(date$))
+    When "August"     : ZFISCALYEAR = num$(year(date$))
+    When "September"  : ZFISCALYEAR = num$(year(date$))
+    When "October"    : ZFISCALYEAR = num$(year(date$))
+    When "November"   : ZFISCALYEAR = num$(year(date$))
+    When "December"   : ZFISCALYEAR = num$(year(date$))
+    When Default
+Endcase
+
+# Create the fiscal start string by appending the above result to 0701
+Append ZFISCALYEAR, ZFISCALSTART
+
+# Calculate how many times the product has been counted since the ZFISCALEAR date, and return the value to the filter
+Filter [ZIV] Where ITMREF = ZITM and STOFCY = 'DC30'
+    Read [ZIV] First
+        If [ZIV]CUNDAT(0) >= ZFISCALYEAR : COUNT += 1 : Endif
+        If [ZIV]CUNDAT(1) >= ZFISCALYEAR : COUNT += 1 : Endif
+        If [ZIV]CUNDAT(2) >= ZFISCALYEAR : COUNT += 1 : Endif
+        If [ZIV]CUNDAT(3) >= ZFISCALYEAR : COUNT += 1 : Endif
+        RETVAL = num$(COUNT)
+        End RETVAL
+Raz ZITM, COUNT
+
+Funprog GETPICKLINES(ZNUM)
+Value Char ZNUM
+Local Char RETVAL(200)
+Local Integer ZCOUNT : ZCOUNT = 0
+If !clalev([ZPE]) : Local File STOPRED[ZPE] : Endif
+Filter [ZPE] Where PRHNUM = ZNUM
+For [ZPE]
+ZCOUNT = ZCOUNT + 1
+Next
+RETVAL = num$(ZCOUNT)
+End RETVAL
+
+Funprog GETPICKORD(ZNUM)
+Value Char ZNUM
+Local Char RETVAL(200)
+Local Char ZORD
+If !clalev([ZPE]) : Local File STOPRED[ZPE] : Endif
+Filter [ZPE] Where PRHNUM = ZNUM
+Read [ZPE] First
+ZORD = [ZPE]ORINUM
+RETVAL = ZORD
+End RETVAL
+
+Funprog GETORDPICK(ZNUM)
+Value Char ZNUM
+Local Char RETVAL(200)
+Local Char ZORD
+If !clalev([ZPE]) : Local File STOPRED[ZPE] : Endif
+Filter [ZPE] Where ORINUM = ZNUM
+Read [ZPE] First
+ZORD = [ZPE]PRHNUM
+RETVAL = ZORD
+End RETVAL
+
+
+Funprog GETORDLINES(ZNUM)
+Value Char ZNUM
+Local Char RETVAL(200)
+Local Integer ZCOUNT : ZCOUNT = 0
+If !clalev([ZSO]) : Local File SORDERQ[ZSO] : Endif
+Filter [ZSO] Where SOHNUM = ZNUM
+For [ZSO]
+ZCOUNT = ZCOUNT + 1
+Next
+RETVAL = num$(ZCOUNT)
+End RETVAL
+
+Funprog GETAUTHTOT(ZNUM)
+Value Char ZNUM
+Local Decimal ZTOT : ZTOT = 0
+If !clalev([ZSE]) : Local File SEAUTH[ZSE] : Endif
+Filter [ZSE] Where SOHNUM = ZNUM
+For [ZSE]
+ZTOT = ZTOT + [ZSE]AUTAMT
+Next
+RETVAL = num$(ZTOT)
+End RETVAL
+
+Funprog GETLINES(ZNUM)
+	Value Char ZNUM
+	Local Clbfile RETVAL (6)
+	RETVAL=''
+		If !clalev([F:ZSOP]) : Local File SORDERP[ZSOP] : Endif
+		If !clalev([F:ZSOQ]) : Local File SORDERQ[ZSOQ] : Endif
+		Link [ZSOP] With [ZSOQ]SOQ0=[F:ZSOP]SOHNUM;[F:ZSOP]SOPLIN;[F:ZSOP]SOPSEQ As [ZSO]
+		Filter [ZSO] Where SOHNUM = ZNUM
+		Read [ZSO] First
+		If fstat = 0
+			For [ZSO]
+					RETVAL += num$([F:ZSO]SOPLIN/1000)+'. '-[F:ZSO]ITMREF-mess(1,16807,1)-[F:ZSO]ITMDES-mess(1,16807,1)-num$([F:ZSOQ]QTY)-[F:ZSO]SAU-mess(1,16807,1)-chr$(36)+format$("N3vF<:13.2",[F:ZSO]GROPRI*[F:
+& ZSOQ]QTY)+chr$(10)+chr$(10)+chr$(13)+chr$(13)
+			Next
+		Endif
+	RETVAL+=''
+	End RETVAL
+
+Funprog GETSIGA(ZNUM)
+Value Char ZNUM
+Local Char RETVAL(200)
+If !clalev([ZAW]) : Local File AWRKREGVAL[ZAW] : Endif
+Filter [ZAW] Where REGLE = "SOHSIG" and VALREG = ZNUM
+  Read [ZAW] First
+  If !fstat
+    RETVAL = "T"
+  Else
+    RETVAL = "F"
+  Endif
+End RETVAL
+
+
+
+
+Funprog GETQTY(ZITM)
+Value Char ZITM
+Local Integer ZQTY : ZQTY = 0
+Local Integer ZALL : ZALL = 0
+Local Char RETVAL(200)
+If !clalev([ZST]) : Local File STOCK[ZST] : Endif
+Filter [ZST] Where ITMREF = ZITM
+For [ZST]
+ZQTY = ZQTY + [F:ZST]QTYSTU
+ZALL = ZALL + [F:ZST]CUMALLQTY
+Next
+RETVAL=num$(ZQTY-ZALL)
+
+End RETVAL

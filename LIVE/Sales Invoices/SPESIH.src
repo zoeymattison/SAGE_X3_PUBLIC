@@ -10,20 +10,86 @@
 ######################################################################################
 
 $ACTION
-  Case ACTION 
+  Case ACTION
     When "APRES_CRE" : Gosub ZMAIL : Gosub APRES_CRE From YSPESIH : Gosub APRES_CRE
     When "VERIF_CRE" : Gosub BPCINV : Gosub VERIF_CRE From YSPESIH : Gosub REP_FIL : Gosub PTE_CHK
     When "VERIF_MOD" : Gosub VERIF_MOD From YSPESIH
+    When "SETBOUT" : Gosub SETBOUT
   Endcase
 Return
 
 $APRES_CRE
-If func AFNC.INTFLD("BPCUSTOMER","ZSIHEML",[F:SIV]BPCORD) = num$(2) and [M:SIH4]INVATI > 0
-Local Char TBPAR(50)(1..50),TBVAL(50)(1..50)
-TBPAR(1) = "sihnum" : TBVAL(1) = [F:SIH]NUM
-Call ETAT("ZRPT_INVOICE2","EMAILX3","",0,"",TBPAR,TBVAL) From AIMP3
+If GUSER="MOZM"
+    Call ZSUB_PRNSIH()
 Endif
 Return
+
+Subprog ZSUB_PRNSIH
+Local Char FONCTION(30)
+Local Char TBPAR(150)(150)
+Local Char TBVAL(150)(150)
+Global Clbfile ZG_SIHMES(0)
+Global Char ZG_SIHEML(80)
+Global Char ZG_SIHECC(80)
+Global Char ZG_SIHSBJ(250)
+Global Char ZG_SIHSND(250)
+TBPAR(0) = "sitedeb"      : TBVAL(0) = ""
+TBPAR(1) = "sitefin"      : TBVAL(1) = "ZZZZZZZZ"
+TBPAR(2) = "facturedeb"   : TBVAL(2) = [F:SIV]NUM
+TBPAR(3) = "facturefin"   : TBVAL(3) = [F:SIV]NUM
+TBPAR(4) = "typedeb"      : TBVAL(4) = ""
+TBPAR(5) = "typefin"      : TBVAL(5) = "ZZZZZZZZ"
+TBPAR(6) = "datedeb"      : TBVAL(6) = "1/1/2020"
+TBPAR(7) = "datefin"      : TBVAL(7) = "12/31/2099"
+TBPAR(8) = "codimp"       : TBVAL(8) = "1"
+TBPAR(9) = "impselections": TBVAL(9) = "1"
+TBPAR(10) = "duplicata"   : TBVAL(10) = "1"
+TBPAR(11) = "traystd"     : TBVAL(11) = "1"
+TBPAR(12) = "traybvr"     : TBVAL(12) = "1"
+TBPAR(13) = "logosoc"     : TBVAL(13) = "2"
+TBPAR(14) = "fcycpynam"   : TBVAL(14) = "1"
+TBPAR(15) = "edd"         : TBVAL(15) = "1"
+TBPAR(16) = "prnpck"      : TBVAL(16) = "2"
+TBPAR(17) = "prndst"      : TBVAL(17) = ""
+Local Integer ZL_PROPAY : [L]ZL_PROPAY=0
+For I=0 To [M:SIH4]NBLIG-1
+    If left$([M:SIH4]ITMREF(I),12)="/PROGRESSPAY" : [L]ZL_PROPAY+=1 : Endif
+Next
+If [L]ZL_PROPAY>0
+    [V]ZG_SIHSND="noreply@monk.ca"
+    [V]ZG_SIHEML="adam.taft@monk.ca;ar@monk.ca"
+    [V]ZG_SIHECC=""
+    [V]ZG_SIHSBJ="NOTICE - PROGRESS PAYMENT MADE - "+[F:SIH]NUM
+    [V]ZG_SIHMES+="Hello,"+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="Please find attached a new progress payment for:"+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="Ship-to: "+[F:SIV]BPDNAM+chr$(10)
+    [V]ZG_SIHMES+="Bill-to: "+[F:SIV]BPINAM+chr$(10)
+    [V]ZG_SIHMES+="Email: "+func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:SIV]BPCINV+"~ADDR")+chr$(10)
+    [V]ZG_SIHMES+="Phone: "+func AFNC.INTFLD("BPADDRESS","TEL(0)","1~"+[F:SIV]BPCINV+"~ADDR")+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="Thank you,"+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="IT Department"
+    Call ETAT("ZRPT-GESSIH", "EMAILX3" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+    Raz [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND
+Endif
+If [M:SIH0]BPCINV=func AFNC.INTFLD("BPCUSTOMER","BPCINV",[M:SIH1]BPCORD) and
+& func AFNC.INTFLD("BPCUSTOMER","ZSIHEML",[F:SIV]BPCORD) = num$(2) and [F:SIH]AMTATI > 0
+    [V]ZG_SIHSND="ar@monk.ca"
+    [V]ZG_SIHEML=func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[F:SIV]BPCORD+'~ADDR')
+    [V]ZG_SIHECC="ar@monk.ca"
+    [V]ZG_SIHSBJ="Monk Office "+tolower(mess(val(func AFNC.INTFLD("SINVOICE","INVTYP",[F:SIV]NUM)),645,1))+' - '+[F:SIV]NUM
+    [V]ZG_SIHMES+="Hello, this is an automated message intended for "+func AFNC.INTFLD('BPCUSTOMER','BPCNAM',[F:SIV]BPCORD)+"."+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="Please find attached your "+tolower(mess(val(func AFNC.INTFLD('SINVOICE','INVTYP',[F:SIV]NUM)),645,1))+" from Monk Office."+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="Thank you,"+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="Accounts Receivable"+chr$(10)
+    [V]ZG_SIHMES+="Monk Office"+chr$(10)
+    [V]ZG_SIHMES+="800 Viewfield Road"+chr$(10)
+    [V]ZG_SIHMES+="Victoria, BC V9A4V1"+chr$(10)
+    [V]ZG_SIHMES+="P: 250-414-3359 E: ar@monk.ca"
+    Call ETAT("ZRPT-GESSIH", "EMAILX3" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+    Raz [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND
+Endif
+Kill [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND
+End
 
 $BPCINV
 Local Integer OKCAN : OKCAN = 1
@@ -40,8 +106,8 @@ Return
 $ZMAIL
 If !GWEBSERV
   If (pat([M:SIH0]BPCINV, '*-*') & !pat([M:SIH0]BPCINV, 'GAIN*')) | pat([M:SIH0]BPCINV, 'GAIN-*-*')
-    Local Char ZIDENT : ZIDENT = "BPCINV"
-    Call ZMAIL(ZIDENT) from ZMAIL
+    Local Char ZIDENT(30) : ZIDENT = "BPCINV"
+    Call ZMAIL(ZIDENT) From ZMAIL
   Endif
 Endif
 
@@ -51,58 +117,22 @@ $REP_FIL
 If GUSER = 'YMIRA' and [M:SIH1]REP = ''
 [M:SIH1]REP(0) = '90'
 Affzo [M:SIH1]REP(0)
-  For i = 0 to [M:SIH4]NBLIG-1
-    [M:SIH4]REP1(i) = '90'
-    Affzo [M:SIH4]REP1(i)
+  For I = 0 To [M:SIH4]NBLIG-1
+    [M:SIH4]REP1(I) = '90'
+    Affzo [M:SIH4]REP1(I)
   Next
 Endif
 Return
-
-
 
 $PTE_CHK
 If [M:SIH2]PTE = "CREDITCARDP" and [M:SIH4]INVATI = 0
 [M:SIH2]PTE = "NET30"
 Affzo [M:SIH2]PTE
 Endif
-
 Return
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+$SETBOUT
+If func AFNC.INTFLD("AUTILIS","ZFINAUT",GUSER)<>"2"
+    Diszo [M:SIH1]VACBPR
+Endif
+Return

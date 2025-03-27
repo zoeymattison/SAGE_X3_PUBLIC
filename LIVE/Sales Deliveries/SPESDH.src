@@ -1,12 +1,43 @@
 $ACTION
   Case ACTION 
     when "APRES_CRE": gosub APRES_CRE
+    when "SETBOUT" : gosub SETBOUT
+    when "APRES_CHOI" : gosub APRES_CHOI
   endcase
+Return
+
+$APRES_CHOI
+Case num$(REPONSE)
+  When "2005" : Gosub PRINT_SDH
+Endcase
+Return
+
+$PRINT_SDH
+    Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+    Local Char PRNDEST : [L]PRNDEST=func afnc.intfld("APRTAUS", "PRT", GUSER+"~"+"ZRPT-DELIVERY"+"~")
+    If PRNDEST = "" 
+      PRNDEST = "PREVIEW"
+    endif
+    TBPAR_BP(1) = "sdhdeb" : TBVAL_BP(1) = [M:SDH0]SDHNUM
+    Call ETAT("ZRPT-DELIVERY",PRNDEST,"",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+Return
+
+$SETBOUT
+If [F:SDH]BETFCY=2
+  CHMEN+="3a"
+Endif
+If func AFNC.INTFLD("AUTILIS","ZFINAUT",GUSER)<>"2"
+    Diszo [M:SDH2]VACBPR
+Endif
 Return
 
 $APRES_CRE
   # & [F:YBPI]YSENDPRINT=2
-  if ([F:SDH]STOFCY='DC30' | [F:SDH]STOFCY='DC52' | [F:SDH]STOFCY='DC33' | [F:SDH]STOFCY='DC31') & [F:SDH]BETFCY = 2
+If left$([F:SDH]STOFCY,2)='DC' & [F:SDH]BETFCY = 2
+  If [F:SDH]BPCORD='2100'
+    Gosub PRINT_SDH
+  Else
     Call PRINTSDH([F:SDH]SDHNUM) from YPRNSDH
-  endif
+  Endif
+Endif
 Return

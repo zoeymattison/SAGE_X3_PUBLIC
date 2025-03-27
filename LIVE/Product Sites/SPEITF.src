@@ -1,0 +1,20 @@
+$ACTION
+Case ACTION
+     When "VERIF_CRE" : Gosub VERIF_CRE
+     When default
+Endcase
+Return
+
+$VERIF_CRE
+If left$([M:ITF0]STOFCY,2) <> "DC"
+[M:ITF1]LOCMGTCOD = 1
+[M:ITF7]VLTCOD = "AVC"
+Affzo [M:ITF1]LOCMGTCOD
+Affzo [M:ITF7]VLTCOD
+Endif
+Return
+
+
+
+
+

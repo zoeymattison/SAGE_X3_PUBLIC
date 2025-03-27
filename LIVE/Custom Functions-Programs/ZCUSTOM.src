@@ -1,0 +1,141 @@
+Funprog GETPOHLIG(ZNUM)
+	Value Char ZNUM
+	Local Clbfile RETVAL (6)
+	RETVAL=''
+		If !clalev([F:ZZPOP]) : Local File PORDERP[ZZPOP] : Endif
+		If !clalev([F:ZZPOQ]) : Local File PORDERQ[ZZPOQ] : Endif
+		Link [ZZPOP] With [ZZPOQ]POQ0=[F:ZZPOP]POHNUM;[F:ZZPOP]POPLIN;[F:ZZPOP]POPSEQ As [ZPO]
+		Filter [ZPO] Where POHNUM = ZNUM
+		Read [ZPO] First
+		If fstat = 0
+			For [ZPO]
+				RETVAL += num$([F:ZPO]POPLIN/1000)+'. '-[F:ZPO]ITMREF-mess(1,16807,1)-[F:ZZPOQ]ITMREFBPS-mess(1,16807,1)-[F:ZPO]ITMDES-mess(1,16807,1)-num$([F:ZZPOQ]QTYSTU)-[F:ZZPOQ]STU-mess(1,16807,1)-chr$(36)+
+& format$("N3vF<:13.2",[F:ZPO]GROPRI)-mess(1,16807,1)-chr$(36)+format$("N3vF<:13.2",[F:ZPO]GROPRI*[F:ZZPOQ]QTYSTU)+chr$(13)+chr$(13)+chr$(13)+chr$(13)+chr$(10)+chr$(10)
+			Next
+		Endif
+	RETVAL+=''
+	End RETVAL
+
+Funprog GETPOHMLIG(ZNUM)
+	Value Char ZNUM
+	Local Clbfile RETVAL (6)
+	RETVAL=''
+		If !clalev([F:ZZPOP]) : Local File PORDERP[ZZPOP] : Endif
+		If !clalev([F:ZZPOQ]) : Local File PORDERQ[ZZPOQ] : Endif
+		Link [ZZPOP] With [ZZPOQ]POQ0=[F:ZZPOP]POHNUM;[F:ZZPOP]POPLIN;[F:ZZPOP]POPSEQ As [ZPO]
+		Filter [ZPO] Where POHNUM = ZNUM
+		Read [ZPO] First
+		If fstat = 0
+			For [ZPO]
+				If [F:POH]ORDREF <> [M]ORDREF
+					RETVAL += '[INTERNAL REFERENCE]'+chr$(13)+chr$(10)-'Old: '-[F:POH]ORDREF+chr$(13)+chr$(10)-'New: '-[M]ORDREF
+				Endif
+			Next
+		Endif
+	RETVAL+=''
+	End RETVAL
+
+Subprog ZFSCHG
+		Call ERREURT("Fuel suarcharge was removed due to one or more parameters.", 0) From GESECRAN
+End
+
+Funprog ZSOHLINES(ZNUM)
+	Value Char ZNUM
+	Local Clbfile RETVAL (6)
+	RETVAL=''
+		If !clalev([F:ZSOP]) : Local File SORDERP[ZSOP] : Endif
+		If !clalev([F:ZSOQ]) : Local File SORDERQ[ZSOQ] : Endif
+		Link [ZSOP] With [ZSOQ]SOQ0=[F:ZSOP]SOHNUM;[F:ZSOP]SOPLIN;[F:ZSOP]SOPSEQ As [ZSO]
+		Filter [ZSO] Where SOHNUM = ZNUM
+		Read [ZSO] First
+		If fstat = 0
+			For [ZSO]
+					RETVAL += num$([F:ZSO]SOPLIN/1000)+'. '-[F:ZSO]ITMREF-mess(1,16807,1)-[F:ZSO]ITMDES-mess(1,16807,1)-num$([F:ZSOQ]QTY)-[F:ZSO]SAU-mess(1,16807,1)-chr$(36)+format$("N3vF<:13.2",[F:ZSO]GROPRI*[F:
+& ZSOQ]QTY)+chr$(13)+chr$(13)+chr$(13)+chr$(13)+chr$(10)+chr$(10)
+			Next
+		Endif
+	RETVAL+=''
+	End RETVAL
+
+Funprog GETCDTSTA(ZNUM3)
+Global Decimal ZNUM3
+	Local Clbfile RETVAL (6)
+	RETVAL=''
+		If ZNUM3 = 1
+			RETVAL+= "OK"
+		Endif
+		If ZNUM3 = 2
+			RETVAL+= "On Hold"
+		Endif
+		If ZNUM3 = 3
+			RETVAL+= "Limit Exceeded"
+		Endif
+		If ZNUM3 = 4
+			RETVAL+= "Prepayment Not Paid"
+		Endif
+		If ZNUM3 = 5
+			RETVAL+= "Credit Card"
+		Endif
+	RETVAL += ''
+	End RETVAL
+
+Funprog ZSIDLINES(ZNUM)
+	Value Char ZNUM
+	Local Clbfile RETVAL (6)
+	RETVAL=''
+		If !clalev([F:ZSID]) : Local File SINVOICED[ZSID] : Endif
+		Filter [ZSID] Where NUM = ZNUM
+		Read [ZSID] First
+		If fstat = 0
+			For [ZSID]
+					RETVAL += num$([F:ZSID]SOPLIN/1000)+'. '-[F:ZSID]ITMREF-mess(1,16807,1)-[F:ZSID]ITMDES-mess(1,16807,1)-num$([F:ZSID]QTY)-[F:ZSID]STU-mess(1,16807,1)-chr$(36)+format$("N3vF<:13.2",[F:ZSID]GROPRI*[
+& F:ZSID]QTY)+chr$(13)+chr$(13)+chr$(13)+chr$(13)+chr$(10)+chr$(10)
+			Next
+		Endif
+	RETVAL+=''
+	End RETVAL
+
+Funprog SUPPEM(ZBPSNUM)
+Value Char ZBPSNUM
+Local Char RETVAL(200)
+
+If ZBPSNUM <> '' RETVAL=func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+ZBPSNUM+'~REMIT')
+Endif
+
+End RETVAL
+
+Funprog GETSOHLIGSS(ZSOH)
+	Value Char ZSOH
+	Local Clbfile RETVAL (6)
+	RETVAL=''
+		If !clalev([F:ZSOP]) : Local File SORDERP[ZSOP] : Endif
+		If !clalev([F:ZSOQ]) : Local File SORDERQ[ZSOQ] : Endif
+		Link [ZSOP] With [ZSOQ]SOQ0=[F:ZSOP]SOHNUM;[F:ZSOP]SOPLIN;[F:ZSOP]SOPSEQ As [ZSO]
+		Filter [ZSO] Where SOHNUM = ZSOH
+		Read [ZSO] First
+		If fstat = 0
+			For [ZSO]
+                          If [F:ZSOQ]STOFCY <> [F:ZSOQ]SALFCY
+					RETVAL += num$([F:ZSO]SOPLIN/1000)+'. '-[F:ZSO]ITMREF-mess(1,16807,1)-[F:ZSO]ITMDES-mess(1,16807,1)-num$([F:ZSOQ]QTY)-[F:ZSO]SAU-mess(1,16807,1)-chr$(36)+format$("N3vF<:13.2",[F:ZSO]GROPRI*1.12*[
+& F:ZSOQ]QTY)+' - '+[F:ZSOQ]STOFCY+chr$(13)+chr$(13)+chr$(13)+chr$(13)+chr$(10)+chr$(10)
+                          Endif
+			Next
+		Endif
+	RETVAL+=''
+	End RETVAL
+
+Funprog SUPEFT(ZBPSNUM)
+Value Char ZBPSNUM
+Local Char RETVAL(200)
+Local Char ZEMAIL : ZEMAIL = func AFNC.INTFLD('BPSUPPLIER','YACHWEB',ZBPSNUM)
+
+If ZEMAIL = ''
+Infbox 'No supplier email found!'
+Endif
+
+RETVAL=ZEMAIL
+
+End RETVAL
+
+
+

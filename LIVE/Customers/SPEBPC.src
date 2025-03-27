@@ -1,0 +1,36 @@
+$ACTION
+Case ACTION
+    When "SETBOUT" : Gosub SETBOUT
+    When Default
+Endcase
+Return
+
+$SETBOUT
+CHMEN+="9a"
+If !GIMPORT and !GWEBSERV
+    If func AFNC.INTFLD("AUTILIS","ZFINAUT",GUSER)<>"2"
+        Diszo [M:BPC3]VACBPR
+        Diszo [M:BPC4]XVACBPR
+    Endif
+Endif
+Return
+
+Subprog IB_NBDLV
+End
+
+Subprog AP_NBDLV
+End
+
+Subprog AM_XYCOSTCENTRE(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog AM_XYCSTCENTDES(VALEUR)
+Variable Char    VALEUR()
+End
+
+
+
+
+
+

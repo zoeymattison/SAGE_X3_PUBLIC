@@ -20,6 +20,10 @@ If [M:PIH0]NUM<>""
     Endif
 Endif
 LogicClose File [ZPI]
+    If GFLAG="ZPIH"
+    Diszo [M:PIH1]NBAXE
+    Diszo [M:PIH1]NBFAC1
+    Endif
 Return
 
 $VERIF_CRE
@@ -47,3 +51,22 @@ If !GIMPORT and VALEUR<>"" and (VALEUR<>[M:PIH1]BPRVCR or GREP="D")
     LogicClose File [ZPI]
 Endif
 End
+######################################################################################
+## Section automatically added (screen PIH0) 03/07/2025 08:16:51 (MOZM)
+######################################################################################
+Subprog AV_BPR(VALEUR)
+Variable Char    VALEUR()
+If GFLAG="ZPIH"
+    VALEUR="V5555"
+Endif
+End
+
+
+######################################################################################
+
+
+
+
+
+
+

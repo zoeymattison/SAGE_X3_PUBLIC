@@ -17,42 +17,17 @@ Return
 
 $GET_PRIO_COUNT
 Gosub ACTIVATE_GLOBALS
-[V]ZG_DEST = "james.zabarauckas@monk.ca"
-[V]ZG_CCUSR = "kirsten.luker@monk.ca;ross.fowlie@monk.ca;jessica.stewart@monk.ca"
+[V]ZG_DEST = "ross.fowlie@monk.ca;kirsten.luker@monk.ca;suzanne.hamilton@monk.ca;david.monteith@monk.ca"
+[V]ZG_CCUSR = ""
 [V]ZG_SUBJECT = [M:ITM0]ITMREF-"has more than one priority 0 vendor"
-[V]ZG_MESSAGE = "This is an automated message. Shame, Shame, Shame!"+chr$(10)+chr$(10)
+[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
 &+"The above product record was modified or created and has more than one supplier record with a priority of 0."+chr$(10)
 &+"The record was modified by"-func AFNC.NOMUSER(GUSER)+"."+chr$(10)+chr$(10)
 For I = 0 To [M:ITP]NBITP-1
     [V]ZG_MESSAGE += [M:ITP]BPSNUM(I)+": Priority "+num$([M:ITP]PIO(I))+chr$(10)
 Next
 [V]ZG_MESSAGE += chr$(10)+"Thank you,"+chr$(10)+chr$(10)
-&+"Zoey"+chr$(10)+chr$(10)
-&+"_____________________________________¶¶___________"+chr$(10)
-&+"________________________________¶1¶1111111¶_______"+chr$(10)
-&+"________¶¶111¶_______________¶¶¶¶111111111¶¶¶1____"+chr$(10)
-&+"_____¶1¶¶¶¶¶111111¶_________¶¶¶1¶¶¶11111111¶1¶¶___"+chr$(10)
-&+"___¶¶¶1¶1111111111¶¶1______¶¶1¶¶¶1111111111111¶¶__"+chr$(10)
-&+"__¶¶1¶¶1111111111111¶¶_____¶¶¶1¶¶¶¶1111111111111¶_"+chr$(10)
-&+"__¶¶_¶1111111111111111¶¶___¶¶¶¶¶¶11¶111111111111¶_"+chr$(10)
-&+"_11_¶11111111111111111¶¶_____¶¶¶¶__¶111111111111¶¶"+chr$(10)
-&+"¶¶¶¶1111111111111111¶¶¶¶_____1¶¶__11111111111111¶¶"+chr$(10)
-&+"¶¶¶¶11111111111¶¶¶¶¶¶¶______1¶1¶¶1111111111111111¶"+chr$(10)
-&+"¶¶1¶1111111111111¶¶¶¶¶¶_____¶¶¶¶¶¶11111111111111¶¶"+chr$(10)
-&+"¶¶11111111111111111111111¶¶___¶¶¶¶¶¶1111111111¶¶¶_"+chr$(10)
-&+"_1¶111111111111111111¶¶¶¶¶¶____¶¶¶¶11111111111¶1__"+chr$(10)
-&+"__¶¶11111111111111111¶¶¶_____¶¶¶1111111111111¶1___"+chr$(10)
-&+"___¶¶¶111111111111¶1¶¶¶____1¶¶111¶1111111¶11¶1____"+chr$(10)
-&+"____1¶¶¶11111111111¶¶¶¶111¶¶¶¶111111111¶11¶¶¶_____"+chr$(10)
-&+"______¶¶¶¶1111111111111¶¶¶¶1¶¶¶¶¶¶¶¶11¶11¶¶_______"+chr$(10)
-&+"_______¶¶¶¶¶11111111111¶111¶___¶¶¶111¶1¶¶¶________"+chr$(10)
-&+"_________¶¶¶¶¶¶111111111111¶__¶¶¶111¶¶¶1__________"+chr$(10)
-&+"____________1¶¶¶¶¶11111111¶¶_¶¶¶¶111¶¶____________"+chr$(10)
-&+"______________¶¶¶¶¶¶¶1111111_¶¶¶11¶¶1_____________"+chr$(10)
-&+"_________________1¶¶¶¶¶¶1111¶¶¶1¶¶¶¶______________"+chr$(10)
-&+"____________________¶¶¶¶¶¶1¶¶¶¶¶1¶________________"+chr$(10)
-&+"_______________________¶1¶¶¶1¶¶¶__________________"+chr$(10)
-&+"___________________________11¶____________________"
+&+"IT Department"+chr$(10)+chr$(10)
 Gosub ZW_PRINT
 Return
 
@@ -88,7 +63,7 @@ Return
 $SOH_SIGNATURE
 Gosub ACTIVATE_GLOBALS
 [V]ZG_DEST = "hello@monk.ca"
-[V]ZG_CCUSR = "zoey.mattison@monk.ca"
+[V]ZG_CCUSR = "service@monk.ca"
 [V]ZG_SUBJECT = "NOTICE - Monk Office Order for your Approval "+[F:SOH]SOHNUM
 [V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
 &+"A sales order was created that needs approval!"+chr$(10)+chr$(10)
@@ -101,6 +76,73 @@ Gosub ACTIVATE_GLOBALS
 &+"IT Department"+chr$(10)
 Gosub ZW_PRINT
 Return
+$TRANSFER_CLAIM
+Gosub ACTIVATE_GLOBALS
+[V]ZG_DEST = "zoey.mattison@monk.ca"
+[V]ZG_CCUSR = ""
+[V]ZG_SUBJECT = "Transfer claim for store "+[M:ZRR0]PRHFCY+" - "+[M:ZRR0]ZRHNUM
+[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
+Local Char ZL_PCKNUM(10) : [L]ZL_PCKNUM="0"
+For I=0 To [M:ZRR1]NBLIG-1
+    If func AFNC.INTFLD("STOPREH","YMOPICKER",func AFNC.INTFLD("SDELIVERYD","PRHNUM",[M:ZRR1]SDHNUM(I)+"~"+num$([M:ZRR1]SDDLIN(I))))<>""
+        [L]ZL_PCKNUM=func AFNC.INTFLD("STOPREH","YMOPICKER",func AFNC.INTFLD("SDELIVERYD","PRHNUM",[M:ZRR1]SDHNUM(I)+"~"+num$([M:ZRR1]SDDLIN(I))))
+    Endif
+    If [M:ZRR1]LINSTA(I)="SHORT"
+        [V]ZG_MESSAGE += [M:ZRR1]SDHNUM(I)+" --> "+[M:ZRR1]ITMREF(I)+" --> Short by "+num$([M:ZRR1]QTYDLV(I)-[M:ZRR1]QTYRCP(I))+" -- (Picker number: "+[L]ZL_PCKNUM+")"+chr$(10)
+    Endif
+    If [M:ZRR1]LINSTA(I)="OVER"
+        [V]ZG_MESSAGE += [M:ZRR1]SDHNUM(I)+" --> "+[M:ZRR1]ITMREF(I)+" --> Over by "+num$([M:ZRR1]QTYRCP(I)-[M:ZRR1]QTYDLV(I))+" -- (Picker number: "+[L]ZL_PCKNUM+")"+chr$(10)
+    Endif
+Next
+[V]ZG_MESSAGE += chr$(10)
+Local Char ZL_PCKSTA(30) : [L]ZL_PCKSTA=""
+[L]ZL_PCKNUM="0"
+For I=0 To [M:ZRR2]NBLIG-1
+    Case num$([M:ZRR2]PCKERR(I))
+        When "1" : [L]ZL_PCKSTA="Return"
+        When "2" : [L]ZL_PCKSTA="Keep"
+    Endcase
+    If func AFNC.INTFLD("STOPREH","YMOPICKER",func AFNC.INTFLD("SDELIVERYD","PRHNUM",[M:ZRR2]SDHNUM(I)+"~"+"1000"))<>""
+        [L]ZL_PCKNUM=func AFNC.INTFLD("STOPREH","YMOPICKER",func AFNC.INTFLD("SDELIVERYD","PRHNUM",[M:ZRR2]SDHNUM(I)+"~"+"1000"))
+    Endif
+    [V]ZG_MESSAGE += [M:ZRR2]SDHNUM(I)+" --> "+[M:ZRR2]ITMREFPKE(I)+" --> Picking Error --> "+[L]ZL_PCKSTA+" "+num$([M:ZRR2]QTY(I))+" -- (Picker number: "+[L]ZL_PCKNUM+")"+chr$(10)
+Next
+[V]ZG_MESSAGE += chr$(10)+"Thank you,"+chr$(10)+chr$(10)
+&+"IT Department"+chr$(10)+chr$(10)
+Gosub ZW_PRINT
+Return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

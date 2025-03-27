@@ -6,7 +6,7 @@ Endcase
 Return
 
 $STYLE
-Local Integer I 
+Local Integer I
     For I = 0 To [M:PNH1]NBLIG - 1
          [M:PNH1]ZBPSITM(I)=func AFNC.INTFLD('ITMBPS','ITMREFBPS',[M:PNH1]ITMREF(I)+'~'+[M:PNH1]BPSNUM)
          Affzo [M:PNH1]ZBPSITM(I)

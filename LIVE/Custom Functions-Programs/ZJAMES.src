@@ -1,0 +1,7 @@
+Funprog GetSupplierEmail2(YBPSNUM2)
+value char YBPSNUM2
+local char RETVAL(200)
+
+RETVAL=func AFNC.INTFLD('BPADDRESS','WEB(1)','1~'+YBPSNUM2+'~REMIT')
+
+End RETVAL
