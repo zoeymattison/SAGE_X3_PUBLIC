@@ -9,10 +9,11 @@ WITH SalesPrice AS (
 SalesData AS (
     SELECT
         SID.ITMREF_0,
-        SUM(SID.AMTNOTLIN_0 * SIV.SNS_0) AS TotalSales
+        SUM(SID.AMTNOTLIN_0 * SIV.SNS_0) AS TotalSales,
+		SUM(SID.QTYSTU_0 * SIV.SNS_0) AS TotalSalesQty
     FROM
         LIVE.SINVOICED AS SID
-    INNER JOIN -- Join SINVOICE table
+    INNER JOIN
         LIVE.SINVOICE AS SIV ON SID.NUM_0 = SIV.NUM_0
     WHERE
         SID.CREDAT_0 >= DATEADD(year, -1, GETDATE())
@@ -63,6 +64,7 @@ ATX.TEXTE_0 as ClassName,
 SPL.PRI_0 as PL2Price,
 ITM.TSICOD_0 as Status,
 isnull(SAL.TotalSales,0) as Sales_1Y,
+isnull(SAL.TotalSalesQty,0) as SalesQty_1Y,
 MAX(CASE WHEN VI.VendorRank = 1 THEN VI.VendorName ELSE 'N/A' END) AS PrimaryVendor,
 MAX(CASE WHEN VI.VendorRank = 2 THEN VI.VendorName ELSE 'N/A' END) AS SecondaryVendor,
 ITM.STU_0 as StockUnit,
@@ -94,8 +96,6 @@ LEFT JOIN SalesData SAL on ITM.ITMREF_0=SAL.ITMREF_0
 LEFT JOIN VendorInfo VI on ITM.ITMREF_0 = VI.ITMREF_0
 LEFT JOIN StockData STD ON ITM.ITMREF_0 = STD.ITMREF_0
 LEFT JOIN SafetyStock SAF on ITM.ITMREF_0=SAF.ITMREF_0
-WHERE
-TSICOD_1 IN ('60','70','80','90','3070','3050','3060','570','580','590','600','280','290','300','301','310','2860')
 GROUP BY
 ITM.ITMREF_0,
 ITM.ITMDES1_0,
@@ -106,6 +106,7 @@ ITM.TSICOD_1,
 ATX.TEXTE_0,
 SPL.PRI_0,
 SAL.TotalSales,
+SAL.TotalSalesQty,
 ITM.TSICOD_0,
 ITM.STU_0,
 STD.StockTotalDC30,
@@ -122,7 +123,3 @@ SAF.SafetyStockOAK,
 SAF.SafetyStockBRD,
 SAF.SafetyStockSID,
 SAF.SafetyStockFRN
-
-ORDER BY
-ITM.TSICOD_1,
-ITM.ITMREF_0
