@@ -1,0 +1,143 @@
+# Mask management ZPR0 (Specific)
+$ACTION
+Case ACTION
+	When "OUVRE" : Gosub OUVRE
+Endcase
+Return
+
+$OUVRE
+If !clalev([ZITM]) : Local File ITMMASTER [ZITM] : Endif
+If !clalev([ZSTKD1]) : Local File ZSTKDET1 [ZSTKD1] : Endif
+If !clalev([ZSTKD2]) : Local File ZSTKDET2 [ZSTKD2] : Endif
+Return
+
+######################################################################################
+## Section automatically added (screen ZPR0) 04/08/2025 08:17:12 (MOZM)
+######################################################################################
+Subprog AM_ITMREF(VALEUR)
+Variable Char    VALEUR()
+Read [ZITM]ITM0=VALEUR
+If !fstat
+	[M:ZPR0]ITMDES1=[F:ZITM]ITMDES1
+	[M:ZPR0]ITMDES2=[F:ZITM]ITMDES2
+	[M:ZPR0]ITMDES3=[F:ZITM]ITMDES3
+	[M:ZPR0]CREDAT=[F:ZITM]CREDAT
+	[M:ZPR0]ITMALT=[F:ZITM]RPLITM
+	[M:ZPR0]MNKCLS=func AFNC.INTFLD("ATEXTRA","TEXTE","ATABDIV"+"~"+"LNGDES"+"~"+"ENG"+"~"+"21"+"~"+num$([F:ZITM]TSICOD(1)))
+	[M:ZPR0]ITMCLS=[F:ZITM]TCLCOD(0)+" - "+func AFNC.INTFLD("ITMCATEG","TCLAXX","DC30"+"~"+[F:ZITM]TCLCOD(0))
+	[M:ZPR0]ITMSTA=[F:ZITM]TSICOD(0)
+	[M:ZPR0]STU=[F:ZITM]STU
+	Read [ZSTKD1]ZSTKD10=VALEUR
+    	If !fstat
+    		[M:ZPR2]QTY30D=[F:ZSTKD1]QTY_30D
+    		[M:ZPR2]QTY90D=[F:ZSTKD1]QTY_90D
+    		[M:ZPR2]QTY365=[F:ZSTKD1]QTY_365
+    		[M:ZPR2]SAL365=[F:ZSTKD1]SAL_365
+    		[M:ZPR1]POHQTY=num$([F:ZSTKD1]QTYPOH)+" "+[F:ZITM]STU
+    	Local Shortint NOL : [L]NOL=0
+    	If [F:ZSTKD1]STK_1600>0
+    		[M:ZPR3]STOFCY([L]NOL)="1600"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_1600
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_2100>0
+    		[M:ZPR3]STOFCY([L]NOL)="2100"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_2100
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_2200>0
+    		[M:ZPR3]STOFCY([L]NOL)="2200"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_2200
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_2300>0
+    		[M:ZPR3]STOFCY([L]NOL)="2300"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_2300
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_2600>0
+    		[M:ZPR3]STOFCY([L]NOL)="2600"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_2600
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_3200>0
+    		[M:ZPR3]STOFCY([L]NOL)="3200"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_3200
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_CR54>0
+    		[M:ZPR3]STOFCY([L]NOL)="CR54"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_CR54
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_CR55>0
+    		[M:ZPR3]STOFCY([L]NOL)="CR55"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_CR55
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_CR56>0
+    		[M:ZPR3]STOFCY([L]NOL)="CR56"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_CR56
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_CR57>0
+    		[M:ZPR3]STOFCY([L]NOL)="CR57"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_CR57
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_CR58>0
+    		[M:ZPR3]STOFCY([L]NOL)="CR58"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_CR58
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_CR59>0
+    		[M:ZPR3]STOFCY([L]NOL)="CR59"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_CR59
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_CR60>0
+    		[M:ZPR3]STOFCY([L]NOL)="CR60"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_CR60
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_CR62>0
+    		[M:ZPR3]STOFCY([L]NOL)="CR62"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_CR62
+    		[L]NOL+=1
+    	Endif
+    	If [F:ZSTKD1]STK_CR63>0
+    		[M:ZPR3]STOFCY([L]NOL)="CR63"
+    		[M:ZPR3]QTYTOT([L]NOL)=[F:ZSTKD1]STK_CR63
+    		[L]NOL+=1
+    	Endif
+    	[M:ZPR3]NBRET=[L]NOL
+    	[M:ZPR1]BPSNUM1=[F:ZSTKD1]BPSNUM1
+    	[M:ZPR1]BPSNAM1=toupper(func AFNC.INTFLD("BPSUPPLIER","BPSNAM",[F:ZSTKD1]BPSNUM1))
+    	[M:ZPR1]BPSNUM2=[F:ZSTKD1]BPSNUM2
+    	[M:ZPR1]BPSNAM2=toupper(func AFNC.INTFLD("BPSUPPLIER","BPSNAM",[F:ZSTKD1]BPSNUM2))
+	Endif
+	Filter [ZSTKD2] Where ITMREF=VALEUR
+	[L]NOL=0
+	For [ZSTKD2]
+		If ([F:ZSTKD2]STKA+[F:ZSTKD2]STKQ+[F:ZSTKD2]STKR)>0
+			[M:ZPR4]STOFCY([L]NOL)='DC30'
+			[M:ZPR4]LOC([L]NOL)=[F:ZSTKD2]LOC
+			[M:ZPR4]QTYTOTA([L]NOL)=[F:ZSTKD2]STKA
+			[M:ZPR4]QTYTOTQ([L]NOL)=[F:ZSTKD2]STKQ
+			[M:ZPR4]QTYTOTR([L]NOL)=[F:ZSTKD2]STKR
+			[L]NOL+=1
+		Endif
+	Next
+	[M:ZPR4]NBWRH=[L]NOL
+	Affzo [ZPR0]
+	Affzo [ZPR1]
+	Affzo [ZPR2]
+	Affzo [ZPR3]
+	Affzo [ZPR4]
+Endif
+End
+
+
+######################################################################################
+
+
