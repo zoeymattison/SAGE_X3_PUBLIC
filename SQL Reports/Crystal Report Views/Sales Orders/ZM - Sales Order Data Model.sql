@@ -48,13 +48,20 @@ CreditCardInfo AS (
         SUM(TAXAMT_0) AS TAXAMT_0,
         LANMES_0,
         ACCNCKNAM_0,
-        STAFLG_0
+        STAFLG_0,
+		ATX.TEXTE_0
     FROM
         LIVE.SEAUTH
     LEFT JOIN
         LIVE.APLSTD APL ON STAFLG_0 = LANNUM_0
         AND LANCHP_0 = '2095'
         AND LAN_0 = 'ENG'
+	LEFT JOIN
+		LIVE.ATEXTRA ATX ON CRDTYP_0=ATX.IDENT2_0
+		AND ATX.ZONE_0 = 'LNGDES'
+		AND ATX.LANGUE_0 = 'ENG'
+		AND ATX.CODFIC_0 = 'ATABDIV'
+		AND ATX.IDENT1_0 = '398'
     WHERE
         STAFLG_0 IN (3, 6)
     GROUP BY
@@ -62,7 +69,8 @@ CreditCardInfo AS (
         ACCL4D_0,
         LANMES_0,
         ACCNCKNAM_0,
-        STAFLG_0
+        STAFLG_0,
+		ATX.TEXTE_0
 ),
 RankedCreditCardInfo AS (
     SELECT
@@ -73,6 +81,7 @@ RankedCreditCardInfo AS (
         TAXAMT_0,
         LANMES_0,
         ACCNCKNAM_0,
+		TEXTE_0,
         ROW_NUMBER() OVER (PARTITION BY SOHNUM_0, ACCL4D_0 ORDER BY STAFLG_0 DESC) AS rn
     FROM CreditCardInfo
 ),
@@ -88,7 +97,8 @@ PrepayemntInfo AS (
         SUM(SEU.TAXAMT_0) AS TAXAMT_0,
         APL.LANMES_0,
         SEU.ACCNCKNAM_0,
-        SEU.STAFLG_0
+        SEU.STAFLG_0,
+		ATX.TEXTE_0
     FROM
         LIVE.GACCDUDATE DUD
     LEFT JOIN
@@ -99,6 +109,12 @@ PrepayemntInfo AS (
         LIVE.APLSTD APL ON SEU.STAFLG_0 = APL.LANNUM_0
         AND APL.LANCHP_0 = '2095'
         AND APL.LAN_0 = 'ENG'
+	LEFT JOIN
+		LIVE.ATEXTRA ATX ON CRDTYP_0=ATX.IDENT2_0
+		AND ATX.ZONE_0 = 'LNGDES'
+		AND ATX.LANGUE_0 = 'ENG'
+		AND ATX.CODFIC_0 = 'ATABDIV'
+		AND ATX.IDENT1_0 = '398'
     WHERE
         DUD.PAMTYP_0 = 2
         AND (SEU.STAFLG_0 IN (3, 6) OR SEU.STAFLG_0 IS NULL)
@@ -108,7 +124,8 @@ PrepayemntInfo AS (
         SEU.ACCL4D_0,
         APL.LANMES_0,
         SEU.ACCNCKNAM_0,
-        SEU.STAFLG_0
+        SEU.STAFLG_0,
+		ATX.TEXTE_0
 ),
 RankedPrepaymentInfo AS (
     SELECT
@@ -122,6 +139,7 @@ RankedPrepaymentInfo AS (
         TAXAMT_0,
         LANMES_0,
         ACCNCKNAM_0,
+		TEXTE_0,
         ROW_NUMBER() OVER (PARTITION BY NUM_0, ACCL4D_0 ORDER BY STAFLG_0 DESC) AS rn
     FROM PrepayemntInfo
 )
@@ -134,40 +152,40 @@ SELECT
     SOH.SOHNUM_0 AS [Sales Order],
     SOH.HLDCOD_0 AS [Order Hold],
     SOH.CUSORDREF_0 AS [Customer PO],
-    isnull(REP.REPNAM_0,'') AS [Rep Name],
+    UPPER(isnull(REP.REPNAM_0,'')) AS [Rep Name],
     APL.LANMES_0 AS [Route],
     SOH.PTE_0 AS [Payment Terms],
 
     /* SOLD-TO */
-    SLD.BPAADD_0 AS [Sold To Address],
+    UPPER(SLD.BPAADD_0) AS [Sold To Address],
     SLD.BPANUM_0 AS [Sold To],
-    SLD.BPAADDLIG_0 AS [Sold To Address 1],
-    SLD.BPAADDLIG_1 AS [Sold To Address 2],
-    SLD.BPAADDLIG_2 AS [Sold To Address 3],
-    SLD.CTY_0 AS [Sold To City],
-    SLD.POSCOD_0 AS [Sold To POSCOD],
-    SLD.SAT_0 AS [Sold To Province],
-    SLD.BPCNAM_0 AS [Sold To Name],
+    CASE WHEN UPPER(SOH.BPIADDLIG_0) IN ('~','*') THEN '' ELSE UPPER(SOH.BPIADDLIG_0) END AS [Sold To Address 1],
+    CASE WHEN UPPER(SOH.BPIADDLIG_1) IN ('~','*') THEN '' ELSE UPPER(SOH.BPIADDLIG_1) END AS [Sold To Address 2],
+    CASE WHEN UPPER(SOH.BPIADDLIG_2) IN ('~','*') THEN '' ELSE UPPER(SOH.BPIADDLIG_2) END AS [Sold To Address 3],
+    UPPER(SOH.BPICTY_0) AS [Sold To City],
+    UPPER(SOH.BPIPOSCOD_0) AS [Sold To POSCOD],
+    UPPER(SOH.BPISAT_0) AS [Sold To Province],
+    UPPER(SLD.BPCNAM_0) AS [Sold To Name],
     SLD.WEB_0 AS [Sold To Email],
     SLD.TEL_0 AS [Sold To Phone],
 
     /* SHIP-TO */
-    SHP.BPAADD_0 AS [Sold To Address],
-    SHP.BPANUM_0 AS [Sold To],
-    SHP.BPAADDLIG_0 AS [Sold To Address 1],
-    SHP.BPAADDLIG_1 AS [Sold To Address 2],
-    SHP.BPAADDLIG_2 AS [Sold To Address 3],
-    SHP.CTY_0 AS [Sold To City],
-    SHP.POSCOD_0 AS [Sold To POSCOD],
-    SHP.SAT_0 AS [Sold To Province],
-    SHP.BPCNAM_0 AS [Sold To Name],
-    SHP.WEB_0 AS [Sold To Email],
-    SHP.TEL_0 AS [Sold To Phone],
+    UPPER(SHP.BPAADD_0) AS [Ship To Address],
+    SHP.BPANUM_0 AS [Ship To],
+    CASE WHEN UPPER(SOH.BPDADDLIG_0) IN ('~','*') THEN '' ELSE UPPER(SOH.BPDADDLIG_0) END AS [Ship To Address 1],
+    CASE WHEN UPPER(SOH.BPDADDLIG_1) IN ('~','*') THEN '' ELSE UPPER(SOH.BPDADDLIG_1) END AS [Ship To Address 2],
+    CASE WHEN UPPER(SOH.BPDADDLIG_2) IN ('~','*') THEN '' ELSE UPPER(SOH.BPDADDLIG_2) END AS [Ship To Address 3],
+    UPPER(SOH.BPDCTY_0) AS [Ship To City],
+    UPPER(SOH.BPDPOSCOD_0) AS [Ship To POSCOD],
+    UPPER(SOH.BPDSAT_0) AS [Ship To Province],
+    UPPER(SHP.BPCNAM_0) AS [Ship To Name],
+    SHP.WEB_0 AS [Ship To Email],
+    SHP.TEL_0 AS [Ship To Phone],
 
-	CASE
+    CASE
         WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.AMTCUR_0,0)
         WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.AUTAMT_0,0)
-		ELSE 0
+    ELSE 0
     END AS [Prepayment Amount],
     CASE
         WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.AUTAMT_0, 0)
@@ -193,7 +211,19 @@ SELECT
         WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.ACCNCKNAM_0, '')
         WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.ACCNCKNAM_0, '')
         ELSE ''
-    END AS [Nickname]
+    END AS [Nickname],
+    CASE
+        WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.TEXTE_0, '')
+        WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.TEXTE_0, '')
+        ELSE ''
+    END AS [Card Type],
+	SOH.INVDTAAMT_0 as [Rounding],
+	SOH.INVDTAAMT_1 as [Freight %],
+	SOH.INVDTAAMT_2 as [Freight $],
+	SOH.INVDTAAMT_3 as [Fuel Surcharge],
+	SOH.YPICKNOTE_0 as [Special Instructions],
+        SOH.VACBPR_0 as [Tax Rule],
+        SOH.ORDINVATI_0 as [Order - Tax]
 
 FROM LIVE.SORDER SOH
 LEFT JOIN LIVE.APLSTD APL ON SOH.DRN_0 = APL.LANNUM_0
@@ -206,5 +236,3 @@ LEFT JOIN RankedCreditCardInfo CRD ON SOH.SOHNUM_0 = CRD.SOHNUM_0
     AND CRD.rn = 1
 LEFT JOIN RankedPrepaymentInfo PRP ON SOH.SOHNUM_0 = PRP.NUM_0
     AND PRP.rn = 1
-
-ORDER BY SOH.CREDAT_0 DESC;
