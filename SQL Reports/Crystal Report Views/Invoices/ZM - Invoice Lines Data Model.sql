@@ -49,11 +49,13 @@ isnull(EHF.PRI_0,0) as [EHF Fee],
 isnull(SID.QTY_0*EHF.PRI_0,0) as [EHF Total],
 SID.NETPRIATI_0 as [Net Price + Tax],
 SID.NETPRI_0*SID.QTY_0 as [Total],
-ROUND(SID.NETPRIATI_0*SID.QTY_0,2) as [Total + Tax]
+ROUND(SID.NETPRIATI_0*SID.QTY_0,2) as [Total + Tax],
+SID.SOHNUM_0 as [Sales Order],
+SID.SOPLIN_0 as [Sales Order Line],
+SID.SOQSEQ_0 as [Sales Order Line Sequence],
+
 
 
 FROM LIVE.SINVOICED SID
 INNER JOIN ProductInfo ITM ON SID.ITMREF_0=ITM.ITMREF_0
 LEFT JOIN EHFCodes EHF ON ITM.EHFCOD_0=EHF.IDENT2_0
-
-Where SID.NUM_0='DIR463860'

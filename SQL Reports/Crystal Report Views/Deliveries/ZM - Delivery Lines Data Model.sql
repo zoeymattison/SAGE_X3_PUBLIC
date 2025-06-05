@@ -1,0 +1,53 @@
+With ProductInfo As (
+	SELECT
+		ITMREF_0,
+		ITMDES1_0,
+		ITMDES2_0,
+		ITMDES3_0,
+		EANCOD_0 as UPCNUM_0,
+		SEAKEY_0 as BASCOD_0,
+		TSICOD_0 as MNKSTA_0,
+		TSICOD_2 as EHFCOD_0
+	FROM
+		LIVE.ITMMASTER
+),
+BackorderInfo As (
+	SELECT
+		SOQ.SOHNUM_0,
+		SOQ.SOPLIN_0,
+		SOQ.ITMREF_0,
+		SOQ.QTY_0-SOQ.DLVQTY_0-SOQ.ALLQTY_0-SOQ.OPRQTY_0 as [Backordered Quantity],
+		POH.ORDREF_0,
+		POH.POHNUM_0
+	FROM
+		LIVE.SORDERQ SOQ
+	LEFT OUTER JOIN
+		LIVE.SORDER SOH ON SOQ.SOHNUM_0=SOH.SOHNUM_0
+	LEFT OUTER JOIN
+		LIVE.PORDER POH ON SOH.CUSORDREF_0=POH.POHNUM_0
+)
+
+SELECT
+SDD.CREDAT_0 as [Date Created],
+SDD.SHIDAT_0 as [Shipping Date],
+SDD.SDHNUM_0 as [Sales Order],
+SDD.ITMREF_0 as [Product],
+ITM.ITMDES1_0 as [Description 1],
+ITM.ITMDES2_0 as [Description 2],
+ITM.ITMDES3_0 as [Description 3],
+ITM.UPCNUM_0 as [UPC Code],
+ITM.BASCOD_0 as [Basics Code],
+ITM.MNKSTA_0 as [Monk Status],
+SDD.QTY_0 as [Shipped Quantity],
+SDD.SAU_0 as [Sales Unit],
+SDD.SOHNUM_0 as [Sales Order],
+SDD.SOPLIN_0 as [Sales Order Line],
+SDD.SOQSEQ_0 as [Sales Order Line Sequence],
+BKO.[Backordered Quantity],
+BKO.ORDREF_0 as [PO Reference],
+BKO.POHNUM_0 as [Purchase Order]
+
+
+FROM LIVE.SDELIVERYD SDD
+INNER JOIN ProductInfo ITM ON SDD.ITMREF_0=ITM.ITMREF_0
+LEFT JOIN BackorderInfo BKO ON SDD.SOHNUM_0=BKO.SOHNUM_0 AND SDD.SOPLIN_0=BKO.SOPLIN_0 and SDD.ITMREF_0=BKO.ITMREF_0

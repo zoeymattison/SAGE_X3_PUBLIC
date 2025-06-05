@@ -1,0 +1,72 @@
+WITH SoldToData AS (
+    SELECT DISTINCT
+        BPA.BPAADD_0,
+        BPA.BPANUM_0,
+        BPA.BPAADDLIG_0,
+        BPA.BPAADDLIG_1,
+        BPA.BPAADDLIG_2,
+        BPA.CTY_0,
+        BPA.POSCOD_0,
+        BPA.SAT_0,
+        BPA.WEB_0,
+        BPA.TEL_0,
+        BPC.BPCNAM_0
+    FROM
+        LIVE.BPADDRESS BPA
+        LEFT JOIN LIVE.BPCUSTOMER BPC ON BPA.BPANUM_0 = BPC.BPCNUM_0
+),
+ShipToData AS (
+    SELECT DISTINCT
+        BPA.BPAADD_0,
+        BPA.BPANUM_0,
+        BPA.BPAADDLIG_0,
+        BPA.BPAADDLIG_1,
+        BPA.BPAADDLIG_2,
+        BPA.CTY_0,
+        BPA.POSCOD_0,
+        BPA.SAT_0,
+        BPA.WEB_0,
+        BPA.TEL_0,
+        BPC.BPCNAM_0
+    FROM
+        LIVE.BPADDRESS BPA
+        LEFT JOIN LIVE.BPCUSTOMER BPC ON BPA.BPANUM_0 = BPC.BPCNUM_0
+),
+SalesReps AS (
+    SELECT
+        REPNUM_0,
+        REPNAM_0
+    FROM
+        LIVE.SALESREP
+)
+
+SELECT
+    /* SALES ORDER */
+    SOH.CREDAT_0 AS [Date Created],
+    SOH.ORDDAT_0 AS [Date Ordered],
+    SOH.SQHNUM_0 AS [Sales Order],
+    SOH.CUSQUOREF_0 AS [Customer PO],
+    SOH.YPICKNOTE_0 AS [Pick Ticket Note],
+    UPPER(isnull(REP.REPNAM_0,'')) AS [Rep Name],
+    SOH.PTE_0 AS [Payment Terms],
+	SOH.INVDTAAMT_3,
+	SOH.INVDTAAMT_4,
+SOH.VACBPR_0,
+SOH.QUOINVATI_0,
+
+    /* SOLD-TO */
+    UPPER(SLD.BPAADD_0) AS [Sold To Address],
+    SLD.BPANUM_0 AS [Sold To],
+    CASE WHEN UPPER(SOH.BPCADDLIG_0) IN ('~','*') THEN '' ELSE UPPER(SOH.BPCADDLIG_0) END AS [Sold To Address 1],
+    CASE WHEN UPPER(SOH.BPCADDLIG_1) IN ('~','*') THEN '' ELSE UPPER(SOH.BPCADDLIG_1) END AS [Sold To Address 2],
+    CASE WHEN UPPER(SOH.BPCADDLIG_2) IN ('~','*') THEN '' ELSE UPPER(SOH.BPCADDLIG_2) END AS [Sold To Address 3],
+    UPPER(SOH.BPCCTY_0) AS [Sold To City],
+    UPPER(SOH.BPCPOSCOD_0) AS [Sold To POSCOD],
+    UPPER(SOH.BPCSAT_0) AS [Sold To Province],
+    UPPER(SLD.BPCNAM_0) AS [Sold To Name],
+    SLD.WEB_0 AS [Sold To Email],
+    SLD.TEL_0 AS [Sold To Phone]
+
+FROM LIVE.SQUOTE SOH
+LEFT JOIN SoldToData SLD ON SOH.BPCORD_0 = SLD.BPANUM_0 AND SOH.BPAADD_0 = SLD.BPAADD_0
+LEFT JOIN SalesReps REP ON SOH.REP_0 = REP.REPNUM_0

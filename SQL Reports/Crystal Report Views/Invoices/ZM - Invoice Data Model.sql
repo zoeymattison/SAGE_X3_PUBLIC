@@ -165,6 +165,22 @@ SalesOrderInfo AS (
         RankedSalesOrderInfo
     WHERE
         rn = 1
+),
+Taxes As (
+	SELECT
+		NUM_0,
+		SUM(isnull(CASE WHEN SID.VACITM_0='GST' THEN ((SID.NETPRI_0+isnull(PRI_0,0))*SID.QTY_0)*0.05 END,0)) AS [GST Total],
+		SUM(isnull(CASE WHEN SID.VACITM_1='PST' THEN ((SID.NETPRI_0+isnull(PRI_0,0))*SID.QTY_0)*0.07 END,0)) AS [PST Total],
+		SUM(SID.QTY_0*isnull(PRI_0,0)) as [EHF Fees]
+	FROM LIVE.SINVOICED SID
+	LEFT JOIN LIVE.ITMMASTER ITM ON SID.ITMREF_0=ITM.ITMREF_0
+	LEFT JOIN LIVE.ATEXTRA ATX ON ITM.TSICOD_2=ATX.IDENT2_0
+		AND CODFIC_0='ATABDIV' 
+		AND IDENT1_0='22' 
+		AND ZONE_0='SHODES'
+	LEFT JOIN LIVE.SPRICLIST ON TEXTE_0=left(PLICRI1_0,LEN(TEXTE_0))
+		AND PLI_0='21'
+	GROUP BY NUM_0
 )
 SELECT
     /* INVOICE */
@@ -172,6 +188,7 @@ SELECT
 	SIH.ACCDAT_0 as [Accounting Date],
 	SIV.INVDAT_0 as [Invoice Date],
 	SIH.NUM_0 as [Invoice Number],
+        SOH.SOHNUM_0 as [Sales Order],
 	CASE
 		WHEN SIH.SNS_0=1 THEN 'INVOICE'
 		WHEN SIH.SNS_0<1 THEN 'CREDIT MEMO'
@@ -180,12 +197,8 @@ SELECT
 	UPPER(isnull(REP.REPNAM_0,'')) AS [Rep Name],
 	APL.LANMES_0 AS [Route],
 	SIH.PTE_0 as [Payment Terms],
-	SIV.INVDTAAMT_3 as [Freight Charge],
-	SIV.INVDTAAMT_4 as [Fuel Surcharge],
 	SOH.YPICKNOTE_0 as [Shipping Instructions],
 	SIH.VAC_0 as [Tax Rule],
-	SIH.AMTATI_0 as [Total + Tax],
-	SIH.AMTNOT_0 as [Total - Tax],
 
     /* SOLD-TO */
     UPPER(SLD.BPAADD_0) AS [Sold To Address],
@@ -225,7 +238,7 @@ SELECT
         ELSE 0
     END AS [Auth Amount],
     CASE
-        WHEN SIH.PTE_0 = 'CREDITCARDP' AND CRD.LANMES_0='Captured' THEN isnull(CRD.AUTAMT_0, 0)
+        WHEN SIH.PTE_0 = 'CREDITCARDP' AND CRD.LANMES_0='Captured' THEN isnull(CRD.PAYAMT_0, 0)
         WHEN SIH.PTE_0 = 'PREPAY' THEN isnull(PRP.PAYAMT_0, 0)
         ELSE 0
     END AS [Paid Amount],
@@ -248,7 +261,19 @@ SELECT
         WHEN SIH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.TEXTE_0, '')
         WHEN SIH.PTE_0 = 'PREPAY' THEN isnull(PRP.TEXTE_0, '')
         ELSE ''
-    END AS [Card Type]
+    END AS [Card Type],
+	
+
+
+
+	SIH.AMTNOT_0-SIV.INVDTAAMT_3-SIV.INVDTAAMT_4 as [Subtotal],
+	TAX.[EHF Fees],
+	SIV.INVDTAAMT_3 as [Freight Charge],
+	SIV.INVDTAAMT_4 as [Fuel Surcharge],
+	SIH.AMTNOT_0 as [Total - Tax],
+	TAX.[GST Total]+(CASE WHEN Left(SIH.VAC_0,2)='BC' Then (SIV.INVDTAAMT_3+SIV.INVDTAAMT_4)*0.05 Else 0 End),
+	TAX.[PST Total]+(CASE WHEN SIH.VAC_0='BC' Then (SIV.INVDTAAMT_3+SIV.INVDTAAMT_4)*0.07 Else 0 End),
+	SIH.AMTATI_0 as [Total + Tax]
 
 FROM LIVE.SINVOICE SIH
 LEFT JOIN SalesOrderInfo SOH ON SIH.NUM_0 = SOH.NUM_0
@@ -263,5 +288,4 @@ LEFT JOIN RankedCreditCardInfo CRD ON SIH.NUM_0 = CRD.SIHNUM_0
     AND CRD.rn = 1
 LEFT JOIN RankedPrepaymentInfo PRP ON SOH.SOHNUM_0 = PRP.NUM_0
     AND PRP.rn = 1
-
-	WHERE SIH.NUM_0='DIR463882'
+LEFT JOIN Taxes TAX ON SIH.NUM_0=TAX.NUM_0

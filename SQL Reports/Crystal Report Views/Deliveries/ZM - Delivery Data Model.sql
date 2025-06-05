@@ -1,0 +1,86 @@
+WITH ShippingSiteData AS (
+    SELECT DISTINCT
+        BPA.BPAADD_0,
+        BPA.BPANUM_0,
+        BPA.BPAADDLIG_0,
+        BPA.BPAADDLIG_1,
+        BPA.BPAADDLIG_2,
+        BPA.CTY_0,
+        BPA.POSCOD_0,
+        BPA.SAT_0,
+        BPA.WEB_0,
+        BPA.TEL_0,
+        BPC.BPCNAM_0
+    FROM
+        LIVE.BPADDRESS BPA
+        LEFT JOIN LIVE.BPCUSTOMER BPC ON BPA.BPANUM_0 = BPC.BPCNUM_0
+	WHERE
+		BPA.BPAADDFLG_0=2
+),
+ShipToData AS (
+    SELECT DISTINCT
+        BPA.BPAADD_0,
+        BPA.BPANUM_0,
+        BPA.BPAADDLIG_0,
+        BPA.BPAADDLIG_1,
+        BPA.BPAADDLIG_2,
+        BPA.CTY_0,
+        BPA.POSCOD_0,
+        BPA.SAT_0,
+        BPA.WEB_0,
+        BPA.TEL_0,
+        BPC.BPCNAM_0,
+		BDV.DRN_0
+    FROM
+        LIVE.BPDLVCUST BDV
+		LEFT JOIN LIVE.BPADDRESS BPA ON BDV.BPAADD_0=BPA.BPAADD_0 and BDV.BPCNUM_0=BPA.BPANUM_0
+        LEFT JOIN LIVE.BPCUSTOMER BPC ON BPA.BPANUM_0 = BPC.BPCNUM_0
+)
+SELECT
+    /* INVOICE */
+	SDH.CREDAT_0 as [Date Created],
+	SDH.DLVDAT_0 as [Delivery Date],
+	SDH.SHIDAT_0 as [Shipping Date],
+	SDH.SDHNUM_0 as [Delivery Number],
+	APL.LANMES_0 AS [Route],
+	(SELECT TOP 1
+	PRHNUM_0
+	FROM LIVE.SDELIVERYD WHERE SDHNUM_0=SDH.SDHNUM_0) as [Pick Ticket],
+
+    /* SHIPPING-SITE */
+    UPPER(SLD.BPAADD_0) AS [Shipping Site Address],
+    SLD.BPANUM_0 AS [Shipping Site],
+    CASE WHEN UPPER(SLD.BPAADDLIG_0) IN ('~','*') THEN '' ELSE UPPER(SLD.BPAADDLIG_0) END AS [Shipping Site Address 1],
+    CASE WHEN UPPER(SLD.BPAADDLIG_1) IN ('~','*') THEN '' ELSE UPPER(SLD.BPAADDLIG_1) END AS [Shipping Site Address 2],
+    CASE WHEN UPPER(SLD.BPAADDLIG_2) IN ('~','*') THEN '' ELSE UPPER(SLD.BPAADDLIG_2) END AS [Shipping Site Address 3],
+    UPPER(SLD.CTY_0) AS [Shipping Site City],
+    UPPER(SLD.POSCOD_0) AS [Shipping Site POSCOD],
+    UPPER(SLD.SAT_0) AS [Shipping Site Province],
+   isnull( UPPER(SLD.BPCNAM_0),'MONK OFFICE') AS [Shipping Site Name],
+    SLD.WEB_0 AS [Shipping Site Email],
+    SLD.TEL_0 AS [Shipping Site Phone],
+
+    /* SHIP-TO */
+    UPPER(SHP.BPAADD_0) AS [Ship To Address],
+    SHP.BPANUM_0 AS [Ship To],
+    CASE WHEN UPPER(SHP.BPAADDLIG_0) IN ('~','*') THEN '' ELSE UPPER(SHP.BPAADDLIG_0) END AS [Ship To Address 1],
+    CASE WHEN UPPER(SHP.BPAADDLIG_1) IN ('~','*') THEN '' ELSE UPPER(SHP.BPAADDLIG_1) END AS [Ship To Address 2],
+    CASE WHEN UPPER(SHP.BPAADDLIG_2) IN ('~','*') THEN '' ELSE UPPER(SHP.BPAADDLIG_2) END AS [Ship To Address 3],
+    UPPER(SHP.CTY_0) AS [Ship To City],
+    UPPER(SHP.POSCOD_0) AS [Ship To POSCOD],
+    UPPER(SHP.SAT_0) AS [Ship To Province],
+    UPPER(SHP.BPCNAM_0) AS [Ship To Name],
+    SHP.WEB_0 AS [Ship To Email],
+    SHP.TEL_0 AS [Ship To Phone]
+
+FROM LIVE.SDELIVERY SDH
+LEFT JOIN ShippingSiteData SLD ON SDH.STOFCY_0=SLD.BPANUM_0
+LEFT JOIN ShipToData SHP 
+  ON (CASE 
+        WHEN SDH.BPCORD_0 IN ('DC30','DC33') THEN 'I'+SDH.BPCORD_0 
+        ELSE SDH.BPCORD_0 
+      END) = SHP.BPANUM_0
+  AND SDH.BPAADD_0 = SHP.BPAADD_0
+LEFT JOIN LIVE.APLSTD APL ON SHP.DRN_0 = APL.LANNUM_0
+    AND APL.LANCHP_0 = '409'
+    AND APL.LAN_0 = 'ENG'
