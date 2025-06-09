@@ -51,9 +51,13 @@ QuoteData as (
 
 select
 SOQ.SHIDAT_0 as [Drop date],
+SOH.SALFCY_0 as [Sales Site],
 SOQ.SOHNUM_0 as [Order],
+SOH.HLDCOD_0 AS [Hold Code], 
+SOH.BPCORD_0+' - '+SOH.BPCNAM_0 as [Customer],
 SOQ.ITMREF_0 as [Product],
 i.ITMDES1_0 as [Description],
+SOP.SAU_0 as [Sales Unit],
 SOQ.QTYSTU_0 as [Ordered],
 isnull(s.[Ordered Quantity],0) as [SO Total Quantity],
 isnull(q.QuoteTotal,0) as [Quote Total],
@@ -84,6 +88,7 @@ isnull(p2.[Unpproved. PO Qty],0) as [Uapp. AltPOQ]
 
 FROM LIVE.SORDER SOH
 LEFT OUTER JOIN LIVE.SORDERQ SOQ ON SOH.SOHNUM_0=SOQ.SOHNUM_0
+LEFT OUTER JOIN LIVE.SORDERP SOP ON SOQ.ITMREF_0=SOP.ITMREF_0 and SOQ.SOHNUM_0=SOP.SOHNUM_0 AND SOQ.SOPLIN_0=SOP.SOPLIN_0
 LEFT OUTER JOIN LIVE.ITMMASTER i ON SOQ.ITMREF_0=i.ITMREF_0
 left outer join SalesOrders s on i.ITMREF_0=s.ITMREF_0
 left outer join StockData stk on i.ITMREF_0=stk.ITMREF_0
@@ -92,6 +97,6 @@ left outer join PurchaseOrderData p on i.ITMREF_0=p.ITMREF_0
 left outer join PurchaseOrderData p2 on i.RPLITM_0=p.ITMREF_0
 left outer join QuoteData q on i.ITMREF_0=q.ITMREF_0
 
-WHERE SOH.ORDSTA_0=1 and SOH.SHIDAT_0>=GETDATE()
-AND ZBTSFLG_0=2
+WHERE SOH.ORDSTA_0=1 and SOH.SHIDAT_0>='20250101'  and SOH.STOFCY_0 IN ('DC33','DC30')
+AND ZBTSFLG_0=2 AND SOQ.SOQSTA_0 in (1,2)
 Order by i.ITMREF_0 asc
