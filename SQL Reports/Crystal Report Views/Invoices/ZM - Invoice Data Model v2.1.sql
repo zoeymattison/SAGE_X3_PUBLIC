@@ -9,7 +9,7 @@ with SINVOICEV as (
 		siv.BPCINV_0 as [Bill-to],
 		siv.BPCORD_0 as [Ship-to],
 		siv.BPAADD_0 as [Address Code],
-		sum(case when DTA_0 = 1 then DTAAMT_0 else 0 end) as [Discount Amount],
+		sum(case when DTA_0 = 1 then DTAAMT_0 else 0 end) as [Invoice $ Discount],
 		sum(case when DTA_0 = 10 then DTAAMT_0 else 0 end) as [Discount Percent], 
 		sum(case when DTA_0 = 10 then DTANOT_0 *-1 else 0 end) as [Discount Percent-Amount], 
 		sum(case when DTA_0 = 7 then DTAAMT_0 else 0 end) as [Restock Fee Amount],
@@ -36,10 +36,10 @@ with SINVOICEV as (
 SINVOICED as (
 	select
 		NUM_0 as [Invoice],
-		sum(AMTNOTLIN_0) as [Line Amount],
-		sum(case when VAT_0='GST' then AMTNOTLIN_0*0.05 else 0 end) as [Line GST],
-		sum(case when VAT_1='BCPST' then AMTNOTLIN_0*0.07 else 0 end) as [Line PST],
-		sum(case when VAT_2='EHF' then AMTTAXLIN_2 else 0 end) as [Line EHF]
+		sum(GROPRI_0*QTY_0) as [Line Amount (Before Discounts)],
+		sum(AMTNOTLIN_0) as [Line Amount (After Discounts)],
+		sum(case when VAT_2='EHF' then AMTTAXLIN_2 else 0 end) as [Line EHF],
+		sum((GROPRI_0-NETPRI_0)*QTY_0 ) as [Line Discounts]
 	from
 		LIVE.SINVOICED
 	group by
@@ -196,29 +196,43 @@ zbpa3.[Province] as [Pay-by Province],
 zbpa3.[Postal Code] as [Pay-by Postal Code],
 zbpa3.[Email],
 
+/* Line Total */
+zsid.[Line Amount (Before Discounts)],
+
+/* Discounts */
+zsid.[Line Discounts],
+zsiv.[Invoice $ Discount],
+Case when zsiv.[Discount Percent]>0 then
+zsid.[Line Amount (After Discounts)]-zsih.AMTNOT_0 else 0 end as [Invoice % Discount (Amount)],
+Case when zsiv.[Discount Percent]>0 then
+zsid.[Line Amount (After Discounts)]-zsih.AMTNOT_0 else 0 end+zsiv.[Invoice $ Discount]+zsid.[Line Discounts] as [Total Discounts],
+
 /* Invoicing Elements */
-zsiv.[Discount Amount],
-zsiv.[Discount Percent],
-zsiv.[Discount Percent-Amount],
-zsiv.[EHF Fees],
 zsiv.[Freight Charge],
 zsiv.[Fuel Surharge],
 
-/* Taxes */
-/*round(zsid.[Line GST],2) as [Line GST],
-round(zsid.[Line PST],2) as [Line PST],*/
-round(zsid.[Line EHF],2) as [Line EHF],/*
-round(case when zsih.VAC_0 in ('BC','BCX') then zsid.[Line EHF]*0.05 end,2) as [EHF GST],
-round(isnull(case zsih.VAC_0 when 'BC' then zsid.[Line EHF]*0.07 end,0),2) as [EHF PST],
-round(case when zsih.VAC_0 in ('BC','BCX') then zsiv.[Fuel Surharge]*0.05 end,2) as [Fuel Charge GST],
-round(isnull(case zsih.VAC_0 when 'BC' then zsiv.[Fuel Surharge]*0.07 end,0),2) as [Fuel Charge PST],
-round(case when zsih.VAC_0 in ('BC','BCX') then zsiv.[Freight Charge]*0.05 end,2) as [Freight Charge GST],*/
-round(zsid.[Line GST]+case when zsih.VAC_0 in ('BC','BCX') then zsiv.[Fuel Surharge]*0.05 end+case when zsih.VAC_0 in ('BC','BCX') then zsiv.[Freight Charge]*0.05 end+case when zsih.VAC_0 in ('BC','BCX') then zsid.[Line EHF]*0.05 end,2) as [GST Total],
-round(zsid.[Line PST]+isnull(case zsih.VAC_0 when 'BC' then zsiv.[Fuel Surharge]*0.07 end,0)+isnull(case zsih.VAC_0 when 'BC' then zsid.[Line EHF]*0.07 end,0),2) as [PST Total],
-/*round(zsid.[Line GST]+case when zsih.VAC_0 in ('BC','BCX') then zsiv.[Fuel Surharge]*0.05 end+case when zsih.VAC_0 in ('BC','BCX') then zsiv.[Freight Charge]*0.05 end+zsid.[Line PST]+isnull(case zsih.VAC_0 when 'BC' then zsiv.[Fuel Surharge]*0.07 end,0)+case when zsih.VAC_0 in ('BC','BCX') then zsid.[Line EHF]*0.05 end+isnull(case zsih.VAC_0 when 'BC' then zsid.[Line EHF]*0.07 end,0),2) as [Tax Total],*/
-
 /* Totals */
-zsid.[Line Amount],
+zsih.AMTNOT_0 as [Subtotal],
+
+/* EHF */
+zsid.[Line EHF],
+
+/* GST */
+CASE
+	when TAX_0='GST' and TAX_1<>'TAX' and TAX_2<>'TAX' and TAX_3<>'TAX' then AMTTAX_0
+	when TAX_0='GST' and 'TAX' in (TAX_1,TAX_2,TAX_3) then AMTTAX_0+zsiv.[Fuel Surharge]*0.05
+	else 0
+end as [GST Amount],
+
+/* PST */
+CASE
+	when TAX_1='BCPST' and TAX_2<>'TAX' and TAX_3<>'TAX' then AMTTAX_1
+	when TAX_2='BCPST' and TAX_3<>'TAX' then AMTTAX_2
+	when TAX_1='BCPST' and 'TAX' in (TAX_2,TAX_3) then AMTTAX_1+zsiv.[Fuel Surharge]*0.07
+	when TAX_2='BCPST' and TAX_3='TAX' then AMTTAX_2+zsiv.[Fuel Surharge]*0.07
+	else 0
+end as [PST Amount],
+
 zsih.AMTATI_0 as [Total+Tax],
 
 /* Invoice Status */
@@ -227,7 +241,8 @@ case
 	when zdud.[Remaining]<>0 then 2
 	when zdud.[Remaining]=0 then 1
 end as [Outstanding],
-zsih.GTE_0 as [Type]
+zsih.GTE_0 as [Type],
+''
 
 from LIVE.SINVOICE zsih
 inner join SINVOICEV zsiv on zsih.NUM_0=zsiv.[Invoice]
@@ -239,7 +254,7 @@ inner join BPADDRESS zbpa3 on zsih.BPAPAY_0=zbpa3.[Address Code] and zsih.BPRPAY
 inner join GACCDUDATE zdud on zsih.NUM_0=zdud.NUM_0 and zsih.GTE_0=zdud.TYP_0
 left join BPDLVCUST zbpd on zsiv.[Address Code]=zbpd.[Address Code] and zsiv.[Ship-to]=zbpd.[Customer Number]
 /*
-where zsih.NUM_0 in ('DIR469534','DIR469534R','DIR472621','DIR472344','DIR472958')
+where zsih.NUM_0 in ('DIR469534','DIR469534R','DIR472621','DIR472344','DIR472958','DIR286747','DIR473928')
 
 order by zsih.CREDAT_0 desc
 */

@@ -17,6 +17,7 @@ InvoiceBackorders as (
 		SOPLIN_0,
 		ITMREF_0,
 		QTY_0-DLVQTY_0 as [Backordered],
+		QTY_0 as [Ordered]
 		TEXTE_0 as [Line Text]
 	from
 		LIVE.SORDERQ
@@ -36,7 +37,8 @@ itm.ITMDES3_0 as [Description 3],
 itm.UPCNUM_0 as [UPC Code],
 itm.BASCOD_0 as [Basics Code],
 itm.MNKSTA_0 as [Monk Status],
-sid.QTY_0 as [Ordered Quantity],
+sid.QTY_0 as [Invoiced Quantity],
+ibo.Ordered as [Ordered Quantity]
 ibo.Backordered,
 sid.SAU_0 as [Sales Unit],
 sid.GROPRI_0 as [Gross Price],
