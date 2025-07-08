@@ -1,6 +1,8 @@
 $ACTION
 Case ACTION
     When "SETBOUT" : Gosub SETBOUT
+    When "VERIF_CRE" : Gosub VERIF_CRE
+    When "VERIF_MOD" : Gosub VERIF_MOD
     When Default
 Endcase
 Return
@@ -12,6 +14,25 @@ If !GIMPORT and !GWEBSERV
         Diszo [M:BPC3]VACBPR
         Diszo [M:BPC4]XVACBPR
     Endif
+Endif
+Return
+
+$VERIF_MOD
+    Gosub FSC_CHECK
+Return
+
+$VERIF_CRE
+    Gosub FSC_CHECK
+Return
+
+$FSC_CHECK
+IF [M:BPC3]ZFSCFLG=2 & [M:BPC0]BCGCOD<>"CB"
+    [M:BPC0]BCGCOD="CB"
+    Affzo [M:BPC0]BCGCOD
+Endif
+IF [M:BPC3]ZFSCFLG=1 & [M:BPC0]BCGCOD="CB"
+    [M:BPC0]BCGCOD="CA"
+    Affzo [M:BPC0]BCGCOD
 Endif
 Return
 
@@ -28,6 +49,9 @@ End
 Subprog AM_XYCSTCENTDES(VALEUR)
 Variable Char    VALEUR()
 End
+
+
+
 
 
 

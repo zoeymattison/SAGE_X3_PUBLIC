@@ -11,6 +11,7 @@ If [F:BPR]BPRNUM <> VALEUR
     Read [F:BPR]BPR0 = VALEUR
     If fstat <> [V]CTS_AOK : Return : Endif
 Endif
+
 End
 
 Subprog AV_FCY(VALEUR)
@@ -41,3 +42,18 @@ If VALEUR = 2 & [M:LTR]BPR <> "" & [M:LTR]ACC <> ""
 Endif
 VALEUR = 1
 End
+######################################################################################
+## Section automatically added (screen LETTRAGE) 04/29/2025 07:57:15 (MOZM)
+######################################################################################
+
+Subprog AM_ACC(VALEUR)
+Variable Char    VALEUR()
+If VALEUR<>"20100"
+	Chgfmt [M:LTR]ZBPSVCR With "-K:10"
+Else
+	Chgfmt [M:LTR]ZBPSVCR With "K:10"
+Endif
+End
+
+
+######################################################################################

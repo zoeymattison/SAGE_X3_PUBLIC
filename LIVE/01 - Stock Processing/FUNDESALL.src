@@ -1,0 +1,723 @@
+#########################################################################
+#    DESALLOCATION 140                                                  #
+#########################################################################
+#                                                                       #
+#    MODELISATION E-COMMERCE                                            #
+#                                                                       #
+# ACTION  : TRTDESALL  : Action traitement désallocation                #
+#                                                                       #
+#########################################################################
+# Etiquettes ACTION                                                     #
+#########################################################################
+
+# Modified by Monk Office 2025-03-14
+
+$ACTION
+#--- Actions liées au traitement standard 
+Case ACTION
+ When "OUVRE_BATCH" : Gosub INIT
+ When "INIT"        : Gosub INIT
+ When "DEBUT"       : Affzo [DIA]1-99 
+ When "OK"          : Gosub B2B_CHECK
+ When "END"         : GOK=0 : FIN=1 
+ When "CONTROLE"    : Gosub CONTROLE
+ When "EXEC"        : Gosub EXEC
+ When "TERMINE"     : Gosub TERMINE
+ When Default
+Endcase
+Return
+
+### Added by Zoey Mattison - prevent B2B deallocation
+
+$B2B_CHECK
+If [M:DIA]RAZCTM=2 or [M:DIA]ALLCTM=2
+    GOK=0
+    Call ERREURT("B2B decalloaction not permitted!", 1) From GESECRAN
+    FIN=0
+    Chgstl [M:DIA]RAZCTM With "BACKRED"
+    Chgstl [M:DIA]ALLCTM With "BACKRED"
+Else
+    GOK=1
+Endif
+Return
+
+###
+
+#######################################################################
+#    Détail des actions liées au traitement standard                  #
+#######################################################################
+####################################################################### 
+$INIT
+
+GORDCAT=4
+# En batch , il vaut mieux mettre onerrgo
+If GSERVEUR
+    Onerrgo ERRBATCH
+Endif
+
+Gosub OUVRE
+
+Local Mask SDESALL [DIA]
+  
+
+Raz [M:DIA] 
+
+[M:DIA]STOFCY=GFCYDEF(7)
+[M:DIA]SHIDAT=date$
+If [M:DIA]DRNFLG = 1 
+    [M:DIA]DRN= 0
+Endif
+[M:DIA]DLVPIOFIN=len(mess(0,410,1))
+
+Call LECMEMO ("STD","[M:DIA]","va3") From GMEMO
+
+# Positionner le flag si saisie des paramêtres depuis la gestion des abonnements
+[M:DIA]ABT=1
+If GFONCTION1="GESABA" [M:DIA]ABT=2 Endif
+
+Return
+####################################################################### 
+$CONTROLE
+If GOK < 1  FIN=1 Else TMP=1  Endif 
+
+TIT=" "
+
+Return
+####################################################################### 
+$EXEC
+
+If !GSERVEUR
+    Call OUVRE_TRACE(TIT) From LECFIC
+    Call ECR_TRACE(" ",0) From GESECRAN
+    Call ECR_TRACE(string$(70,"-"),0) From GESECRAN 
+    Call PRTSCR("SDESALL","DIA","",0,1) From ATRTX3
+    Call ECR_TRACE(string$(70,"-"),0) From GESECRAN 
+    Call ECR_TRACE(" ",0) From GESECRAN 
+Endif
+
+# Bornage de la date de prise en compte des commandes si la requête est abonnée
+# Si date expédition non renseignée, on force la date du jour
+If [M:DIA]SHIDAT = [0/0/0] & [M:DIA]ABT=2 [M:DIA]SHIDAT = date$ : Endif
+
+Gosub SEL_SOQ
+Raz NBALL 
+  
+Gosub TRT_SOQ
+
+Return
+####################################################################### 
+$TERMINE
+
+If !GSERVEUR
+    If !NBALL 
+         Call ECR_TRACE(mess(39,192,1),0) From GESECRAN
+    Endif
+    Call FERME_TRACE From LECFIC
+# --> Aucune allocation effectuee ou lecture trace
+    If !NBALL 
+         GERR=2:GMESSAGE = mess(39,192,1)
+    Endif
+    TRA=1
+Endif
+
+Return
+########################################################################
+#---------------------------------------------------------------------# 
+# Ouvre                                                               # 
+#---------------------------------------------------------------------# 
+$OUVRE 
+Local Integer  OK, NBALL
+Local Char    TIT(50), CRITERE(250), CRITERE1(250), CRITENT(160), CRITDET(250)
+Local Char    WMESS(120), WMESS1(80), WMESS2(120) 
+Local Decimal WALLSTU, WSHTSTU 
+Local Decimal WALL, WSHT,WQTY 
+Local Integer WRET 
+Local Integer WCDTSTA  
+Local Char    WSALFCY(GLONFCY), WBPCNAM(GLONNAM)
+
+Local Char    WTSICOD(20)(0..10)
+
+#---------------------------------------# 
+# Ouverture des fichiers utilisés       # 
+#---------------------------------------# 
+If clalev([F:SOH]) = 0 Local File SORDER      [SOH]: Endif 
+If clalev([F:SOQ]) = 0 Local File SORDERQ     [SOQ]: Endif 
+If clalev([F:SOP]) = 0 Local File SORDERP     [SOP]: Endif 
+If clalev([F:SOC]) = 0 Local File SORDERC     [SOC]: Endif  
+If clalev([F:ITM]) = 0 Local File ITMMASTER   [ITM]: Endif 
+If clalev([F:ITV]) = 0 Local File ITMMVT      [ITV]: Endif 
+If clalev([F:ITF]) = 0 Local File ITMFACILIT  [ITF]: Endif 
+If clalev([F:FCY]) = 0 Local File FACILITY    [FCY]: Endif 
+If clalev([F:BPC]) = 0 Local File BPCUSTOMER  [BPC]: Endif
+If GWRHACT=2
+   If !clalev([F:WRH])  Local File WAREHOUSE  [WRH] : Endif
+   If !clalev([F:ITW])  Local File ITMWRH     [ITW] : Endif
+Endif
+ 
+Default File [SOQ] 
+ 
+# --- Déclaration classe ecran pour les encours --- #
+Local Mask ORDK    [ORDK]
+Local Mask ALLPAR  [ALP]  : Raz [M:ALP]
+
+#----------------------------
+# V6 Affectations
+Gosub OPEN_MTO From MTOLINKLIB
+
+TIT = mess(118,197,1) 
+  
+# ------------------------------------------- #  
+# Alimentation à partir du site de vente      #  
+#              du site financier    GFINRSP   #  
+#              de la société        GSOCIETE  #  
+#              de la devise société GLOCALDEV #  
+# ------------------------------------------- #  
+Call GETDEV(GFCYDEF(5)) From DEVSUB  
+# ------------------------------------------- #  
+# Récupération des paramêtres de vente        #  
+# ------------------------------------------- #  
+Call GLOBVAR(GFCYDEF(5),"VEN") From TRTX3  
+ 
+# C'est une fonction vente qui travaille sur un site d'expédition
+# On surcharge donc le site par défaut du module avec celui d'expédition
+# pour que les contrôles d'autorisation des sites soient corrects.   
+GFCYDEF(0) = GFCYDEF(7)
+
+#Raz [M:DIA]  
+
+Return
+
+ 
+#---------------------------------------------------------------------# 
+# Selection sur les lignes de commandes SOQ                           # 
+#---------------------------------------------------------------------# 
+$SEL_SOQ 
+# --> critères de saisie 
+CRITERE  = "1=1" 
+CRITERE1 = "1=1" 
+If [M:DIA]SHIDAT <> [0/0/0]
+   CRITERE -= "& SHIDAT <= [" +format$(GFMD,[M:DIA]SHIDAT)+ "]"
+Endif
+If [M:DIA]SOHNUMDEB <> "" 
+   CRITERE -= '& SOHNUM >="'+[M:DIA]SOHNUMDEB+'"' 
+Endif 
+If [M:DIA]SOHNUMFIN <> "" 
+   CRITERE -= '& SOHNUM <="'+[M:DIA]SOHNUMFIN+'"' 
+Endif 
+If [M:DIA]BPCORDDEB <> "" 
+   CRITERE -= '& BPCORD >="'+[M:DIA]BPCORDDEB+'"' 
+Endif 
+If [M:DIA]BPCORDFIN <> "" 
+   CRITERE -= '& BPCORD <="'+[M:DIA]BPCORDFIN+'"' 
+Endif 
+If [M:DIA]BPAADDDEB <> "" 
+   CRITERE -= '& BPAADD >="'+[M:DIA]BPAADDDEB+'"' 
+Endif 
+If [M:DIA]BPAADDFIN <> "" 
+   CRITERE -= '& BPAADD <="'+[M:DIA]BPAADDFIN+'"' 
+Endif 
+If [M:DIA]ITMREFDEB <> "" 
+   CRITERE -= '& ITMREF >="'+[M:DIA]ITMREFDEB+'"' 
+Endif 
+If [M:DIA]ITMREFFIN <> "" 
+   CRITERE -= '& ITMREF <="'+[M:DIA]ITMREFFIN+'"' 
+Endif 
+If [M:DIA]CPY <> ""                          : # Bug 66478
+   CRITERE -= '& CPY = "'+[M:DIA]CPY+'"'     : # Bug 66478
+Endif                                        : # Bug 66478
+If [M:DIA]STOFCY <> "" 
+   CRITERE -= '& STOFCY = "'+[M:DIA]STOFCY+'"' 
+Endif 
+If [M:DIA]DRNFLG = 2 
+   CRITERE -= "& DRN =" +num$([M:DIA]DRN) 
+Endif 
+
+CRITERE1 -= "& DLVPIO >=" +num$([M:DIA]DLVPIODEB) 
+CRITERE1 -= "& DLVPIO <=" +num$([M:DIA]DLVPIOFIN) 
+ 
+#--> Critères supplémentaires 
+CRITERE1 -= "& DEMSTA = 1"                :# statut ordre ferme     
+CRITERE1 -= "& SOQSTA <> 3"               :# état ligne non soldée 
+CRITERE1 -= "& (ALLQTYSTU <> 0 | SHTQTYSTU <> 0)"  
+
+#---------------------------------------------------------------------#
+# Point d'entree ajout filtres supplémentaires                        #
+#---------------------------------------------------------------------#
+Local Char FILSUP (250) 
+FILSUP="1=1"
+GPOINT="DESALLFIL" : Gosub ENTREE From EXEFNC
+#--> Critères paramétrables
+CRITDET = "1=1"  
+# FGR 22/01/2010 : X3SUIVI61594
+#If [M]CALCRITDET <> "" CRITDET = [M]CALCRITDET Endif
+If [M:DIA]CALCRITDET <> "" CRITDET = [M:DIA]CALCRITDET Endif
+CRITENT = "1=1"  
+# FGR 22/01/2010 : X3SUIVI61594
+#If [M]ALLCRITENT <> "" CRITENT = [M]ALLCRITENT Endif
+If [M:DIA]ALLCRITENT <> "" CRITENT = [M:DIA]ALLCRITENT Endif
+Return 
+  
+#---------------------------------------------------------------------# 
+# Traitement des lignes de commandes                                  # 
+#---------------------------------------------------------------------# 
+$TRT_SOQ 
+Local Date     L_SHIDAT
+Local Char     L_SOHNUM(type([F:SOQ]SOHNUM)-10)
+Local Char     CRITERE2(150)
+Local Integer  L_COMPTEUR, L_SOQSTA, L_SOPLIN, L_SOQSEQ
+Local Shortint STOP, L_DLVPIOCMP   
+ 
+ Link [SOQ] With
+& [SOP]SOP0=[SOQ]SOHNUM;[SOQ]SOPLIN;[SOQ]SOQSEQ,
+& [SOC]SOC0=[SOQ]SOHNUM;[SOQ]SOPLIN
+& As [KSOQ]
+
+
+# --> Lecture des lignes de commandes 
+Filter [KSOQ] Where (evalue (CRITERE) & evalue (CRITERE1) & evalue (FILSUP) & evalue (CRITDET))
+
+Raz L_SOQSTA, L_SHIDAT, L_DLVPIOCMP, L_SOHNUM,  L_SOPLIN, L_SOQSEQ, STOP, CRITERE2
+
+$DEB_BOUCLE
+If STOP=1
+   CRITERE2="SOQSTA=L_SOQSTA & SHIDAT=L_SHIDAT & DLVPIOCMP=L_DLVPIOCMP & SOHNUM=L_SOHNUM & SOPLIN=L_SOPLIN & SOQSEQ>L_SOQSEQ" 
+   STOP=2
+Elsif STOP=2
+   CRITERE2="SOQSTA=L_SOQSTA & SHIDAT=L_SHIDAT & DLVPIOCMP=L_DLVPIOCMP & SOHNUM=L_SOHNUM & SOPLIN>L_SOPLIN" 
+   STOP=3
+Elsif STOP=3
+   CRITERE2="SOQSTA=L_SOQSTA & SHIDAT=L_SHIDAT & DLVPIOCMP=L_DLVPIOCMP & SOHNUM>L_SOHNUM" 
+   STOP=4
+Elsif STOP=4
+   CRITERE2="SOQSTA=L_SOQSTA & SHIDAT=L_SHIDAT & DLVPIOCMP>L_DLVPIOCMP" 
+   STOP=5
+Elsif STOP=5
+   CRITERE2="SOQSTA=L_SOQSTA & SHIDAT>L_SHIDAT" 
+   STOP=6
+Elsif STOP=6
+   CRITERE2="SOQSTA>L_SOQSTA" 
+   STOP=0
+Else
+   CRITERE2="1=1"
+Endif
+L_COMPTEUR=0
+
+For [KSOQ]SOQ3 Where evalue(CRITERE2)
+   Gosub SEL_SOQCOMPL 
+   If OK=1 Goto NXTSOQ :Endif 
+   Gosub SEL_SOHCOMPL  
+   If OK=1 Goto NXTSOQ :Endif  
+   Gosub SEL_SOPCOMPL 
+   If OK=1 Goto NXTSOQ :Endif 
+   Gosub VERROU
+   If OK=2
+       WSHTSTU = [F:SOQ]SHTQTYSTU 
+       WALLSTU = [F:SOQ]ALLQTYSTU  
+       If WALLSTU + WSHTSTU <> 0 
+           Gosub TRTALL 
+       Endif
+       Gosub DEVERROU
+       L_COMPTEUR+=1
+       If L_COMPTEUR>1000
+          L_SOQSTA=[F:SOQ]SOQSTA
+          L_SHIDAT=[F:SOQ]SHIDAT
+          L_DLVPIOCMP=[F:SOQ]DLVPIOCMP
+          L_SOHNUM=[F:SOQ]SOHNUM
+          L_SOPLIN=[F:SOQ]SOPLIN
+          L_SOQSEQ=[F:SOQ]SOQSEQ
+          STOP=1
+          Break
+       Endif
+   Endif
+   $NXTSOQ 
+Next 
+If STOP Goto DEB_BOUCLE Endif
+Filter [SOQ] 
+Return 
+ 
+#-----------------------------------------------------------------------# 
+# Sélections complémentaires sur l'enregistrement SOQ                   # 
+#-----------------------------------------------------------------------# 
+$SEL_SOQCOMPL 
+Local Date WDATORI, WDATDES 
+
+# Si site non renseigné dans les critères, ctrl d'autorisation de la fonction pour le site
+# (Si site renseigné, le ctrl a été fait en saisie du chps site)
+If GUSRFCY(1)<>"\" & GNBAUZ<>GNBSITE
+ If !find([F:SOQ]STOFCY,GUSRFCY(1..GNBAUZ)) OK=1 : Return Endif
+Endif
+ 
+OK=2 
+#-----------------------------------------------------------------------# 
+# ----- Sélection sur la date expédition -----                          # 
+#-----------------------------------------------------------------------# 
+
+WMESS=mess(98,197,1)-":"-[F:SOQ]SOHNUM-mess(80,197,1)-":"-[F:SOQ]ITMREF
+WMESS1=mess(184,197,1)+" "+format$(GFMD,[F:SOQ]SHIDAT)
+WMESS2=mess(189,197,1)-":"-mess(188,197,1)
+
+# Mode de livraison : On exclut les lignes si : 
+# --> Ctm directe (2) 
+# --> Ctm receptionnée (3) ou ordre de production (5) en fonction du flag écran
+If [F:SOQ]FMI = 2 OK=1 : Return : Endif 
+If [M:DIA]ALLCTM = 1 & ([F:SOQ]FMI = 3 | [F:SOQ]FMI = 5) OK=1 : Return : Endif 
+# --> Selection si date expé. <= date expé. saisie 
+If [M:DIA]SHIDAT <> [0/0/0] & [F:SOQ]SHIDAT <= [M:DIA]SHIDAT Return:Endif 
+OK=1
+
+Return 
+ 
+#-----------------------------------------------------------------------# 
+# Sélections complémentaires sur l'enregistrement SOP                   # 
+#-----------------------------------------------------------------------# 
+$SEL_SOPCOMPL 
+OK=2 
+Read [SOP]SOP0 = [F:SOQ]SOHNUM; [F:SOQ]SOPLIN; [F:SOQ]SOQSEQ 
+If fstat & [F:SOH]SOHCAT <> 4 OK=1 : Return 
+Elsif fstat  
+    If [F:SOC]SOHNUM <> [F:SOQ]SOHNUM | [F:SOC]SOPLIN <> [F:SOQ]SOPLIN 
+        Raz [F:SOP]  
+        Read [SOC]SOC0 = [F:SOQ]SOHNUM; [F:SOQ]SOPLIN 
+        If fstat OK=1 : Return : Endif 
+    Endif
+    [F:SOP] = [F:SOC]  
+Endif 
+  
+# On exclut les lignes si : 
+# --> Composants de kit/sous-traité  
+If find([F:SOP]LINTYP, 3,4,5,11,12,13) OK=1:Return:Endif 
+# --> Non géré en stock et non composé de kit/sous-traité 
+If [F:SOQ]STOMGTCOD = 1 & !(find([F:SOP]LINTYP, 2,10)) OK=1:Return:Endif 
+
+#----------------------------------------------------------------------------#
+# Point d'entree pour rajouter des filtres sur les enregistrements à traiter #
+#----------------------------------------------------------------------------#
+GPOINT="DESALLSEL" : Gosub ENTREE From EXEFNC
+
+Return 
+#-----------------------------------------------------------------------# 
+# Sélections complémentaires sur l'entête comande SOH                   # 
+#-----------------------------------------------------------------------# 
+$SEL_SOHCOMPL 
+Local Integer WCHG_CDE    :    WCHG_CDE=0
+
+OK=2 
+If [F:SOH]SOHNUM <> [F:SOQ]SOHNUM 
+    Read [SOH]SOH0 = [F:SOQ]SOHNUM 
+    If fstat OK=1 :Return:Endif  
+    WCHG_CDE=1
+Endif
+
+If !evalue (CRITENT) OK=1 : Return : Endif
+
+If [F:SOH]BPCNAM(0) <> "" 
+    WBPCNAM=[F:SOH]BPCNAM(0)
+Elsif [F:BPC]BPCNUM <> [F:SOH]BPCORD
+    Read [BPC]BPC0 = [F:SOH]BPCORD
+    If fstat Raz [F:BPC] : Endif
+    WBPCNAM=[F:BPC]BPCNAM 
+Endif
+
+# Filtre sur le Mode d'allocation  
+#If [M:DIA]ALLSOH = 3 Return : Endif 
+#If [M:DIA]ALLSOH <> [F:SOH]ALLSOH OK=1 : Return : Endif  
+ 
+If WSALFCY <> [F:SOH]SALFCY
+# --> Alimentation à partir du site de vente  
+    Call GETDEV([F:SOH]SALFCY) From DEVSUB 
+# Récupération des paramêtres de vente  
+    Call GLOBVAR([F:SOH]SALFCY,"VEN") From TRTX3 
+    WSALFCY = [F:SOH]SALFCY
+Endif 
+
+# --> On exclut les commandes dt l'état crédit n'est pas ok 
+#     Calcul de  l'état crédit et maj de la cde 
+If WCHG_CDE = 1
+    Call SDCDTSTA([F:SOH]SOHNUM,[F:SOH]BPCORD,[F:SOH]CHGTYP,0,"",[F:SOH]ORDDAT,[F:SOH]UNL, 2,WCDTSTA,GBIDD1,GBIDD2) From TRTVENCDT 
+Endif
+Return 
+ 
+#-----------------------------------------------------------------------# 
+# Traitement d'une allocation                                           # 
+#-----------------------------------------------------------------------# 
+$TRTALL 
+Local Char    WTRTORD
+Local Decimal WCPLQTY 
+#Gosub VERROU 
+#If !OK Return : Endif 
+
+Call DEBTRANS From GLOCK 
+GOK=1 
+Trbegin [SOH],[SOQ],[SOP] 
+#       Articles gérés en stock               : Désallocation et maj de la cde
+#       (Les quantité allouées et ruptures sont toujours positives)
+#       Kits et composants non gérés en stock : Juste maj de la qté allouée ds la cde 
+        If [F:SOQ]STOMGTCOD <> 1 
+            Call GENALLORD("","","A", 1, 2, 2, WALLSTU, WSHTSTU, WRET) From TRTVENALL
+            If WRET <> 0 
+                Call ECR_TRACE(WMESS,0) From GESECRAN  
+                Call ECR_TRACE(mess(96,197,1), 0) From GESECRAN
+                GOK=0 : Goto AB_TRTALL
+            Endif              
+        Endif 
+        [F:SOQ]ALLQTYSTU -= WALLSTU 
+        [F:SOQ]SHTQTYSTU -= WSHTSTU
+         
+#       Mise à jour commande 
+        Call MAJALLORD([F:SOQ]SOHNUM, [F:SOQ]SOPLIN, [F:SOQ]SOQSEQ, [F:SOQ]ALLTYP, [M:DIA]RAZCTM, [F:SOQ]ALLQTYSTU, [F:SOQ]SHTQTYSTU, WRET) From TRTVENALL
+        If WRET <> 0 : GOK = 0 : Goto AB_TRTALL : Endif
+#       Ecriture dans la trace
+        WMESS=mess(98,197,1)-":"-[F:SOH]SOHNUM-mess(99,197,1)-":"-[F:SOH]BPCORD-WBPCNAM-mess(80,197,1)-":"-[F:SOQ]ITMREF-[F:SOP]ITMDES1  
+        Call ECR_TRACE(WMESS,0) From GESECRAN  : Raz WMESS
+        If find([F:SOP]LINTYP,2,10) WMESS=mess([F:SOP]LINTYP,423,1) Endif
+        If [F:SOQ]STOMGTCOD=1 WMESS-=mess(283,197,1) Endif
+        If WMESS <>"" Call ECR_TRACE("  "+WMESS,0) From GESECRAN Endif
+        WALL=(WALLSTU*(1/[F:SOP]SAUSTUCOE))*-1
+        Call QTEARR(WALL, [F:SOP]SAU) From TRTDIV    
+        WSHT=(WSHTSTU*(1/[F:SOP]SAUSTUCOE))*-1
+        Call QTEARR(WSHT, [F:SOP]SAU) From TRTDIV 
+        If [F:SOQ]STOMGTCOD<>1
+            WMESS1 = mess(106,197,1)+":"+format$("N:15F", WALL)-[F:SOP]SAU
+            WMESS2 = mess(107,197,1)+":"+format$("N:15F", WSHT)-[F:SOP]SAU 
+            Call ECR_TRACE("  "+mess(479,197,1)-WMESS1-WMESS2,0) From GESECRAN
+        Endif
+#       Si Composé de kit/sous-traité, il faut désallouer les composants 
+        If find([F:SOP]LINTYP,2,10) 
+#            WALLSTU = 0 - WALLSTU 
+            WALLSTU+=WSHTSTU
+            Call GENALLKIT ([F:SOQ]SOHNUM, [F:SOQ]SOPLIN, [F:SOQ]SOQSEQ, "A", 1, 2, 0, [M:DIA]RAZCTM, 1, WALLSTU,
+&                           WRET) From TRTVENALL 
+            If WRET <> 0 
+                Call ECR_TRACE(WMESS,0) From GESECRAN  
+                Call ECR_TRACE(mess(194,197,1), 0) From GESECRAN
+                GOK=0 : Goto AB_TRTALL
+            Endif 
+        Endif  
+        NBALL += 1 
+Commit 
+
+#Gosub DEVERROU  
+Return 
+ 
+#-----------------------------------------------------------------------# 
+# Positionnement d'un verrou sur l'entête commande                      # 
+#-----------------------------------------------------------------------# 
+$VERROU 
+#VPO 18/05/09 54861 pb lock cde ouverte
+If [F:SOH]SOHCAT<>4
+    SYMBOLE = "SOH"+[F:SOH]SOHNUM 
+Else
+    # Lock fichier commande ouverte
+    SYMBOLE = "SOC"+num$([F:SOQ]SOPLIN)+"\"+[F:SOQ]SOHNUM
+Endif
+Lock = SYMBOLE With lockwait = 0 
+OK=2 
+If fstat
+    Call ECR_TRACE([F:SOH]SOHNUM - mess(10,100,1),1) From GESECRAN  
+    OK=1 
+Endif 
+Return 
+ 
+#-----------------------------------------------------------------------# 
+# Suppression du verrou sur l'entête commande                           # 
+#-----------------------------------------------------------------------# 
+$DEVERROU 
+Unlock=SYMBOLE 
+Return 
+ 
+$ROL_TRTALL 
+Rollback 
+Call ROLL From GLOCK 
+If GROLL  
+     Call ECR_TRACE(mess(17,107,1),1) From GESECRAN 
+#     Gosub DEVERROU   
+Else Goto TRTALL :Endif 
+Return 
+ 
+$AB_TRTALL 
+Rollback 
+Call ECR_TRACE(mess(17,107,1),1) From GESECRAN 
+#Gosub DEVERROU   
+Return 
+####################################################################### 
+#                     ETIQUETTES                                      # 
+####################################################################### 
+$LEC_ITM 
+If [F:ITM]ITMREF <> [F:SOQ]ITMREF 
+    Read [ITM]ITM0=[F:SOQ]ITMREF 
+    If fstat Raz [F:ITM] :Endif 
+Endif 
+Return 
+$LEC_ITF 
+If [F:ITF]ITMREF <> [F:SOQ]ITMREF | [F:ITF]STOFCY <> [F:SOQ]STOFCY 
+    Read [ITF]ITF0=[F:SOQ]ITMREF;[F:SOQ]STOFCY 
+    If fstat Raz [F:ITF] :Endif 
+Endif 
+Return 
+#######################################################################  
+#                     ACTIONS CHAMPS                                  #  
+#######################################################################  
+# --------------------------------------- DRNFLG ---------------------------------
+Subprog AP_DRNFLG(VALEUR)   : # Web - Faible - Synchrone
+Variable Integer VALEUR 
+If VALEUR = 1  
+    [M:DIA]DRN = 0  
+Endif 
+If VALEUR = 2 & [M:DIA]DRN = 0  
+    [M:DIA]DRN = 1 
+    Affzo [M:DIA]DRN 
+Endif 
+If VALEUR <> 2 Grizo [M:DIA]DRN Else Actzo [M:DIA]DRN : Endif
+End
+########################################
+# --------------------------------------- DRN ---------------------------------
+########################################
+Subprog C_DRN(VALEUR)         : # Web - Faible - Synchrone
+Variable Integer VALEUR
+If [M:DIA]DRNFLG = 1 & VALEUR <> 0 mkstat =2 : Endif   
+If [M:DIA]DRNFLG = 2 & VALEUR  = 0 mkstat =2 : Endif   
+End
+# ----------------------------------- ALLCTM ---------------------------------
+########################################
+Subprog AP_ALLCTM(VALEUR)
+Variable Integer VALEUR
+If VALEUR = 1 [M:DIA]RAZCTM = 1 : Diszo [M:DIA]RAZCTM : Endif 
+If VALEUR = 2 [M:DIA]RAZCTM = 2 : Actzo [M:DIA]RAZCTM : Endif 
+End
+########################################
+# ----------------------------------- DLVPIODEB ---------------------------------
+Subprog AM_DLVPIODEB(VALEUR)   : # Web - Faible - Synchrone
+Variable Integer VALEUR
+[M:DIA]DLVPIOFIN = VALEUR : Affzo [M:DIA]DLVPIOFIN 
+End
+########################################
+# ----------------------------------- DLVPIOFIN ---------------------------------
+Subprog C_DLVPIOFIN(VALEUR)    : # Web - Faible - Synchrone
+Variable Integer VALEUR
+If VALEUR < [M:DIA]DLVPIODEB GMESSAGE= mess(44,199,1) : mkstat=2:Endif 
+End
+########################################
+# ----------------------------------- SOHNUMDEB ---------------------------------
+Subprog AM_SOHNUMDEB(VALEUR)    : # Web - Faible - Synchrone
+Variable Char    VALEUR()
+If VALEUR <> "" : [M:DIA]SOHNUMFIN = VALEUR : Affzo [M:DIA]SOHNUMFIN : Endif
+End
+########################################
+# ----------------------------------- BPCCORDEB ---------------------------------
+########################################
+Subprog AM_BPCORDDEB(VALEUR)    : # Web - Faible - Synchrone
+Variable Char    VALEUR()
+If VALEUR <> "" : [M:DIA]BPCORDFIN = VALEUR : Affzo [M:DIA]BPCORDFIN :Endif
+End
+########################################
+# ----------------------------------- BPAADDDEB ---------------------------------
+Subprog AS_BPAADDDEB(VALEUR)    : # Web - Obligatoire - Synchrone
+Variable Char    VALEUR()
+If [M]BPCORDDEB = "" mkstat=2 Endif
+End
+########################################
+Subprog AM_BPAADDDEB(VALEUR)    : # Web - Faible - Synchrone
+Variable Char    VALEUR()
+If VALEUR <> "" : [M:DIA]BPAADDFIN = VALEUR : Affzo [M:DIA]BPAADDFIN : Endif
+End
+########################################
+# ----------------------------------- BPAADDFIN ---------------------------------
+Subprog AS_BPAADDFIN(VALEUR)    : # Web - Obligatoire - Synchrone
+Variable Char    VALEUR()
+If [M]BPCORDFIN = "" mkstat=2 Endif
+End
+########################################
+Subprog C_BPAADDFIN(VALEUR)
+Variable Char    VALEUR()
+If  [M:DIA]BPCORDDEB = [M:DIA]BPCORDFIN  
+    If VALEUR < [M:DIA]BPAADDDEB GMESSAGE= mess(44,199,1) : mkstat=2:Endif  
+Endif  
+End
+########################################
+# ----------------------------------- ITMREFDEB ---------------------------------
+Subprog AM_ITMREFDEB(VALEUR)    : # Web - Faible - Synchrone
+Variable Char    VALEUR()
+If VALEUR <> "" : [M:DIA]ITMREFFIN = VALEUR : Affzo [M:DIA]ITMREFFIN : Endif
+End
+########################################
+########################################
+Subprog AS_ALLCRITENT(VALEUR)
+Variable Char    VALEUR()
+Raz [M]FILTTABENT, XXCONV, XXVAR
+[M]FILTTABENT="find(ABRFIC,'SOH')"
+End
+########################################
+Subprog AS_ALLCRITDET(VALEUR)
+Variable Char    VALEUR()
+Raz [M]FILTTABDET, XXCONV, XXVAR
+[M]FILTTABDET="find(ABRFIC,'SOQ')"
+For I=0 To dim([F:SOP]TSICOD)-1
+    [M]XXVAR(I)="WTSICOD("+num$(I)+"),Famille statistique"+num$(I+1)
+Next
+End
+########################################
+Subprog AM_ALLCRITDET(VALEUR)
+Variable Char    VALEUR()
+Local Char    WCRITDET(150), WCRITTSI(250), WCRITRES(250)
+Local Char    WCRIT(250), WCRITVAL(250)
+Local Integer W,I,J,K1,K2
+
+#WCRITERE='XXXX & WTSICOD(0)="A" & YYYY & WTSICOD(1)="B"'
+I=1
+WCRITDET=toupper(VALEUR)
+If instr(I,WCRITDET, "WTSICOD")
+    I=1
+    WCRITRES="("
+    Repeat
+    W=instr(I,WCRITDET, "WTSICOD")
+    If W<>0
+        J=W
+        WCRIT=seg$(WCRITDET,I,J-1)
+        K1 = instr(1+J+6,WCRITDET,'"')
+        WCRITVAL=seg$(WCRITDET,1+J+6,K1)
+        K2 = instr(K1+1,WCRITDET,'"')
+        WCRITVAL+=seg$(WCRITDET,K1+1,K2)
+        WCRITTSI="([F:SOQ]SOHCAT<>4&[F:SOP]TSICOD"+WCRITVAL+")|("+"[F:SOQ]SOHCAT=4&[F:SOC]TSICOD"+WCRITVAL+")"
+        WCRIT+=WCRITTSI
+        WCRITRES+=WCRIT
+        I=K2+1
+    Endif
+    Until W = 0
+    WCRITRES+=")"
+
+    WCRIT=right$(WCRITDET,I)
+    WCRITRES+=WCRIT
+
+#    Infbox WCRITRES
+#    Infbox num$(len(VALEUR))
+#    Infbox num$(len(WCRITRES))
+
+    If len(WCRITRES)> 250 mkstat=2 : GMESSAGE=mess(4,159,1) : End : Endif
+    [M]CALCRITDET=WCRITRES
+Else
+    [M]CALCRITDET=VALEUR
+Endif
+End
+###########################################################################################
+$ERRBATCH
+Call ECR_TRACE(errmes$(errn)-num$(errl)-errm,1) From GESECRAN
+End
+########################################
+######################################################################################
+## Etiquette ajoutée par le superviseur (écran SDESALL) 18/04/2006 13:11:43 (JL)
+######################################################################################
+Subprog D_CPY(VALEUR)
+Variable Char    VALEUR()
+Call GETSOC (GFCYDEF(7)) From DEVSUB   : # init avec societe du site stock par defaut
+VALEUR=GSOCIETE                        
+[M]STOFCY=GFCYDEF(7)
+End
+
+Subprog AM_CPY(VALEUR)
+Variable Char    VALEUR()
+GSOCIETE=VALEUR
+Raz [M]STOFCY
+End
+
+
+######################################################################################

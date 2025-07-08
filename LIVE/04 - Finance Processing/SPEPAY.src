@@ -43,6 +43,7 @@ If !pat([M:PAY0]NUM, "IP*")
             [M:PAY1]ZOKYAKU(I)=func AFNC.INTFLD("SORDER","BPCINV",[M:PAY1]VCRNUM(I)+"~")+" - "+func AFNC.INTFLD("SORDER","BPINAM",[M:PAY1]VCRNUM(I)+"~")
             Gosub AFFZO_ZOKYAKU
         Endif
+	[M:PAY1]ZBPRVCR(I)=func AFNC.INTFLD("PINVOICE","BPRVCR",[M:PAY1]VCRNUM(I)) : Affzo [M:PAY1]ZBPRVCR(I)
     Next I
 Gosub CLOSING_ACTIONS
 Endif
@@ -127,6 +128,3 @@ Return
 ##        3. USE GACCENTRYD TABLE FOR ALL OTHER RECORDS EXCEPT V5555 VENDOR CODE.   ##
 ##        4. IF V5555, USE PIVOICED AND PULL BP FROM ASSOCIATED PINVOICED NUMORI DOC. ##
 ######################################################################################
-
-
-

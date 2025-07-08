@@ -1,238 +1,233 @@
-WITH SoldToData AS (
-    SELECT DISTINCT
-        BPA.BPAADD_0,
-        BPA.BPANUM_0,
-        BPA.BPAADDLIG_0,
-        BPA.BPAADDLIG_1,
-        BPA.BPAADDLIG_2,
-        BPA.CTY_0,
-        BPA.POSCOD_0,
-        BPA.SAT_0,
-        BPA.WEB_0,
-        BPA.TEL_0,
-        BPC.BPCNAM_0
-    FROM
-        LIVE.BPADDRESS BPA
-        LEFT JOIN LIVE.BPCUSTOMER BPC ON BPA.BPANUM_0 = BPC.BPCNUM_0
+with BPDLVCUST as (
+	select
+		BPCNUM_0 as [Customer Number],
+		BPAADD_0 as [Address Code],
+		LANMES_0 as [Route],
+		YCOSTCENTRE_0 as [Cost Center]
+	from
+		LIVE.BPDLVCUST
+	left join 
+		LIVE.APLSTD apl ON DRN_0 = apl.LANNUM_0
+		and apl.LANCHP_0 = '409'
+		and apl.LAN_0 = 'ENG'
 ),
-ShipToData AS (
-    SELECT DISTINCT
-        BPA.BPAADD_0,
-        BPA.BPANUM_0,
-        BPA.BPAADDLIG_0,
-        BPA.BPAADDLIG_1,
-        BPA.BPAADDLIG_2,
-        BPA.CTY_0,
-        BPA.POSCOD_0,
-        BPA.SAT_0,
-        BPA.WEB_0,
-        BPA.TEL_0,
-        BPC.BPCNAM_0
-    FROM
-        LIVE.BPADDRESS BPA
-        LEFT JOIN LIVE.BPCUSTOMER BPC ON BPA.BPANUM_0 = BPC.BPCNUM_0
+SALESREP as (
+	select
+		REPNUM_0,
+		REPNAM_0
+	from
+		LIVE.SALESREP
 ),
-SalesReps AS (
-    SELECT
-        REPNUM_0,
-        REPNAM_0
-    FROM
-        LIVE.SALESREP
+BPADDRESS as (
+	select
+		bpc.BPCNAM_0 as [Customer Name],
+		bpa.BPADES_0 as [Customer Description],
+		bpa.BPAADD_0 as [Address Code],
+		BPANUM_0 as [Customer Number],
+		BPAADDLIG_0 as [Address 1],
+		BPAADDLIG_1 as [Address 2],
+		BPAADDLIG_2 as [Address 3],
+		CRY_0 as [Country Code],
+		CRYNAM_0 as [Country],
+		SAT_0 as [Province],
+		POSCOD_0 as [Postal Code],
+		CTY_0 as [City],
+		WEB_0 as [Email]
+	from
+		LIVE.BPADDRESS bpa
+	left join
+		LIVE.BPCUSTOMER bpc on bpa.BPANUM_0=bpc.BPCNUM_0
 ),
-CreditCardInfo AS (
-    SELECT
-        SOHNUM_0,
-        ACCL4D_0,
-        SUM(PAYAMT_0) AS PAYAMT_0,
-        SUM(AUTAMT_0) AS AUTAMT_0,
-        SUM(TAXAMT_0) AS TAXAMT_0,
-        LANMES_0,
-        ACCNCKNAM_0,
-        STAFLG_0,
-		ATX.TEXTE_0
-    FROM
-        LIVE.SEAUTH
-    LEFT JOIN
-        LIVE.APLSTD APL ON STAFLG_0 = LANNUM_0
-        AND LANCHP_0 = '2095'
-        AND LAN_0 = 'ENG'
-	LEFT JOIN
-		LIVE.ATEXTRA ATX ON CRDTYP_0=ATX.IDENT2_0
-		AND ATX.ZONE_0 = 'LNGDES'
-		AND ATX.LANGUE_0 = 'ENG'
-		AND ATX.CODFIC_0 = 'ATABDIV'
-		AND ATX.IDENT1_0 = '398'
-    WHERE
-        STAFLG_0 IN (3, 6)
-    GROUP BY
-        SOHNUM_0,
-        ACCL4D_0,
-        LANMES_0,
-        ACCNCKNAM_0,
-        STAFLG_0,
-		ATX.TEXTE_0
+SORDERLINE as (
+	select
+		soq.SOHNUM_0 as [Sales Order],
+		sum(sop.GROPRI_0*soq.QTY_0) as [Line Amount (Before Discounts)],
+		sum(sop.NETPRI_0*soq.QTY_0) as [Line Amount (After Discounts)],
+		sum(case when VACITM_2='EHF' then CLCAMT1_0 else 0 end) as [Line EHF],
+		sum(Case when DISCRGVAL1_0<>0 then (GROPRI_0-NETPRI_0)*QTY_0 else 0 end) as [Line Discounts]
+	from
+		LIVE.SORDERQ soq
+	inner join
+		LIVE.SORDERP sop on soq.SOHNUM_0=sop.SOHNUM_0 and soq.SOPLIN_0=sop.SOPLIN_0 and soq.SOQSEQ_0=sop.SOPSEQ_0
+	group by
+		soq.SOHNUM_0
 ),
-RankedCreditCardInfo AS (
-    SELECT
-        SOHNUM_0,
-        ACCL4D_0,
-        PAYAMT_0,
-        AUTAMT_0,
-        TAXAMT_0,
-        LANMES_0,
-        ACCNCKNAM_0,
-		TEXTE_0,
-        ROW_NUMBER() OVER (PARTITION BY SOHNUM_0, ACCL4D_0 ORDER BY STAFLG_0 DESC) AS rn
-    FROM CreditCardInfo
+SVCRFOOT as (
+	select
+		VCRNUM_0,
+		sum(case when DTA_0 = 1 then DTAAMT_0 else 0 end) as [SO Discount],
+		sum(case when DTA_0 = 10 then DTAAMT_0 else 0 end) as [SO Discount Percent], 
+		sum(case when DTA_0 = 10 then DTANOT_0 *-1 else 0 end) as [SO Discount Percent-Amount], 
+		sum(case when DTA_0 = 9 then DTAAMT_0 else 0 end) as [SO Fuel Surharge],
+		sum(case when DTA_0 = 8 then DTAAMT_0 else 0 end) as [SO Freight Charge],
+		sum(case when DTA_0 = 5 then DTAAMT_0 else 0 end) as [SO EHF Fees]
+	from
+		LIVE.SVCRFOOT
+	group by VCRNUM_0
 ),
-PrepayemntInfo AS (
-    SELECT
-        DUD.NUM_0,
-        DUD.PAMTYP_0,
-        SUM(DUD.AMTCUR_0) AS AMTCUR_0,
-        SUM(DUD.PAYCUR_0) AS PAYCUR_0,
-        SEU.ACCL4D_0,
-        SUM(SEU.PAYAMT_0) AS PAYAMT_0,
-        SUM(SEU.AUTAMT_0) AS AUTAMT_0,
-        SUM(SEU.TAXAMT_0) AS TAXAMT_0,
-        APL.LANMES_0,
-        SEU.ACCNCKNAM_0,
-        SEU.STAFLG_0,
-		ATX.TEXTE_0
-    FROM
-        LIVE.GACCDUDATE DUD
-    LEFT JOIN
-        LIVE.PAYMENTD PYD ON DUD.NUM_0 = PYD.VCRNUM_0
-    LEFT JOIN
-        LIVE.SEAUTH SEU ON PYD.NUM_0 = SEU.VCRNUM_0
-    LEFT JOIN
-        LIVE.APLSTD APL ON SEU.STAFLG_0 = APL.LANNUM_0
-        AND APL.LANCHP_0 = '2095'
-        AND APL.LAN_0 = 'ENG'
-	LEFT JOIN
-		LIVE.ATEXTRA ATX ON CRDTYP_0=ATX.IDENT2_0
-		AND ATX.ZONE_0 = 'LNGDES'
-		AND ATX.LANGUE_0 = 'ENG'
-		AND ATX.CODFIC_0 = 'ATABDIV'
-		AND ATX.IDENT1_0 = '398'
-    WHERE
-        DUD.PAMTYP_0 = 2
-        AND (SEU.STAFLG_0 IN (3, 6) OR SEU.STAFLG_0 IS NULL)
-    GROUP BY
-        DUD.NUM_0,
-        DUD.PAMTYP_0,
-        SEU.ACCL4D_0,
-        APL.LANMES_0,
-        SEU.ACCNCKNAM_0,
-        SEU.STAFLG_0,
-		ATX.TEXTE_0
+SVCRVAT as (
+	select
+		VCRNUM_0,
+		sum(case when VAT_0='TAX' and VATRAT_0=12 then 0.25 else AMTTAX_0 end) as [Fuel Tax GST],
+		sum(case when VAT_0='TAX' and VATRAT_0=12 then 0.35 else 0 end) as [Fuel Tax PST],
+		sum(case when VAT_0='GST' then AMTTAX_0 else 0 end) as [GST],
+		sum(case when VAT_0='BCPST' then AMTTAX_0 else 0 end) as [PST]
+	from
+		LIVE.SVCRVAT
+	group by
+		VCRNUM_0
 ),
-RankedPrepaymentInfo AS (
-    SELECT
-        NUM_0,
-        PAMTYP_0,
-        AMTCUR_0,
-        PAYCUR_0,
-        ACCL4D_0,
-        PAYAMT_0,
-        AUTAMT_0,
-        TAXAMT_0,
-        LANMES_0,
-        ACCNCKNAM_0,
-		TEXTE_0,
-        ROW_NUMBER() OVER (PARTITION BY NUM_0, ACCL4D_0 ORDER BY STAFLG_0 DESC) AS rn
-    FROM PrepayemntInfo
+TEXCLOB as (
+	select
+		CODE_0,
+		TEXTE_0
+	from LIVE.TEXCLOB
 )
-SELECT
-    /* SALES ORDER */
-    SOH.CREDAT_0 AS [Date Created],
-    SOH.ORDDAT_0 AS [Date Ordered],
-    SOH.SHIDAT_0 AS [Required Ship Date],
-    SOH.DEMDLVDAT_0 AS [Required Delivery Date],
-    SOH.SOHNUM_0 AS [Sales Order],
-    SOH.HLDCOD_0 AS [Order Hold],
-    SOH.CUSORDREF_0 AS [Customer PO],
-    UPPER(isnull(REP.REPNAM_0,'')) AS [Rep Name],
-    APL.LANMES_0 AS [Route],
-    SOH.PTE_0 AS [Payment Terms],
 
-    /* SOLD-TO */
-    UPPER(SLD.BPAADD_0) AS [Sold To Address],
-    SLD.BPANUM_0 AS [Sold To],
-    CASE WHEN UPPER(SOH.BPIADDLIG_0) IN ('~','*') THEN '' ELSE UPPER(SOH.BPIADDLIG_0) END AS [Sold To Address 1],
-    CASE WHEN UPPER(SOH.BPIADDLIG_1) IN ('~','*') THEN '' ELSE UPPER(SOH.BPIADDLIG_1) END AS [Sold To Address 2],
-    CASE WHEN UPPER(SOH.BPIADDLIG_2) IN ('~','*') THEN '' ELSE UPPER(SOH.BPIADDLIG_2) END AS [Sold To Address 3],
-    UPPER(SOH.BPICTY_0) AS [Sold To City],
-    UPPER(SOH.BPIPOSCOD_0) AS [Sold To POSCOD],
-    UPPER(SOH.BPISAT_0) AS [Sold To Province],
-    UPPER(SLD.BPCNAM_0) AS [Sold To Name],
-    SLD.WEB_0 AS [Sold To Email],
-    SLD.TEL_0 AS [Sold To Phone],
+select distinct
+	soh.SALFCY_0 as [Sales Site],
+	soh.CREDAT_0 as [Creation Date],
+	soh.ORDDAT_0 as [Order Date],
+	soh.SHIDAT_0 as [Shipping Date],
+	soh.SOHNUM_0 as [Order Number],
+	isnull(bpd.[Cost Center],'') as [Cost Center],
+	soh.CUSORDREF_0 as [Purchase Order],
+	isnull(rep.REPNAM_0,'') as [Sales Rep],
+	apl.LANMES_0 as [Route],
+	soh.PTE_0 as [Payment Term],
+	soh.YPICKNOTE_0 as [Shipping Instructions],
+	soh.VACBPR_0 as [Tax Rule],
 
-    /* SHIP-TO */
-    UPPER(SHP.BPAADD_0) AS [Ship To Address],
-    SHP.BPANUM_0 AS [Ship To],
-    CASE WHEN UPPER(SOH.BPDADDLIG_0) IN ('~','*') THEN '' ELSE UPPER(SOH.BPDADDLIG_0) END AS [Ship To Address 1],
-    CASE WHEN UPPER(SOH.BPDADDLIG_1) IN ('~','*') THEN '' ELSE UPPER(SOH.BPDADDLIG_1) END AS [Ship To Address 2],
-    CASE WHEN UPPER(SOH.BPDADDLIG_2) IN ('~','*') THEN '' ELSE UPPER(SOH.BPDADDLIG_2) END AS [Ship To Address 3],
-    UPPER(SOH.BPDCTY_0) AS [Ship To City],
-    UPPER(SOH.BPDPOSCOD_0) AS [Ship To POSCOD],
-    UPPER(SOH.BPDSAT_0) AS [Ship To Province],
-    UPPER(SHP.BPCNAM_0) AS [Ship To Name],
-    SHP.WEB_0 AS [Ship To Email],
-    SHP.TEL_0 AS [Ship To Phone],
+	/* BILL-TO */
 
-    CASE
-        WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.AMTCUR_0,0)
-        WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.AUTAMT_0,0)
-    ELSE 0
-    END AS [Prepayment Amount],
-    CASE
-        WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.AUTAMT_0, 0)
-        WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.AUTAMT_0, 0)
-        ELSE 0
-    END AS [Auth Amount],
-    CASE
-        WHEN SOH.PTE_0 = 'CREDITCARDP' AND CRD.LANMES_0='Captured' THEN isnull(CRD.AUTAMT_0, 0)
-        WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.PAYAMT_0, 0)
-        ELSE 0
-    END AS [Paid Amount],
-    CASE
-        WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.ACCL4D_0, '')
-        WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.ACCL4D_0, '')
-        ELSE ''
-    END AS [Last 4],
-    CASE
-        WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.LANMES_0, '')
-        WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.LANMES_0, '')
-        ELSE ''
-    END AS [Card Status],
-    CASE
-        WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.ACCNCKNAM_0, '')
-        WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.ACCNCKNAM_0, '')
-        ELSE ''
-    END AS [Nickname],
-    CASE
-        WHEN SOH.PTE_0 = 'CREDITCARDP' THEN isnull(CRD.TEXTE_0, '')
-        WHEN SOH.PTE_0 = 'PREPAY' THEN isnull(PRP.TEXTE_0, '')
-        ELSE ''
-    END AS [Card Type],
-	SOH.INVDTAAMT_0 as [Rounding],
-	SOH.INVDTAAMT_1 as [Freight %],
-	SOH.INVDTAAMT_2 as [Freight $],
-	SOH.INVDTAAMT_3 as [Fuel Surcharge],
-	SOH.YPICKNOTE_0 as [Special Instructions],
-        SOH.VACBPR_0 as [Tax Rule],
-        SOH.ORDINVATI_0 as [Order - Tax]
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then soh.BPCINV_0
+		else soh.BPCPYR_0
+	end as [Bill To],
 
-FROM LIVE.SORDER SOH
-LEFT JOIN LIVE.APLSTD APL ON SOH.DRN_0 = APL.LANNUM_0
-    AND APL.LANCHP_0 = '409'
-    AND APL.LAN_0 = 'ENG'
-LEFT JOIN SoldToData SLD ON SOH.BPCINV_0 = SLD.BPANUM_0 AND SOH.BPAINV_0 = SLD.BPAADD_0
-LEFT JOIN ShipToData SHP ON SOH.BPCORD_0 = SHP.BPANUM_0 AND SOH.BPAADD_0 = SHP.BPAADD_0
-LEFT JOIN SalesReps REP ON SOH.REP_0 = REP.REPNUM_0
-LEFT JOIN RankedCreditCardInfo CRD ON SOH.SOHNUM_0 = CRD.SOHNUM_0
-    AND CRD.rn = 1
-LEFT JOIN RankedPrepaymentInfo PRP ON SOH.SOHNUM_0 = PRP.NUM_0
-    AND PRP.rn = 1
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then soh.BPINAM_0
+		else bpa.[Customer Name]
+	end as [Bill-to Name 1],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then soh.BPINAM_1
+		else bpa.[Customer Description]
+	end as [Bill-to Name 2],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then case when soh.BPIADDLIG_0 in ('~','*') then '' else soh.BPIADDLIG_0 end
+		else case when bpa.[Address 1] in ('~','*') then '' else bpa.[Address 1] end
+	end as [Bill-to Address 1],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then case when soh.BPIADDLIG_1 in ('~','*') then '' else soh.BPIADDLIG_1 end
+		else case when bpa.[Address 2] in ('~','*') then '' else bpa.[Address 2] end
+	end as [Bill-to Address 2],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then case when soh.BPIADDLIG_2 in ('~','*') then '' else soh.BPIADDLIG_2 end
+		else case when bpa.[Address 3] in ('~','*') then '' else bpa.[Address 3] end
+	end as [Bill-to Address 3],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then case when soh.BPIADDLIG_1 in ('~','*') then '' else soh.BPIADDLIG_1 end
+		else case when bpa.[Address 2] in ('~','*') then '' else bpa.[Address 2] end
+	end as [Bill-to Address 2],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then soh.BPICRY_0
+		else bpa.[Country Code]
+	end as [Bill-to Country Code],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then soh.BPICRYNAM_0
+		else bpa.[Country]
+	end as [Bill-to Country],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then soh.BPICTY_0
+		else bpa.[City]
+	end as [Bill-to City],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then soh.BPISAT_0
+		else bpa.[Province]
+	end as [Bill-to Province],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then soh.BPIPOSCOD_0
+		else bpa.[Postal Code]
+	end as [Bill-to Postal Code],
+
+	case soh.BPCINV_0
+		when soh.BPCPYR_0 then bpa2.[Email]
+		else bpa.[Email]
+	end as [Bill-to Email],
+
+	/* SHIP-TO*/
+
+	soh.BPCORD_0 as [Ship-to],
+	case when soh.BPDNAM_0 in ('~','*') then '' else soh.BPDNAM_0 end as [Ship-to Name 1],
+	case when soh.BPDNAM_1 in ('~','*') then '' else soh.BPDNAM_1 end as [Ship-to Name 1],
+	case when soh.BPDADDLIG_0 in ('~','*') then '' else soh.BPDADDLIG_0 end as [Ship-to Address 1],
+	case when soh.BPDADDLIG_1 in ('~','*') then '' else soh.BPDADDLIG_1 end as [Ship-to Address 2],
+	case when soh.BPDADDLIG_2 in ('~','*') then '' else soh.BPDADDLIG_2 end as [Ship-to Address 3],
+	soh.BPDCRY_0 as [Ship-to Country Code],
+	soh.BPDCRYNAM_0 as [Ship-to Country],
+	soh.BPDCTY_0 as [Ship-to City],
+	soh.BPDPOSCOD_0 as [Ship-to Postal Code],
+	bpa3.[Email],
+
+	/* DISCOUNTS */
+	sol.[Line Amount (Before Discounts)],
+	sol.[Line Discounts],
+	svf.[SO Discount],
+	sol.[Line Amount (Before Discounts)]-sol.[Line Amount (After Discounts)] as [Total Discounts],
+
+	/* INVOICING ELEMENTS */
+	svf.[SO Freight Charge],
+	svf.[SO Fuel Surharge],
+
+	/* TOTALS */
+	soh.ORDNOT_0 as [Subtotal],
+	sol.[Line EHF],
+	svt.[GST]+svt.[Fuel Tax GST] as [GST],
+	svt.[PST]+svt.[Fuel Tax PST] as [PST],
+	soh.ORDINVATI_0 as [Total],
+
+	/* TEXT */
+	isnull(texh.TEXTE_0,'') as [Header Text],
+	isnull(texf.TEXTE_0,'') as [Footer Text]
+
+
+from
+	LIVE.SORDER soh
+left join
+	SALESREP rep on soh.REP_0=rep.REPNUM_0
+inner join
+	BPDLVCUST bpd on soh.BPAADD_0=bpd.[Address Code] and soh.BPCORD_0=bpd.[Customer Number]
+inner join
+	BPADDRESS bpa on soh.BPAPYR_0=bpa.[Address Code] and soh.BPCPYR_0=bpa.[Customer Number]
+inner join
+	BPADDRESS bpa2 on soh.BPAINV_0=bpa2.[Address Code] and soh.BPCINV_0=bpa2.[Customer Number]
+inner join
+	BPADDRESS bpa3 on soh.BPAADD_0=bpa3.[Address Code] and soh.BPCORD_0=bpa3.[Customer Number]
+inner join 
+	LIVE.APLSTD apl ON soh.DRN_0 = apl.LANNUM_0
+	and apl.LANCHP_0 = '409'
+	and apl.LAN_0 = 'ENG'
+inner join
+	SORDERLINE sol on soh.SOHNUM_0=sol.[Sales Order]
+inner join
+	SVCRFOOT svf on soh.SOHNUM_0=svf.VCRNUM_0
+inner join
+	SVCRVAT svt on soh.SOHNUM_0=svt.VCRNUM_0
+left join
+	TEXCLOB texh on soh.SOHTEX1_0=texh.CODE_0
+left join
+	TEXCLOB texf on soh.SOHTEX2_0=texf.CODE_0
+
+
+
+where soh.SOHNUM_0='WEB157700'

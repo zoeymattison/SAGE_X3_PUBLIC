@@ -3,8 +3,17 @@ Gosub ACTION From YSPEITM
 Case ACTION
     When "VERIF_MOD" : Gosub VERIF_MOD
     When "VERIF_CRE" : Gosub VERIF_CRE
+    When "SETBOUT" : Gosub SETBOUT
     When Default
 Endcase
+Return
+
+$SETBOUT
+If [M:ITM0]ITMSTA=6
+    Chgstl [M:ITM0]ITMSTA With "BACKRED"
+Else
+    Chgstl [M:ITM0]ITMSTA With "NORMAL"
+Endif
 Return
 
 $VERIF_CRE
@@ -16,18 +25,18 @@ Gosub ITM_GET_PRIO_COUNT
 Local File ITMMASTER[ZIP]
 Columns [ZIP] (ITMREF, TSICOD(0))
 Read [ZIP]ITM0=[M:ITM0]ITMREF
-If [F:ZIP]TSICOD(0)="DS" or [F:ZIP]TSICOD(0)="DM" : Columns [ZIP] : LogicClose File [ZIP] : Return : Endif
-If ([M:ITM1]TSICOD(0)="DM" | [M:ITM1]TSICOD(0)="DS")
+If [F:ZIP]TSICOD(0)="DS" or [F:ZIP]TSICOD(0)="DM" or [F:ZIP]TSICOD(0)="SO" : Columns [ZIP] : LogicClose File [ZIP] : Return : Endif
+If ([M:ITM1]TSICOD(0)="DM" | [M:ITM1]TSICOD(0)="DS" | [M:ITM1]TSICOD(0)="SO")
     Local File ITMFACILIT[ZIF]
     Columns [ZIF] (ITMREF, STOFCY, SAFSTO)
-    Global Char ZG_DISREC
-    Global Char ZG_DISFCY
-    Global Char ZG_DISITM
+    Global Char ZG_DISREC(150)
+    Global Char ZG_DISFCY(150)
+    Global Char ZG_DISITM(150)
     Global Integer ZG_DISSFT
     Local Integer TYPEVT : [L]TYPEVT=1
-    Local Char CODEVT : [L]CODEVT="ZDC"
-    Local Char OPERAT : [L]OPERAT=""
-    Local Char CLEOBJ : [L]CLEOBJ=[F:ZIF]ITMREF
+    Local Char CODEVT(150) : [L]CODEVT="ZDC"
+    Local Char OPERAT(150) : [L]OPERAT=""
+    Local Char CLEOBJ(150) : [L]CLEOBJ=[F:ZIF]ITMREF
     Filter [ZIF] Where ITMREF=[M:ITM0]ITMREF and SAFSTO > 0 and !pat(STOFCY, "CR*")
     For [ZIF]
         If pat([F:ZIF]STOFCY, "DC*")

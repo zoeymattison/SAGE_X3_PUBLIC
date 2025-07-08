@@ -1,0 +1,123 @@
+$ACTION
+Case ACTION
+	When "PICKE" : Gosub PICKE
+	When "SETBOUT" : Gosub SETBOUT
+	When "VERIF_CRE" : Gosub VERIF_CRE
+	When "APRES_CRE" : Gosub APRES_CRE
+    When Default
+Endcase
+Return
+
+$VERIF_CRE
+If GFLAG="DC30"
+	If [M:PTH0]BPSNDE=""
+		[M:PTH0]BPSNDE=[M:PTH0]BPSNUM+"_"+format$("YYYYMMDDhhmmss",datetime$) : Affzo [M:PTH0]BPSNDE
+		[M:PTH0]NDEDAT=date$ : Affzo [M:PTH0]NDEDAT
+	Endif
+        If [M:PTH0]ZPOHNUM="" : [M:PTH0]ZPOHNUM=[M:PTH1]POHNUM(0) : Affzo [M:PTH0]ZPOHNUM : Endif
+            
+Endif
+Return
+
+$APRES_CRE
+If !clalev([ZPOH]): Local File PORDER [ZPOH] : Endif
+Local Char ZL_LASTPO(30) : [L]ZL_LASTPO=""
+For I=0 To [M:PTH1]NBLIG-1
+	If [M:PTH1]POHNUM(I)<>[L]ZL_LASTPO
+    	Read [ZPOH]POH0=[M:PTH1]POHNUM(I)
+    	If ![S]fstat
+    		#Infbox [F:ZPOH]POHNUM
+    		If [F:ZPOH]ZWRKFLG=2
+        		[L]ZL_LASTPO=[F:ZPOH]POHNUM
+        		Gosub $POH_WRKEML From ZS_PRINT
+        	Endif
+        Endif
+    Endif
+Next
+Return
+
+$SETBOUT
+If GFLAG="DC30"
+	Actzo [M:PTH0]ZLTEFLG
+	If [M:PTH1]POHNUM(0)="" : Raz [M:PTH0]ZPOHNUM : Affzo [M:PTH0]ZPOHNUM : Endif
+	If [M:PTH0]PTHNUM<>"" : Diszo [M:PTH0]BPSNDE : Diszo [M:PTH0]NDEDAT : Endif
+Else
+    Diszo [M:PTH0]ZLTEFLG
+    Diszo [M:PTH0]ZBOXEXP
+    Diszo [M:PTH0]ZBOXRCP
+    Diszo [M:PTH0]ZLTCOUR
+    Diszo [M:PTH0]ZLTENTE
+Endif
+Return
+
+$PICKE
+If GFLAG="DC30"
+        If [M:PTH1]POHNUM(0)<>""
+	        If [F:POH]POHNUM<>[M:PTH1]POHNUM(0) & [M:POH0]BETFCY=1: Call ERREURT("Multi-PO receipts are not permitted in this screen! Saving and\creation will be disabled.",1) From GESECRAN : Endif
+        Endif
+Endif
+Return
+
+Subprog D_PRHFCY(VALEUR)
+Variable Char    VALEUR()
+If GFLAG="DC30"
+	[M:PTH0]PRHFCY="DC30" : Affzo [M:PTH0]PRHFCY
+Endif
+End
+
+Subprog AM_ZERRQTY(VALEUR)
+Variable Decimal VALEUR
+If GFLAG="DC30"
+    If VALEUR>=[M:PTH1]QTYUOM(nolign-1)
+    	[M:PTH1]STA(nolign-1)="R" : Affzo [M:PTH1]STA(nolign-1)
+    Else
+    	[M:PTH1]STA(nolign-1)="Q" : Affzo [M:PTH1]STA(nolign-1)
+	Endif
+Endif
+End
+
+Subprog AM_POHNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog C_BPSNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog D_BPSNDE(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog D_NDEDAT(VALEUR)
+Variable Date    VALEUR
+End
+
+Subprog AM_BPSNDE(VALEUR)
+Variable Char    VALEUR()
+If GFLAG="DC30"
+	If VALEUR<>""
+        If !clalev([ZPTH]) : Local File PRECEIPT [ZPTH] : Endif
+        Filter [ZPTH] Where BPSNDE=VALEUR
+        Read [ZPTH] First
+        If ![S]fstat
+        	[M:PTH0]NDEDAT=[F:ZPTH]NDEDAT
+        	Affzo [M:PTH0]NDEDAT
+        	If [M:PTH0]BPSNUM="" : [M:PTH0]BPSNUM=[F:ZPTH]BPSNUM : Affzo [M:PTH0]BPSNUM : Call AM_BPSNUM([F:ZPTH]BPSNUM) From SUBPTH : Endif
+        	Diszo [M:PTH0]BPSNUM
+        Else
+        	Call ERREURT(VALEUR+" not found. Modification of automatic packing slip not possible!",1) From GESECRAN
+        	#[M:PTH0]BPSNDE=""
+        	#Affzo [M:PTH0]BPSNDE
+        	mkstat=2
+        Endif
+     Else
+     	Actzo [M:PTH0]BPSNUM
+     Endif
+Endif
+End
+
+
+
+
+
+

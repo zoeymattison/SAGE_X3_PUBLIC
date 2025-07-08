@@ -8,27 +8,27 @@ Endcase
 Return
 
 $AVANT_MOD
-If GFLAG="RETL" & [M:SCS1]VCRNUM<>""
-    Call ERREURT("Pelase create a new document to cotninue!", 1) From GESECRAN : GERR=1 : OK=0 : GREVFLG=0 : Return
-Endif
+#If GFLAG="RETL" & [M:SCS1]VCRNUM<>""
+#    Call ERREURT("Pelase create a new document to cotninue!", 1) From GESECRAN : GERR=1 : OK=0 : GREVFLG=0 : Return
+#Endif
 Return
 
 $SETBOUT
-If [M:SCS1]VCRNUM<>"" & !find(GREP,"C","D","M") & left$([M:SCS1]STOFCY,2)='DC'
-    CHMEN+='4b'
-Endif
+#If [M:SCS1]VCRNUM<>"" & !find(GREP,"C","D","M") & left$([M:SCS1]STOFCY,2)='DC'
+#    CHMEN+='4b'
+#Endif
 Return
 
 $APRES_CHOI
-Case num$(REPONSE)
-    When "2001" : Gosub PRINT_LBL
-Endcase
+#Case num$(REPONSE)
+#    When "2001" : Gosub PRINT_LBL
+#Endcase
 Return
 
 $PRINT_LBL
-Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
-TBPAR_BP(1) = "vcrdeb" : TBVAL_BP(1) = [M:SCS1]VCRNUM
-Call ETAT("ZRPT-PUTAWAY","PREVIEW","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+#Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+#TBPAR_BP(1) = "vcrdeb" : TBVAL_BP(1) = [M:SCS1]VCRNUM
+#Call ETAT("ZRPT-PUTAWAY","PREVIEW","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
 Return
 
 Subprog AS_LOCTYPDES(VALEUR)
@@ -114,16 +114,19 @@ End
 ######################################################################################
 Subprog AP_STOFCY(VALEUR)
 Variable Char    VALEUR()
-If left$(VALEUR,2)='DC' & GFLAG='RETL'
-    [M:SCS1]SGHTYP='RETL'
-    Affzo [M:SCS1]SGHTYP
-    Diszo [M:SCS1]SGHTYP
-    Diszo [M:SCS1]VCRNUM
-Endif
+#If left$(VALEUR,2)='DC' & GFLAG='RETL'
+#    [M:SCS1]SGHTYP='RETL'
+#    Affzo [M:SCS1]SGHTYP
+#    Diszo [M:SCS1]SGHTYP
+#    Diszo [M:SCS1]VCRNUM
+#Endif
 End
 
 
 ######################################################################################
+
+
+
 
 
 

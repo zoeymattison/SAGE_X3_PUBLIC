@@ -1,0 +1,18 @@
+$ACTION
+Case ACTION
+    When Default
+Endcase
+Return
+
+Subprog D_ALLCTM(VALEUR)
+Variable Integer VALEUR
+End
+
+Subprog D_RAZCTM(VALEUR)
+Variable Integer VALEUR
+End
+
+
+
+
+

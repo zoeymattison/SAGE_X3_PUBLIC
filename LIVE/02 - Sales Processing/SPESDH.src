@@ -18,7 +18,8 @@ $PRINT_SDH
     If PRNDEST = "" 
       PRNDEST = "PREVIEW"
     endif
-    TBPAR_BP(1) = "sdhdeb" : TBVAL_BP(1) = [M:SDH0]SDHNUM
+    TBPAR_BP(1) = "vcrdeb" : TBVAL_BP(1) = [M:SDH0]SDHNUM
+    TBPAR_BP(2) = "vcrfin" : TBVAL_BP(2) = [M:SDH0]SDHNUM
     Call ETAT("ZRPT-DELIVERY",PRNDEST,"",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
 Return
 
@@ -32,12 +33,7 @@ Endif
 Return
 
 $APRES_CRE
-  # & [F:YBPI]YSENDPRINT=2
-If left$([F:SDH]STOFCY,2)='DC' & [F:SDH]BETFCY = 2
-  If [F:SDH]BPCORD='2100'
+If [F:SDH]BETFCY = 2
     Gosub PRINT_SDH
-  Else
-    Call PRINTSDH([F:SDH]SDHNUM) from YPRNSDH
-  Endif
 Endif
 Return

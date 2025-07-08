@@ -1,0 +1,130 @@
+
+######################################################################################
+## Modified: 2023-10-05                                                             ##
+## Author (Company): TAC                                                            ##
+## Notes: ACTION modifications made in YSPEPRH                                      ##
+######################################################################################
+## EXEBOUT in YSPEPRH                                                               ##
+######################################################################################
+#    When "EXEBOUT" : Gosub EXEBOUT From YSPEPRH
+$ACTION
+Case ACTION
+        When "VERIF_MOD" : Gosub VERIF_MOD
+	When "SETBOUT" : Gosub SETBOUT
+	When "MODIF" : Gosub MODIF
+	When Default
+Endcase
+Return
+
+# 2023-11-27 I removed the link to TAC's EXEBOUT action call. I've rewritten the functioning of the button to print our new labels which
+# can be printed with or without a prep plan and after the pick ticket has gone into delivery status.
+# For a full list of the new modiciations related to this, please contact me - zoey.mattison@monk.ca
+# The new scripts are located in ZSHIPLAB (for individual pick tickets) and ZSHIPBULKLBL (For prep plan mass label printing)
+
+$VERIF_MOD
+For i=0 to [M:PRH1]NBLIG-1
+    If [M:PRH1]ZPKEFLG(I)=0
+        [M:PRH1]ZPKEFLG(I)=1
+        Affzo [M:PRH1]ZPKEFLG(I)
+    Endif
+    If [M:PRH1]ZITMFLG(I)=0
+        [M:PRH1]ZITMFLG(I)=1
+        Affzo [M:PRH1]ZITMFLG(I)
+    Endif
+Next
+Return
+
+$SETBOUT
+If [M:PRH1]DLVFLG=3
+	Diszo [M:PRH1]ZITMSEL
+Endif
+Return
+
+$MODIF
+If !clalev([ZPRE]) : Local File STOPRED [ZPRE] Endif
+	For I=0 To [M:PRH1]NBLIG-1
+		Read [ZPRE]PRE0=[M:PRH0]PRHNUM;[M:PRH1]PRELIN(I)
+		[F:ZPRE]ZITMFLG=[M:PRH1]ZITMFLG(I)
+		[F:ZPRE]ZPKEFLG=[M:PRH1]ZPKEFLG(I)
+		Rewrite [ZPRE]
+	Next
+Return
+
+Subprog C_ZITMFLG(VALEUR)
+Variable Integer VALEUR
+End
+
+Subprog AM_ZITMFLG(VALEUR)
+Variable Integer VALEUR
+End
+
+Subprog C_ZPKEFLG(VALEUR)
+Variable Integer VALEUR
+End
+
+Subprog AM_ZPKEFLG(VALEUR)
+Variable Integer VALEUR
+End
+
+Subprog C_ZITMSEL(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog LINE_VERIFICATION(ZL_ITMREF)
+Variable Char ZL_ITMREF
+Local Integer ZL_COUNT : [L]ZL_COUNT=0
+# STEP 1 - Figure out if this product exists in the lines and mark it
+For I=0 To [M:PRH1]NBLIG-1
+	If [M:PRH1]ITMREF(I)=[L]ZL_ITMREF
+		[M:PRH1]ZITMFLG(I)=2
+		Affzo [M:PRH1]ZITMFLG(I)
+		[L]ZL_COUNT+=1
+	Endif
+Next
+If [L]ZL_COUNT=0
+	# STEP 2 - No lines were found, try to search for an alternative product
+    Filter [ZITM] Where RPLITM=[L]ZL_ITMREF
+    Read [ZITM] First
+    If ![S]fstat
+    	[L]ZL_ITMREF=[F:ZITM]ITMREF
+    	For I=0 To [M:PRH1]NBLIG-1
+        	If [M:PRH1]ITMREF(I)=[L]ZL_ITMREF
+        		[M:PRH1]ZITMFLG(I)=2
+        		Affzo [M:PRH1]ZITMFLG(I)
+        	Endif
+   		Next
+    Else
+    	Call ERREURT("Product not found the lines! Is it a picking error?",0) From GESECRAN
+    Endif
+Endif
+End
+
+
+######################################################################################
+######################################################################################
+## Section automatically added (screen PRH1) 04/28/2025 09:54:50 (MOZM)
+######################################################################################
+Subprog AP_ZITMSEL(VALEUR)
+Variable Char    VALEUR()
+If VALEUR<>""
+    If !clalev([ZITM]) : Local File ITMMASTER [ZITM] : Endif
+    Read [ZITM]ITM0=VALEUR
+    If ![S]fstat
+    	Call LINE_VERIFICATION([F:ZITM]ITMREF)
+    Else
+    	Filter [ZITM] Where EANCOD=VALEUR
+    	Read [ZITM] First
+    	If !fstat
+     		Call LINE_VERIFICATION([F:ZITM]ITMREF)
+    	Else
+    		Call ERREURT("Product record not found!",0) From GESECRAN
+    	Endif
+    Endif
+Endif
+End
+
+
+######################################################################################
+
+
+

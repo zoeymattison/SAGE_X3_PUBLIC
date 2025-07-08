@@ -1,0 +1,35 @@
+If !clalev([ZDUD]) : Local File GACCDUDATE [ZDUD] : Endif
+Local Char ZL_BPCN60(30)(1..),ZL_BPCN90(30)(1..),ZL_BPCN12(30)(1..)
+Global Char ZG_FICHIER(240)
+Global Char ZV_IDENTI(30) : [V]ZV_IDENTI="COLLECTIONS"
+Local Integer ZL_I1 : [L]ZL_I1=1
+Local Char FONCTION(30)
+Local Char TBPAR(150)(150)
+Local Char TBVAL(150)(150)
+
+Filter [ZDUD] Where DUDDAT<=date$-60 and DUDDAT>=date$-89 and AMTCUR-PAYCUR>0 and find(TYP,"CSDIR","CSINV") Order By BPRPAY Asc
+For [ZDUD]
+	If !find([F:ZDUD]BPRPAY,[L]ZL_BPCN60)
+    	[L]ZL_BPCN60([L]ZL_I1)=[F:ZDUD]BPRPAY
+
+        TBPAR(0) = "vcrdeb"		: TBVAL(0) = "0"
+        TBPAR(1) = "vcrfin"		: TBVAL(1) = "ZZZZZZZZZZZZZZZZZZZZ"
+        TBPAR(2) = "datedeb"	: TBVAL(2) = format$("MM[/]DD[/]YYYY",date$-360*10)
+        TBPAR(3) = "datefin"	: TBVAL(3) = format$("MM[/]DD[/]YYYY",date$+365*10)
+        TBPAR(4) = "bpdeb"		: TBVAL(4) = [F:ZDUD]BPRPAY
+        TBPAR(5) = "bpfin"		: TBVAL(5) = [F:ZDUD]BPRPAY
+        TBPAR(6) = "balance"	: TBVAL(6) = "2"
+        TBPAR(7) = "edd"		: TBVAL(7) = "1"
+        TBPAR(8) = "duddeb"		: TBVAL(8) = format$("MM[/]DD[/]YYYY",date$-89)
+        TBPAR(9) = "dudfin"		: TBVAL(9) = format$("MM[/]DD[/]YYYY",date$-60)
+
+		[V]ZG_FICHIER=[F:ZDUD]BPRPAY+" Collections.pdf"
+
+        Call ETAT("MONK-INVOICE", "EMAILX3", "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+
+    	[L]ZL_I1+=1
+    Endif
+Next
+
+
+Kill [V]ZG_FICHIER
