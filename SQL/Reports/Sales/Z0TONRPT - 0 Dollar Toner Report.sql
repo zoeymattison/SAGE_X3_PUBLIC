@@ -1,0 +1,44 @@
+WITH InvoiceData AS (
+    SELECT 
+        SIH.NUM_0,
+        SIH.CREDAT_0,
+        AST.LANMES_0,
+        SIH.CREUSR_0,
+        SIH.SNS_0,
+        SIH.AMTATI_0,
+        ITM.TSICOD_1
+    FROM 
+        LIVE.SINVOICE SIH 
+        LEFT JOIN LIVE.SINVOICEV SIV ON SIH.NUM_0 = SIV.NUM_0 
+        LEFT JOIN LIVE.BPDLVCUST DLV ON SIV.BPCORD_0 = DLV.BPCNUM_0 
+        LEFT JOIN LIVE.APLSTD AST ON AST.LANNUM_0 = DLV.DRN_0 
+            AND AST.LANCHP_0 = 409 
+            AND AST.LAN_0 = 'ENG' 
+        LEFT JOIN LIVE.SINVOICED SID ON SIV.NUM_0 = SID.NUM_0 
+        LEFT JOIN LIVE.ITMMASTER ITM ON SID.ITMREF_0 = ITM.ITMREF_0 
+    WHERE 
+        SIH.AMTATI_0 = 0 
+        AND SIH.CREUSR_0 <> 'YMIRA' 
+        AND ITM.TSICOD_1 = '3180'
+        AND SIH.SNS_0 > 0
+),
+DistinctInvoices AS (
+    SELECT DISTINCT
+        NUM_0,
+        CREDAT_0,
+        LANMES_0
+    FROM InvoiceData
+)
+SELECT 
+    LANMES_0, 
+    CAST(YEAR(CREDAT_0) AS VARCHAR) AS [Year], 
+    CAST(MONTH(CREDAT_0) AS VARCHAR) AS [Month], 
+    FORMAT(CREDAT_0, 'MMMM') AS [MonthName], 
+    COUNT(DISTINCT NUM_0) AS [InvoiceCount]
+FROM 
+    DistinctInvoices
+GROUP BY 
+    LANMES_0,
+    YEAR(CREDAT_0), 
+    MONTH(CREDAT_0), 
+    FORMAT(CREDAT_0, 'MMMM')

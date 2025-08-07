@@ -1,0 +1,436 @@
+SELECT 
+  CONVERT(VARCHAR, SOQ.CREDAT_0, 101) AS 'DATE CREATED', 
+  SOQ.SOHNUM_0 AS 'ORDER', 
+  CASE WHEN SOH.BETFCY_0 = 1 THEN 'SALES' ELSE 'INTERSITE' END AS 'TYPE', 
+  SOH.HLDCOD_0 AS 'ORDER HOLD', 
+  SOH.STOFCY_0 AS 'STOCK SITE', 
+  SOH.BPCORD_0 + ' - ' + SOH.BPCNAM_0 AS 'CUSTOMER', 
+  SOQ.ITMREF_0 AS 'PRODUCT', 
+  ITM.ITMDES1_0 + ' ' + ITM.ITMDES2_0 + ' ' + ITM.ITMDES3_0 AS 'DESCRIPTION', 
+  ITM.TSICOD_0 AS 'STATUS', 
+  CASE ITF.ABCCLS_0 WHEN 1 THEN 'A' WHEN 2 THEN 'B' WHEN 3 THEN 'C' WHEN 4 THEN 'D' ELSE 'UNRANKED' END AS 'ABC CLASS', 
+  CASE WHEN ITM2.ITMREF_0 IS NULL THEN 'N/A' ELSE ITM2.ITMREF_0 END AS 'ALTERNATIVE', 
+  CASE WHEN ITM2.ITMDES1_0 + ' ' + ITM.ITMDES2_0 + ' ' + ITM.ITMDES3_0 IS NULL THEN 'N/A' ELSE ITM2.ITMDES1_0 + ' ' + ITM.ITMDES2_0 + ' ' + ITM.ITMDES3_0 END AS 'DESCRIPTION', 
+  CAST (SOQ.QTY_0 AS INT) AS 'ORDERED', 
+  CAST (
+    SOQ.QTY_0 -(SOQ.DLVQTY_0 + SOQ.OPRQTY_0) AS INT
+  ) AS 'REMAINING', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = 'DC30'
+  ) AS 'DC30', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = 'DC33'
+  ) AS 'DC33', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = '1200'
+  ) AS '1200', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = '1600'
+  ) AS '1600', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = '1800'
+  ) AS '1800', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = '2100'
+  ) AS '2100', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = '2200'
+  ) AS '2200', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = '2300'
+  ) AS '2300', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = '2600'
+  ) AS '2600', 
+  (
+    SELECT 
+      CASE WHEN CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) IS NULL THEN 0 ELSE CAST(
+        SUM(QTYSTU_0 - CUMALLQTY_0) AS INT
+      ) END 
+    FROM 
+      LIVE.STOCK 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND STOFCY_0 = '2800'
+  ) AS '2800', 
+  (
+    SELECT 
+      CASE WHEN EXISTS (
+        SELECT 
+          TOP 1 POHNUM_0 
+        FROM 
+          LIVE.PORDERQ 
+        WHERE 
+          ITMREF_0 = SOQ.ITMREF_0 
+          AND POHNUM_0 LIKE 'PO3%' 
+          AND BPSNUM_0 LIKE 'V%' 
+          AND LINCLEFLG_0 = 1 
+        ORDER BY 
+          EXTRCPDAT_0 ASC
+      ) THEN (
+        SELECT 
+          TOP 1 POHNUM_0 
+        FROM 
+          LIVE.PORDERQ 
+        WHERE 
+          ITMREF_0 = SOQ.ITMREF_0 
+          AND POHNUM_0 LIKE 'PO3%' 
+          AND BPSNUM_0 LIKE 'V%' 
+          AND LINCLEFLG_0 = 1 
+        ORDER BY 
+          EXTRCPDAT_0 ASC
+      ) ELSE 'N/A' END
+  ) AS 'EARLIEST PO', 
+  (
+    SELECT 
+      CASE WHEN EXISTS (
+        SELECT 
+          TOP 1 CONVERT(VARCHAR, EXTRCPDAT_0, 101) 
+        FROM 
+          LIVE.PORDERQ 
+        WHERE 
+          ITMREF_0 = SOQ.ITMREF_0 
+          AND POHNUM_0 LIKE 'PO3%' 
+          AND BPSNUM_0 LIKE 'V%' 
+          AND LINCLEFLG_0 = 1 
+        ORDER BY 
+          EXTRCPDAT_0 ASC
+      ) THEN (
+        SELECT 
+          TOP 1 CONVERT(VARCHAR, EXTRCPDAT_0, 101) 
+        FROM 
+          LIVE.PORDERQ 
+        WHERE 
+          ITMREF_0 = SOQ.ITMREF_0 
+          AND POHNUM_0 LIKE 'PO3%' 
+          AND BPSNUM_0 LIKE 'V%' 
+          AND LINCLEFLG_0 = 1 
+        ORDER BY 
+          EXTRCPDAT_0 ASC
+      ) ELSE 'N/A' END
+  ) AS 'ETA', 
+  (
+    SELECT 
+      CASE WHEN EXISTS (
+        SELECT 
+          TOP 1 BPSNUM_0 
+        FROM 
+          LIVE.PORDERQ 
+        WHERE 
+          ITMREF_0 = SOQ.ITMREF_0 
+          AND POHNUM_0 LIKE 'PO3%' 
+          AND BPSNUM_0 LIKE 'V%' 
+          AND LINCLEFLG_0 = 1 
+        ORDER BY 
+          EXTRCPDAT_0 ASC
+      ) THEN (
+        SELECT 
+          TOP 1 BPSNUM_0 
+        FROM 
+          LIVE.PORDERQ 
+        WHERE 
+          ITMREF_0 = SOQ.ITMREF_0 
+          AND POHNUM_0 LIKE 'PO3%' 
+          AND BPSNUM_0 LIKE 'V%' 
+          AND LINCLEFLG_0 = 1 
+        ORDER BY 
+          EXTRCPDAT_0 ASC
+      ) ELSE 'N/A' END
+  ) AS 'PO VENDOR', 
+  (
+    SELECT 
+      TOP 1 ITP.BPSNUM_0 
+    FROM 
+      LIVE.ITMBPS ITP 
+    WHERE 
+      ITP.ITMREF_0 = SOQ.ITMREF_0
+  ) AS 'PRIO. VENDOR', 
+  (
+    SELECT 
+      CASE WHEN SUM(AMTNOTLIN_0) IS NULL THEN CAST(0.00 AS VARCHAR) ELSE CAST(
+        CAST(
+          SUM(AMTNOTLIN_0) AS DECIMAL(18, 2)
+        ) AS VARCHAR
+      ) END 
+    FROM 
+      LIVE.SINVOICED 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND CREDAT_0 >= DATEADD(
+        MONTH, 
+        -1, 
+        GETDATE()
+      )
+  ) AS 'ALL SALES -1 M', 
+  (
+    SELECT 
+      CASE WHEN SUM(AMTNOTLIN_0) IS NULL THEN CAST(0.00 AS VARCHAR) ELSE CAST(
+        CAST(
+          SUM(AMTNOTLIN_0) AS DECIMAL(18, 2)
+        ) AS VARCHAR
+      ) END 
+    FROM 
+      LIVE.SINVOICED 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND CREDAT_0 >= DATEADD(
+        MONTH, 
+        -3, 
+        GETDATE()
+      )
+  ) AS 'ALL SALES -3 M', 
+  (
+    SELECT 
+      CASE WHEN SUM(AMTNOTLIN_0) IS NULL THEN CAST(0.00 AS VARCHAR) ELSE CAST(
+        CAST(
+          SUM(AMTNOTLIN_0) AS DECIMAL(18, 2)
+        ) AS VARCHAR
+      ) END 
+    FROM 
+      LIVE.SINVOICED 
+    WHERE 
+      ITMREF_0 = SOQ.ITMREF_0 
+      AND CREDAT_0 >= DATEADD(
+        MONTH, 
+        -12, 
+        GETDATE()
+      )
+  ) AS 'ALL SALES -12 M', 
+  (
+    SELECT 
+      CASE WHEN SUM(AMTNOTLIN_0) IS NULL THEN CAST(0.00 AS VARCHAR) ELSE CAST(
+        CAST(
+          SUM(AMTNOTLIN_0) AS DECIMAL(18, 2)
+        ) AS VARCHAR
+      ) END 
+    FROM 
+      LIVE.SINVOICED 
+    WHERE 
+      STOFCY_0 = 'DC30' 
+      AND ITMREF_0 = SOQ.ITMREF_0 
+      AND CREDAT_0 >= DATEADD(
+        MONTH, 
+        -1, 
+        GETDATE()
+      )
+  ) AS 'DC30 SALES -1 M', 
+  (
+    SELECT 
+      CASE WHEN SUM(AMTNOTLIN_0) IS NULL THEN CAST(0.00 AS VARCHAR) ELSE CAST(
+        CAST(
+          SUM(AMTNOTLIN_0) AS DECIMAL(18, 2)
+        ) AS VARCHAR
+      ) END 
+    FROM 
+      LIVE.SINVOICED 
+    WHERE 
+      STOFCY_0 = 'DC30' 
+      AND ITMREF_0 = SOQ.ITMREF_0 
+      AND CREDAT_0 >= DATEADD(
+        MONTH, 
+        -3, 
+        GETDATE()
+      )
+  ) AS 'DC30 SALES -3 M', 
+  (
+    SELECT 
+      CASE WHEN SUM(AMTNOTLIN_0) IS NULL THEN CAST(0.00 AS VARCHAR) ELSE CAST(
+        CAST(
+          SUM(AMTNOTLIN_0) AS DECIMAL(18, 2)
+        ) AS VARCHAR
+      ) END 
+    FROM 
+      LIVE.SINVOICED 
+    WHERE 
+      STOFCY_0 = 'DC30' 
+      AND ITMREF_0 = SOQ.ITMREF_0 
+      AND CREDAT_0 >= DATEADD(
+        MONTH, 
+        -12, 
+        GETDATE()
+      )
+  ) AS 'DC30 SALES -12 M',
+    (
+    SELECT 
+      CASE WHEN SUM(AMTNOTLIN_0) IS NULL THEN CAST(0.00 AS VARCHAR) ELSE CAST(
+        CAST(
+          SUM(AMTNOTLIN_0) AS DECIMAL(18, 2)
+        ) AS VARCHAR
+      ) END 
+    FROM 
+      LIVE.SINVOICED 
+    WHERE 
+      STOFCY_0 <> 'DC30' 
+      AND ITMREF_0 = SOQ.ITMREF_0 
+      AND CREDAT_0 >= DATEADD(
+        MONTH, 
+        -1, 
+        GETDATE()
+      )
+  ) AS 'RETAIL SALES -1 M', 
+  (
+    SELECT 
+      CASE WHEN SUM(AMTNOTLIN_0) IS NULL THEN CAST(0.00 AS VARCHAR) ELSE CAST(
+        CAST(
+          SUM(AMTNOTLIN_0) AS DECIMAL(18, 2)
+        ) AS VARCHAR
+      ) END 
+    FROM 
+      LIVE.SINVOICED 
+    WHERE 
+      STOFCY_0 <> 'DC30' 
+      AND ITMREF_0 = SOQ.ITMREF_0 
+      AND CREDAT_0 >= DATEADD(
+        MONTH, 
+        -3, 
+        GETDATE()
+      )
+  ) AS 'RETAIL SALES -3 M', 
+  (
+    SELECT 
+      CASE WHEN SUM(AMTNOTLIN_0) IS NULL THEN CAST(0.00 AS VARCHAR) ELSE CAST(
+        CAST(
+          SUM(AMTNOTLIN_0) AS DECIMAL(18, 2)
+        ) AS VARCHAR
+      ) END 
+    FROM 
+      LIVE.SINVOICED 
+    WHERE 
+      STOFCY_0 <> 'DC30' 
+      AND ITMREF_0 = SOQ.ITMREF_0 
+      AND CREDAT_0 >= DATEADD(
+        MONTH, 
+        -12, 
+        GETDATE()
+      )
+  ) AS 'RETAIL SALES -12 M'
+FROM 
+  LIVE.SORDERQ SOQ 
+  LEFT OUTER JOIN LIVE.SORDER SOH ON SOQ.SOHNUM_0 = SOH.SOHNUM_0 
+  LEFT OUTER JOIN LIVE.ITMMASTER ITM ON SOQ.ITMREF_0 = ITM.ITMREF_0 
+  LEFT OUTER JOIN LIVE.ITMMASTER ITM2 ON ITM.RPLITM_0 = ITM2.ITMREF_0 
+  LEFT OUTER JOIN LIVE.ITMFACILIT ITF ON SOQ.STOFCY_0 = ITF.STOFCY_0 
+  AND SOQ.ITMREF_0 = ITF.ITMREF_0 
+WHERE 
+  SOQ.SOQSTA_0 <> 3 
+  AND SOQ.ALLQTY_0 = 0 
+  AND SOQ.ITMREF_0 NOT LIKE '/%' 
+  AND (
+    SOQ.QTY_0 -(SOQ.DLVQTY_0 + SOQ.OPRQTY_0)
+  ) > 0 
+GROUP BY 
+  SOQ.CREDAT_0, 
+  SOQ.SOHNUM_0, 
+  SOH.STOFCY_0, 
+  SOH.BPCORD_0, 
+  SOH.BPCNAM_0, 
+  SOQ.ITMREF_0, 
+  ITM.TSICOD_0, 
+  ITM.ITMDES1_0, 
+  ITM.ITMDES2_0, 
+  ITM.ITMDES3_0, 
+  ITF.ABCCLS_0, 
+  SOH.HLDCOD_0, 
+  SOQ.QTY_0, 
+  SOQ.DLVQTY_0, 
+  SOQ.OPRQTY_0, 
+  ITM2.ITMREF_0, 
+  ITM2.ITMDES1_0, 
+  ITM2.ITMDES2_0, 
+  SOH.BETFCY_0, 
+  ITM2.ITMDES3_0 
+ORDER BY 
+  SOQ.CREDAT_0, 
+  SOQ.SOHNUM_0 ASC

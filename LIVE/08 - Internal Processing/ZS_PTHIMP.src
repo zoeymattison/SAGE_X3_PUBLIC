@@ -1,0 +1,120 @@
+If !clalev([ZIR]) : Local File ZVINTREC [ZIR] : Endif
+If !clalev([ZRD]) : Local File ZINTRD [ZRD] : Endif
+
+Local Char WNOMFIC(250),CUR_SDHNUM(50),DOCUMENT(240)
+Local Integer ZL_COUNT,LINE : [L]ZL_COUNT=0
+Filter [ZIR] Order By DELIVERY Asc;LINE Asc
+Call OUVRE_TRACE("Receiving import "+format$("YYYY[-]MM[-]DD[-]hhmmss",datetime$)) From LECFIC
+Call ECR_TRACE("Begin file export...............",-1) From GESECRAN
+For [ZIR]
+	Read [ZRD]ZRD0=[F:ZIR]DELIVERY;[F:ZIR]LINE;[F:ZIR]PRODUCT
+	If ![S]fstat
+
+		If [L]CUR_SDHNUM<>[F:ZRD]SDHNUM
+        	[L]CUR_SDHNUM=[F:ZRD]SDHNUM
+#        	If [F:ZIR]POHNUM<>""
+#        		WNOMFIC=filpath("","ZATTACH\INTPOH_"+[F:ZIR]POHNUM,"")
+#        		[L]DOCUMENT=[F:ZIR]POHNUM
+#        		[L]LINE=[F:ZIR]POPLIN
+#        	Else
+#        		WNOMFIC=filpath("","ZATTACH\INTSDH_"+[F:ZIR]DELIVERY,"")
+#        		[L]DOCUMENT=[F:ZIR]DELIVERY
+#        		[L]LINE=[F:ZIR]LINE
+#			Endif
+			WNOMFIC=filpath("","ZATTACH\INTREC_"+[F:ZIR]DELIVERY,"")
+			Openo WNOMFIC Using [ZZZ]
+            adxifs=chr$(9)
+            adxirs=chr$(13)+chr$(10)
+
+            Call ECR_TRACE("",0) From GESECRAN
+        	Call ECR_TRACE("File opened for writing: "+"INTREC_"+[F:ZIR]DELIVERY,-2) From GESECRAN
+
+#        	Wrseq "E",[F:ZIR]SITE_REC,[F:ZIR]DATE_ACC,[F:ZIR]SITE_STO,"CAD" Using [ZZZ]
+#        	Wrseq "L",[L]DOCUMENT,[L]LINE,[F:ZIR]PRODUCT,[F:ZIR]STU,[F:ZIR]UNIT,[F:ZIR]UNIT,[F:ZIR]QUANTITY/[F:ZIR]COE,[F:ZIR]QUANTITY Using [ZZZ]
+#    		Wrseq "S","A",[F:ZIR]STU,[F:ZIR]UNIT,[F:ZIR]QUANTITY/[F:ZIR]COE,[F:ZIR]QUANTITY,"","",[F:ZIR]DELIVERY,[F:ZIR]LINE,"","","" Using [ZZZ]
+			Wrseq "E",[F:ZIR]SITE_REC,[F:ZIR]SITE_STO Using [ZZZ]
+			Wrseq "L",[L]DOCUMENT,[L]LINE,[F:ZIR]PRODUCT Using [ZZZ]
+    		Call ECR_TRACE([F:ZIR]DELIVERY+"   "+num$([F:ZIR]LINE)+"   "+[F:ZIR]PRODUCT+"   "+num$([F:ZIR]QUANTITY)+"   "+[F:ZIR]UNIT,0) From GESECRAN
+    		[L]ZL_COUNT+=1
+        Else
+        	If [F:ZIR]POHNUM<>""
+        		[L]LINE=[F:ZIR]POPLIN
+        	Else
+        		[L]LINE=[F:ZIR]LINE
+			Endif
+#        	Wrseq "L",[L]DOCUMENT,[L]LINE,[F:ZIR]PRODUCT,[F:ZIR]STU,[F:ZIR]UNIT,[F:ZIR]UNIT,[F:ZIR]QUANTITY/[F:ZIR]COE,[F:ZIR]QUANTITY Using [ZZZ]
+#    		Wrseq "S","A",[F:ZIR]STU,[F:ZIR]UNIT,[F:ZIR]QUANTITY/[F:ZIR]COE,[F:ZIR]QUANTITY,"","",[F:ZIR]DELIVERY,[F:ZIR]LINE,"","","" Using [ZZZ]
+			Wrseq "E",[F:ZIR]SITE_REC,[F:ZIR]SITE_STO Using [ZZZ]
+			Wrseq "L",[L]DOCUMENT,[L]LINE,[F:ZIR]PRODUCT Using [ZZZ]
+    		Call ECR_TRACE([F:ZIR]DELIVERY+"   "+num$([F:ZIR]LINE)+"   "+[F:ZIR]PRODUCT+"   "+num$([F:ZIR]QUANTITY)+"   "+[F:ZIR]UNIT,0) From GESECRAN
+    		[L]ZL_COUNT+=1
+    	Endif
+		[F:ZRD]EXPSTA=2
+		Rewrite [ZRD]
+	Endif
+Next
+If [L]ZL_COUNT>0
+	Call ECR_TRACE("",-1) From GESECRAN
+	Call ECR_TRACE(num$([L]ZL_COUNT)+" lines successfully written...",-1) From GESECRAN
+	Call FERME_TRACE From LECFIC
+	If !GIMPORT : Call LEC_TRACE From LECFIC : Endif
+    Openo Using [ZZZ]
+Endif
+End
+
+
+
+#If !clalev([ZSDD]) : Local File SDELIVERYD [ZSDD] : Endif
+#If !clalev([ZALK]) : Local File APLLCK [ZALK] : Endif
+#If !clalev([ZPTD]) : Local File PRECEIPTD [ZPTD] : Endif
+#If !clalev([ZRH]) : Local File ZINTRH [ZRH] : Endif
+
+## Open the file for writing
+#Local Char WNOMFIC(250)	# File path and name
+#Local Char ZL_RECFCY(10),ZL_SUPFCY(10),EXP_SUPFCY(10),CUR_SDHNUM(240)
+#Local Integer ZL_COUNT : [L]ZL_COUNT=0
+## 1. Filter ZRD to find all Completed and short lines that need to be imported.
+#
+#Local Char ZL_SDHNUM(50),ZL_ITMREF(50)
+#Local Integer ZL_SDDLIN
+
+#Filter [ZRD] Where ZRHSTA=2 and EXPSTA=2 and RECSTA<>2 and QTYRCP>0
+#For [ZRD]
+#	Filter [ZPTD] Where SDHNUM=[F:ZRD]SDHNUM and SDDLIN=[F:ZRD]SDDLIN
+#	Read [ZPTD] First
+#	If ![S]fstat
+#		[F:ZRD]RECSTA=2
+#		Rewrite [ZRD]
+#	Endif
+#Next
+#Filter [ZRD]
+#Filter [ZRD] Where ZRHSTA=2 and EXPSTA<>2 and find(LINSTA,"COMPLETE","SHORT") and QTYRCP>0 Order By SDHNUM Asc;SDDLIN Asc
+#For [ZRD]
+#	Read [ZSDD]SDD0=[F:ZRD]SDHNUM;[F:ZRD]SDDLIN
+#	If ![S]fstat
+#		Read [ZALK]LCKCLE="SDH"+[F:ZSDD]SDHNUM
+#		If [S]fstat
+#			If [L]CUR_SDHNUM<>[F:ZRD]SDHNUM
+#            	[L]CUR_SDHNUM=[F:ZRD]SDHNUM
+#            	WNOMFIC=filpath("","YIMPORT\INTREC_"+format$("YYYYMMDD",date$)+"_"+[F:ZRD]SDHNUM,"")
+#            	Openo WNOMFIC Using [ZZZ]
+#                adxifs=chr$(9)
+#                adxirs=chr$(13)+chr$(10)
+#            	If left$([L]ZL_SUPFCY,2)="DC" : [L]EXP_SUPFCY="I"+[L]ZL_SUPFCY : Else [L]EXP_SUPFCY=[L]ZL_SUPFCY : Endif
+#            	Wrseq "E",[F:ZRD]RECFCY,format$("YYYYMMDD",date$),[L]EXP_SUPFCY,"CAD" Using [ZZZ]
+#            	Wrseq "L",[F:ZRD]SDHNUM,[F:ZRD]SDDLIN,[F:ZRD]ITMREF,[F:ZRD]QTYUOM,num$([F:ZRD]QTYRCP) Using [ZZZ]
+#        		Wrseq "S","A",[F:ZRD]QTYUOM,num$([F:ZRD]QTYRCP),"","" Using [ZZZ]
+#        		[L]ZL_COUNT+=1
+#            Else
+#        		Wrseq "L",[F:ZRD]SDHNUM,[F:ZRD]SDDLIN,[F:ZRD]ITMREF,[F:ZRD]QTYUOM,num$([F:ZRD]QTYRCP) Using [ZZZ]
+#        		Wrseq "S","A",[F:ZRD]QTYUOM,num$([F:ZRD]QTYRCP),"","" Using [ZZZ]
+#        		[L]ZL_COUNT+=1
+#        	Endif
+#			[F:ZRD]EXPSTA=2
+#			Rewrite [ZRD]
+#		Endif
+#	Endif
+#Next
+#If [L]ZL_COUNT>0
+#    Openo Using [ZZZ]
+#Endif

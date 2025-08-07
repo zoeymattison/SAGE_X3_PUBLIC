@@ -1,0 +1,70 @@
+Global Char ZG_ZW_ACKNOW_RECIPIENT(240)
+Global Char ZG_ZW_ACKNOW_SUBJECT(240)
+Global Char ZG_ZW_ACKNOW_CODE(240) : [V]ZG_ZW_ACKNOW_CODE="ACKNOWLEDGEMENTS"
+Global Char ZG_ZW_ACKNOW_CCUSER(240)
+Global Clbfile ZG_ZW_ACKNOW_MESSAGE(0)
+Local Char TBPAR(240)(1..),TBVAL(240)(1..)
+Local Integer ZL_AVAILABLE : [L]ZL_AVAILABLE=0
+
+If !clalev([ZBPC]) : Local File BPCUSTOMER [ZBPC] : Endif
+If !clalev([ZSOH]) : Local File SORDER [ZSOH] : Endif
+If !clalev([ZSOQ]) : Local File SORDERQ [ZSOQ] : Endif
+If !clalev([ZITM]) : Local File ITMMASTER [ZITM] : Endif
+If !clalev([ZSTO]) : Local File STOCK [ZSTO] : Endif
+If !clalev([ZSOP]) : Local File SORDERP [ZSOP] : Endif
+If !clalev([ZPOQ]) : Local File PORDERQ [ZPOQ] : Endif
+If !clalev([ZAPL]) : Local File APLLCK [ZAPL] : Endif
+
+Filter [ZBPC] Where BPCNUM>="ICR01" and BPCNUM<="ICR99" and BPCSTA=2
+
+For [ZBPC]
+	Filter [ZSOH] Where BPCORD=[F:ZBPC]BPCNUM and ZACKNOW<>2 and CREDAT>=date$-7 and ORDSTA=1
+	For [ZSOH]
+		Filter [ZAPL] Where LCKSYM="SOH"+[F:ZSOH]SOHNUM
+		Read [ZAPL] First
+		If [S]fstat
+			Update [ZSOH] Where SOHNUM=[F:ZSOH]SOHNUM With ZACKNOW=2
+			If ![S]fstat
+				[V]ZG_ZW_ACKNOW_SUBJECT="[Notice] Carstock Order Created"
+				[V]ZG_ZW_ACKNOW_RECIPIENT=func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[F:ZSOH]BPCORD+'~MAIN')
+				[V]ZG_ZW_ACKNOW_CCUSER="techparts@monk.ca"
+				If [F:ZSOH]CUSORDREF<>"" : [V]ZG_ZW_ACKNOW_SUBJECT+=" for "+[F:ZSOH]CUSORDREF : Endif
+				If [F:ZSOH]YCONTNAME<>"" : [V]ZG_ZW_ACKNOW_SUBJECT+=" - "+[F:ZSOH]YCONTNAME : Endif
+				[V]ZG_ZW_ACKNOW_MESSAGE+="This is an automated message."+chr$(10)+chr$(10)
+				[V]ZG_ZW_ACKNOW_MESSAGE+="A Carstock parts order has been placed, please review the following information for parts availability."+chr$(10)+chr$(10)
+				[V]ZG_ZW_ACKNOW_MESSAGE+="Order Number: "+[F:ZSOH]SOHNUM+chr$(10)+chr$(10)
+				Filter [ZSOQ] Where SOHNUM=[F:ZSOH]SOHNUM
+				For [ZSOQ]
+					Read [ZSOP]SOP0=[F:ZSOQ]SOHNUM;[F:ZSOQ]SOPLIN;[F:ZSOQ]SOQSEQ
+					If ![S]fstat
+    					Filter [ZSTO] Where STOFCY=[F:ZSOQ]STOFCY and ITMREF=[F:ZSOQ]ITMREF
+    					For [ZSTO]
+    						[L]ZL_AVAILABLE+=([F:ZSTO]QTYSTU*[F:ZSOP]SAUSTUCOE)-([F:ZSTO]CUMALLQTY*[F:ZSOP]SAUSTUCOE)
+    					Next
+    					Read [ZITM]ITM0=[F:ZSOQ]ITMREF
+    					If ![S]fstat
+        					[V]ZG_ZW_ACKNOW_MESSAGE+=num$([F:ZSOQ]SOPLIN/1000)+". "+[F:ZSOQ]ITMREF+" - "+[F:ZITM]ITMDES1+chr$(10)
+        					[V]ZG_ZW_ACKNOW_MESSAGE+="Ordered: "+num$([F:ZSOQ]QTY)+chr$(10)
+        					[V]ZG_ZW_ACKNOW_MESSAGE+="Available: "+num$([L]ZL_AVAILABLE+[F:ZSOQ]ALLQTY)+chr$(10)
+        					If ([L]ZL_AVAILABLE+[F:ZSOQ]ALLQTY)-[F:ZSOQ]QTY<[F:ZSOQ]QTY
+        						[V]ZG_ZW_ACKNOW_MESSAGE+="Backordered: "+num$([F:ZSOQ]QTY-([L]ZL_AVAILABLE+[F:ZSOQ]ALLQTY))+chr$(10)
+    							Filter [ZPOQ] Where ITMREF=[F:ZSOQ]ITMREF and LINCLEFLG=1
+    							Read [ZPOQ] Last
+    							If ![S]fstat
+    								[V]ZG_ZW_ACKNOW_MESSAGE+="ETA: "+format$("YYYY[-]MM[-]DD",[F:ZPOQ]EXTRCPDAT)+chr$(10)+chr$(10)
+    							Endif
+							Else
+								[V]ZG_ZW_ACKNOW_MESSAGE+="Backordered: 0"+chr$(10)+chr$(10)
+							Endif
+
+    					Endif
+    				Endif
+				Raz [L]ZL_AVAILABLE
+				Next
+				TBPAR(1)="sohnum"	: TBVAL(1)=[F:ZSOH]SOHNUM
+            	Call ETAT("ZRPT-ACKNOW", "EMAILX3", "eng", 0, "", TBPAR, TBVAL) From AIMP3
+            	Raz [V]ZG_ZW_ACKNOW_MESSAGE,[V]ZG_ZW_ACKNOW_RECIPIENT,[V]ZG_ZW_ACKNOW_SUBJECT,[L]ZL_AVAILABLE
+			Endif
+		Endif
+	Next
+Next
