@@ -8,10 +8,11 @@ d.SDDLIN_0 as [Delivery Line],
 coalesce(q.POHNUM_0,'') as [Purchase Order],
 coalesce(q.POPLIN_0,0) as [Purchase Line],
 d.ITMREF_0 as [Product],
+d.ITMDES1_0 as [Description],
 d.QTYUOM_0 as [Unit of Measure],
 d.QTYRCP_0 as [Quantity Received],
-s.SAUSTUCOE_0 as [Conversion],
-i.STU_0 as [Stock Unit]
+s.LOT_0 as [Lot],
+d.LINSTA_0 as [Line Status]
 
 
 from LIVE.ZINTRD d
@@ -22,3 +23,6 @@ left join LIVE.PORDERQ q on s.SOHNUM_0=q.LINOCNNUM_0 and s.SOPLIN_0=q.OCNLIN_0
 inner join LIVE.ITMMASTER i on d.ITMREF_0=i.ITMREF_0
 
 where (p.PTHNUM_0 is null) and d.LINSTA_0 in ('COMPLETE','SHORT') and QTYRCP_0>0 and EXPSTA_0<>2  and d.ZRHSTA_0=2
+
+order by d.SDHNUM_0, d.SDDLIN_0
+

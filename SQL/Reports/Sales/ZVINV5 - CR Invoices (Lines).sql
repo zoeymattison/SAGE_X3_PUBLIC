@@ -14,7 +14,7 @@ invoicelines as (
 		sid.QTY_0 as [Invoice QTY],
 		sid.SAU_0 as [Invoice Sales Unit],
 		sid.GROPRI_0 as [Invoice Gross Price],
-		(sid.DISCRGVAL1_0) as [Invoice Line Discount],
+		(sid.GROPRI_0-sid.NETPRI_0) as [Invoice Line Discount],
 		sid.NETPRI_0 as [Invoice Net Price],
 		tex.TEXTE_0 as [Invoice Line Text],
 		sid.SIDLIN_0 as [Invoice Line Number]
@@ -43,7 +43,7 @@ salesorderlines as (
 		soq.QTY_0 as [Sales Order QTY],
 		sop.SAU_0 as [Sales Order Sales Unit],
 		sop.GROPRI_0 as [Sales Order Gross Price],
-		(sop.DISCRGVAL1_0) as [Sales Order Discount],
+		(sop.GROPRI_0-sop.NETPRI_0) as [Sales Order Discount],
 		sop.NETPRI_0 as [Sales Order Net Price],
 		tex.TEXTE_0 as [Sales Order Line Text]
 	from

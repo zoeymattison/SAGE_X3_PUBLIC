@@ -1,0 +1,102 @@
+with salesorders as (
+	select
+		q.SOHNUM_0,
+		q.SOPLIN_0,
+		q.ITMREF_0,
+		p.ITMDES1_0,
+		b.BPCNUM_0,
+		b.BPCNAM_0,
+		q.SOQSTA_0,
+		(sum((s.QTYSTU_0-s.CUMALLQTY_0)/p.SAUSTUCOE_0)+q.ALLQTY_0) as [Available],
+		iif((sum((s.QTYSTU_0-s.CUMALLQTY_0)/p.SAUSTUCOE_0)+q.ALLQTY_0)<q.QTY_0,q.QTY_0-(sum((s.QTYSTU_0-s.CUMALLQTY_0)/p.SAUSTUCOE_0)+q.ALLQTY_0),0) as [Backordered],
+		q.ALLQTY_0 as [Allocated],
+		q.QTY_0 as [Ordered],
+		p.SAU_0 as [Sales Unit],
+		q.CREUSR_0 as [Creation User]
+	from
+		LIVE.SORDERQ q
+	inner join	
+		LIVE.SORDERP p on q.SOHNUM_0=p.SOHNUM_0 and q.SOPLIN_0=p.SOPLIN_0 and q.ITMREF_0=p.ITMREF_0
+	inner join
+		LIVE.SORDER h on q.SOHNUM_0=h.SOHNUM_0
+	inner join
+		LIVE.BPCUSTOMER b on q.BPCORD_0=b.BPCNUM_0
+	left join
+		LIVE.STOCK s on q.ITMREF_0=s.ITMREF_0 and q.STOFCY_0=s.STOFCY_0
+	inner join
+		LIVE.ITMMASTER i on q.ITMREF_0=i.ITMREF_0
+	where
+		q.SOQSTA_0<>3 and h.ORDSTA_0<>2 and i.TSICOD_0 in ('OK','AOK')
+	group by
+		q.SOHNUM_0,
+		q.SOPLIN_0,
+		q.ITMREF_0,
+		p.ITMDES1_0,
+		b.BPCNUM_0,
+		b.BPCNAM_0,
+		q.SOQSTA_0,
+		q.QTY_0,
+		q.DLVQTY_0,
+		q.PREQTY_0,
+		q.OPRQTY_0,
+		q.ALLQTY_0,
+		p.SAU_0,
+		q.CREUSR_0
+	having
+		iif((sum((s.QTYSTU_0-s.CUMALLQTY_0)/p.SAUSTUCOE_0)+q.ALLQTY_0)<q.QTY_0,q.QTY_0-(sum((s.QTYSTU_0-s.CUMALLQTY_0)/p.SAUSTUCOE_0)+q.ALLQTY_0),0)>0
+),
+VendorInfo AS (
+    SELECT
+        ITMREF_0,
+        ITP.BPSNUM_0,
+        ITP.BPSNUM_0 + ' ' + BPS.BPSNAM_0 AS VendorName,
+        ROW_NUMBER() OVER (PARTITION BY ITMREF_0 ORDER BY CASE WHEN PIO_0 = 0 THEN 0 ELSE 1 END, PIO_0) AS VendorRank
+    FROM LIVE.ITMBPS ITP
+    LEFT JOIN LIVE.BPSUPPLIER BPS ON BPS.BPSNUM_0 = ITP.BPSNUM_0
+)
+
+select
+s.SOHNUM_0,
+s.SOPLIN_0,
+s.ITMREF_0,
+s.ITMDES1_0,
+    max(CASE WHEN v.VendorRank = 1 THEN v.VendorName ELSE 'N/A' END) AS PrimaryVendor,
+    max(CASE WHEN v.VendorRank = 2 THEN v.VendorName ELSE 'N/A' END) AS SecondaryVendor,
+s.Ordered,
+s.Allocated,
+s.Backordered,
+isnull(  PO.EARLIEST_PO, ''),
+isnull(  PO.PO_VENDOR,''),
+iif(PO.PO_VENDOR is null,'',s.ITMREF_0+' '+s.ITMDES1_0),
+isnull(  PO.QTY,0),
+  PO.ETA,s.[Creation User]
+
+from salesorders s
+left join VendorInfo v ON s.ITMREF_0 = v.ITMREF_0
+  LEFT JOIN (
+    SELECT 
+      ITMREF_0,
+      MAX(CASE WHEN LEFT(POHNUM_0,3)='PO3' AND LEFT(BPS.BPSNUM_0,1)='V' AND LINCLEFLG_0 = 1 THEN POHNUM_0 ELSE NULL END) AS EARLIEST_PO,
+	  MAX(CASE WHEN LEFT(POHNUM_0,3)='PO3' AND LEFT(BPS.BPSNUM_0,1)='V' AND LINCLEFLG_0 = 1 THEN QTYPUU_0 ELSE NULL END) AS QTY,
+	  MAX(CASE WHEN LEFT(POHNUM_0,3)='PO3' AND LEFT(BPS.BPSNUM_0,1)='V' AND LINCLEFLG_0 = 1 THEN PUU_0 ELSE NULL END) AS UOM,
+      MAX(CASE WHEN LEFT(POHNUM_0,3)='PO3' AND LEFT(BPS.BPSNUM_0,1)='V' AND LINCLEFLG_0 = 1 THEN EXTRCPDAT_0 ELSE NULL END) AS ETA,
+      MAX(CASE WHEN LEFT(POHNUM_0,3)='PO3' AND LEFT(BPS.BPSNUM_0,1)='V' AND LINCLEFLG_0 = 1 THEN BPSNAM_0 + ' - ' + BPS.BPSNUM_0 ELSE NULL END) AS PO_VENDOR
+    FROM 
+      LIVE.PORDERQ POQ 
+      LEFT OUTER JOIN LIVE.BPSUPPLIER BPS ON POQ.BPSNUM_0 = BPS.BPSNUM_0 
+    GROUP BY 
+      ITMREF_0
+  ) PO ON s.ITMREF_0 = PO.ITMREF_0
+group by
+s.SOHNUM_0,
+s.SOPLIN_0,
+s.ITMREF_0,
+s.ITMDES1_0,
+s.Ordered,
+s.Allocated,
+s.Backordered,
+s.[Sales Unit],
+PO.EARLIEST_PO, 
+  PO.ETA, 
+  PO.PO_VENDOR,
+    PO.QTY,s.[Creation User]

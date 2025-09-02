@@ -62,7 +62,7 @@ SINVOICED as (
 		sum(GROPRI_0*QTY_0) as [Line Amount (Before Discounts)],
 		sum(AMTNOTLIN_0) as [Line Amount (After Discounts)],
 		sum(case when VAT_2='EHF' then AMTTAXLIN_2 else 0 end) as [Line EHF],
-		sum(Case when DISCRGVAL1_0<>0 then (GROPRI_0-NETPRI_0)*QTY_0 else 0 end) as [Line Discounts]
+		sum(Case when (DISCRGVAL1_0<>0 or DISCRGVAL2_0<>0) then (GROPRI_0-NETPRI_0)*QTY_0 else 0 end) as [Line Discounts]
 	from
 		LIVE.SINVOICED
 	group by

@@ -41,8 +41,14 @@ StockSafetyData AS (
         SUM(CASE WHEN STO.STOFCY_0 = '2200' THEN STO.QTYSTU_0 ELSE 0 END) AS StockTotalOak,
         SUM(CASE WHEN STO.STOFCY_0 = '2300' THEN STO.QTYSTU_0 ELSE 0 END) AS StockTotalBroad,
         SUM(CASE WHEN STO.STOFCY_0 = '2600' THEN STO.QTYSTU_0 ELSE 0 END) AS StockTotalSidney,
-        SUM(CASE WHEN STO.STOFCY_0 = '3200' THEN STO.QTYSTU_0 ELSE 0 END) AS StockTotal3200,
-        MAX(CASE WHEN ITF.STOFCY_0 = 'DC30' THEN ITF.SAFSTO_0 ELSE 0 END) AS SafetyStockDC30,
+        SUM(CASE WHEN STO.STOFCY_0 = '3200' THEN STO.QTYSTU_0 ELSE 0 END) AS StockTotal3200
+    FROM LIVE.STOCK STO
+    GROUP BY STO.ITMREF_0
+),
+safetystock as (
+	select
+		ITF.ITMREF_0,
+		MAX(CASE WHEN ITF.STOFCY_0 = 'DC30' THEN ITF.SAFSTO_0 ELSE 0 END) AS SafetyStockDC30,
         MAX(CASE WHEN ITF.STOFCY_0 = 'DC33' THEN ITF.SAFSTO_0 ELSE 0 END) AS SafetyStockDC33,
         MAX(CASE WHEN ITF.STOFCY_0 = '1600' THEN ITF.SAFSTO_0 ELSE 0 END) AS SafetyStockCOR,
         MAX(CASE WHEN ITF.STOFCY_0 = '2100' THEN ITF.SAFSTO_0 ELSE 0 END) AS SafetyStockFRT,
@@ -50,9 +56,9 @@ StockSafetyData AS (
         MAX(CASE WHEN ITF.STOFCY_0 = '2300' THEN ITF.SAFSTO_0 ELSE 0 END) AS SafetyStockBRD,
         MAX(CASE WHEN ITF.STOFCY_0 = '2600' THEN ITF.SAFSTO_0 ELSE 0 END) AS SafetyStockSID,
         MAX(CASE WHEN ITF.STOFCY_0 = '3200' THEN ITF.SAFSTO_0 ELSE 0 END) AS SafetyStockFRN
-    FROM LIVE.STOCK STO
-    LEFT JOIN LIVE.ITMFACILIT ITF ON STO.ITMREF_0 = ITF.ITMREF_0 AND STO.STOFCY_0 = ITF.STOFCY_0
-    GROUP BY STO.ITMREF_0
+	from LIVE.ITMFACILIT ITF
+
+	group by ITF.ITMREF_0
 ),
 CostData AS (
     SELECT
@@ -128,6 +134,73 @@ SimpleCostOnHand AS (
         SSD.StockTotal3200 * CD.[Average Cost] AS CostOnHand3200
     FROM StockSafetyData SSD
     LEFT JOIN CostData CD ON SSD.ITMREF_0 = CD.ITMREF_0
+),
+stockinout as (
+   select
+       ITMREF_0 as [Product],
+       MAX(CASE 
+           WHEN STOFCY_0 = '1600' THEN 
+               CASE 
+                   WHEN ZINSTOCKDAT_0 > ZSTOCKOUTDAT_0 
+                   THEN DATEDIFF(day, ZINSTOCKDAT_0, GETDATE())
+                   ELSE DATEDIFF(day, ZSTOCKOUTDAT_0, GETDATE()) * -1
+               END
+       END) as [1600 Stock holding],
+       MAX(CASE 
+           WHEN STOFCY_0 = '2100' THEN 
+               CASE 
+                   WHEN ZINSTOCKDAT_0 > ZSTOCKOUTDAT_0 
+                   THEN DATEDIFF(day, ZINSTOCKDAT_0, GETDATE())
+                   ELSE DATEDIFF(day, ZSTOCKOUTDAT_0, GETDATE()) * -1
+               END
+       END) as [2100 Stock holding],
+       MAX(CASE 
+           WHEN STOFCY_0 = '2200' THEN 
+               CASE 
+                   WHEN ZINSTOCKDAT_0 > ZSTOCKOUTDAT_0 
+                   THEN DATEDIFF(day, ZINSTOCKDAT_0, GETDATE())
+                   ELSE DATEDIFF(day, ZSTOCKOUTDAT_0, GETDATE()) * -1
+               END
+       END) as [2200 Stock holding],
+       MAX(CASE 
+           WHEN STOFCY_0 = '2600' THEN 
+               CASE 
+                   WHEN ZINSTOCKDAT_0 > ZSTOCKOUTDAT_0 
+                   THEN DATEDIFF(day, ZINSTOCKDAT_0, GETDATE())
+                   ELSE DATEDIFF(day, ZSTOCKOUTDAT_0, GETDATE()) * -1
+               END
+       END) as [2600 Stock holding],
+       MAX(CASE 
+           WHEN STOFCY_0 = '3200' THEN 
+               CASE 
+                   WHEN ZINSTOCKDAT_0 > ZSTOCKOUTDAT_0 
+                   THEN DATEDIFF(day, ZINSTOCKDAT_0, GETDATE())
+                   ELSE DATEDIFF(day, ZSTOCKOUTDAT_0, GETDATE()) * -1
+               END
+       END) as [3200 Stock holding],
+       MAX(CASE 
+           WHEN STOFCY_0 = 'DC30' THEN 
+               CASE 
+                   WHEN ZINSTOCKDAT_0 > ZSTOCKOUTDAT_0 
+                   THEN DATEDIFF(day, ZINSTOCKDAT_0, GETDATE())
+                   ELSE DATEDIFF(day, ZSTOCKOUTDAT_0, GETDATE()) * -1
+               END
+       END) as [DC30 Stock holding],
+       MAX(CASE 
+           WHEN STOFCY_0 = 'DC33' THEN 
+               CASE 
+                   WHEN ZINSTOCKDAT_0 > ZSTOCKOUTDAT_0 
+                   THEN DATEDIFF(day, ZINSTOCKDAT_0, GETDATE())
+                   ELSE DATEDIFF(day, ZSTOCKOUTDAT_0, GETDATE()) * -1
+               END
+       END) as [DC33 Stock holding]
+   from
+       LIVE.ITMMVT
+   where 
+       ZINSTOCKDAT_0 > '1900-01-01'
+       OR ZSTOCKOUTDAT_0 > '1900-01-01'
+   group by
+       ITMREF_0
 )
 
 SELECT
@@ -169,14 +242,14 @@ SELECT
     ISNULL(SSD.StockTotalBroad,0) as STK_BRD,
     ISNULL(SSD.StockTotalSidney,0) as STK_SID,
     ISNULL(SSD.StockTotal3200,0) as STK_FRN,
-    ISNULL(SSD.SafetyStockDC30,0) as SAF_DC30,
-    ISNULL(SSD.SafetyStockDC33,0) as SAF_DC33,
-    ISNULL(SSD.SafetyStockCOR,0) as SAF_COR,
-    ISNULL(SSD.SafetyStockFRT,0) as SAF_FRT,
-    ISNULL(SSD.SafetyStockOAK,0) as SAF_OAK,
-    ISNULL(SSD.SafetyStockBRD,0) as SAF_BRD,
-    ISNULL(SSD.SafetyStockSID,0) as SAF_SID,
-    ISNULL(SSD.SafetyStockFRN,0) as SAF_FRN,
+    ISNULL(saf.SafetyStockDC30,0) as SAF_DC30,
+    ISNULL(saf.SafetyStockDC33,0) as SAF_DC33,
+    ISNULL(saf.SafetyStockCOR,0) as SAF_COR,
+    ISNULL(saf.SafetyStockFRT,0) as SAF_FRT,
+    ISNULL(saf.SafetyStockOAK,0) as SAF_OAK,
+    ISNULL(saf.SafetyStockBRD,0) as SAF_BRD,
+    ISNULL(saf.SafetyStockSID,0) as SAF_SID,
+    ISNULL(saf.SafetyStockFRN,0) as SAF_FRN,
     ISNULL(SCH.CostOnHandDC30,0) as [Cost On Hand DC30],
     ISNULL(SCH.CostOnHandDC33,0) as [Cost On Hand DC33],
     ISNULL(SCH.CostOnHandCourt,0) as [Cost On Hand COR],
@@ -201,7 +274,14 @@ SELECT
     LCD.[1600 Last Count],
     LCD.[2100 Last Count],
     LCD.[2200 Last Count],
-    LCD.[2600 Last Count]
+    LCD.[2600 Last Count],
+	sio.[1600 Stock holding],
+	sio.[2100 Stock holding],
+	sio.[2200 Stock holding],
+	sio.[2600 Stock holding],
+	sio.[3200 Stock holding],
+	sio.[DC30 Stock holding],
+	sio.[DC33 Stock holding]
 
 FROM LIVE.ITMMASTER ITM
 LEFT JOIN LIVE.ATEXTRA ATX ON ATX.CODFIC_0 = 'ATABDIV'
@@ -213,6 +293,8 @@ LEFT JOIN SalesPrice SPL ON ITM.ITMREF_0 = SPL.PLICRI2_0 AND SPL.rn = 1
 LEFT JOIN SalesOrderData SOD ON ITM.ITMREF_0 = SOD.ITMREF_0
 LEFT JOIN VendorInfo VI ON ITM.ITMREF_0 = VI.ITMREF_0
 LEFT JOIN StockSafetyData SSD ON ITM.ITMREF_0 = SSD.ITMREF_0
+left join safetystock saf on ITM.ITMREF_0=saf.ITMREF_0
 LEFT JOIN CostData CD ON ITM.ITMREF_0 = CD.ITMREF_0
 LEFT JOIN SimpleCostOnHand SCH ON ITM.ITMREF_0 = SCH.ITMREF_0
-LEFT JOIN LastCountData LCD ON ITM.ITMREF_0 = LCD.ITMREF_0;
+LEFT JOIN LastCountData LCD ON ITM.ITMREF_0 = LCD.ITMREF_0
+left join stockinout sio on ITM.ITMREF_0=sio.[Product]

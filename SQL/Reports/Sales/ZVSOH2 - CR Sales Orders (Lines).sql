@@ -9,11 +9,11 @@ with SORDERLINES as (
 		end as [Description],
 		itm.SEAKEY_0 as [Catalogue Number],
 		soq.QTY_0 as [Ordered],
-		sum(sto.QTYSTU_0/sop.SAUSTUCOE_0) as [Available],
+		sum(sto.QTYSTU_0/sop.SAUSTUCOE_0)-sum(sto.CUMALLQTY_0)+soq.ALLQTY_0 as [Available],
 		soq.QTY_0-soq.DLVQTY_0-soq.ALLQTY_0-soq.PREQTY_0-soq.OPRQTY_0 as [Backordered],
 		sop.SAU_0 as [Sales Unit],
 		sop.GROPRI_0 as [Product Price],
-		sop.DISCRGVAL1_0 as [Discount],
+		sop.GROPRI_0-sop.NETPRI_0 as [Discount],
 		sop.NETPRI_0*soq.QTY_0 as [Total],
 		soq.YCUSTNOT_0+ltrim(' '+tex.TEXTE_0) as [Line Text]
 	from
@@ -23,7 +23,7 @@ with SORDERLINES as (
 	inner join
 		LIVE.ITMMASTER itm on soq.ITMREF_0=itm.ITMREF_0
 	left join
-		LIVE.STOCK sto on soq.ITMREF_0=sto.ITMREF_0 and soq.STOFCY_0=sto.STOFCY_0
+		LIVE.STOCK sto on soq.ITMREF_0=sto.ITMREF_0 and soq.STOFCY_0=sto.STOFCY_0 and sto.STA_0='A'
 	left join
 		LIVE.TEXCLOB tex on soq.SOQTEX_0=tex.CODE_0
 	group by

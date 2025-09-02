@@ -1,24 +1,41 @@
-SELECT
-SDD.CREDAT_0 AS DatePicked,
-SDD.STOFCY_0 AS StockSite,
-SDD.PRHNUM_0 AS PickTicket,
-SDD.BPCORD_0 AS SoldTo,
-SDD.SOHNUM_0 AS SalesOrder,
-CASE
-WHEN SOH.BETFCY_0=1 THEN 'COMMERCIAL'
-WHEN SOH.BETFCY_0=2 THEN 'RETAIL'
-ELSE 'SALES ORDER N/A'
-END AS SaleOrderType,
-SDD.ITMREF_0 AS Product,
-SDD.ITMDES1_0 AS Description,
-SDD.QTYSTU_0/SDD.SAUSTUCOE_0 AS Quantity,
-SOP.SAU_0 AS SalesUnit,
-SOP.GROPRI_0 AS SalesPrice,
-(SDD.QTYSTU_0/SOP.SAUSTUCOE_0)*SOP.GROPRI_0 AS TotalSales,
-ITM.ACCCOD_0 AS AccountingCode
-
-
-FROM LIVE.SDELIVERYD SDD
-LEFT JOIN LIVE.SORDERP SOP ON SDD.SOHNUM_0=SOP.SOHNUM_0 AND SDD.SOPLIN_0=SOP.SOPLIN_0
-LEFT JOIN LIVE.SORDER SOH ON SOP.SOHNUM_0=SOH.SOHNUM_0
-LEFT JOIN LIVE.ITMMASTER ITM ON SDD.ITMREF_0=ITM.ITMREF_0
+select
+	sdd.CREDAT_0 as DatePicked,
+	sdd.STOFCY_0 as StockSite,
+	sdd.PRHNUM_0 as PickTicket,
+	sdd.BPCORD_0 as SoldTo,
+	sdd.SOHNUM_0 as SalesOrder,
+case
+	when soh.BETFCY_0=1 then 'COMMERCIAL'
+	when soh.BETFCY_0=2 then 'RETAIL'
+else 'SALES ORDER N/A'
+end as SaleOrderType,
+	sdd.ITMREF_0 as Product,
+	sdd.ITMDES1_0 as Description,
+	sdd.QTYSTU_0/sdd.SAUSTUCOE_0 as Quantity,
+	sdd.SAU_0 as SalesUnit,
+	sdd.GROPRI_0 as SalesPrice,
+	(sdd.QTYSTU_0/sop.SAUSTUCOE_0)*sdd.GROPRI_0 as TotalSales,
+	itm.ACCCOD_0 as AccountingCode,
+	sdh.BPDADDLIG_0 as [Address Line 1],
+	sdh.BPDADDLIG_1 as [Address Line 2],
+	sdh.BPDADDLIG_2 as [Address Line 3],
+	sdh.BPDCTY_0 as [City],
+	isnull(r.REPNUM_0,'') as [Rep],
+	isnull(r.REPNAM_0,'') as [Rep Name],
+	apl.LANMES_0
+from 
+	LIVE.SDELIVERYD sdd
+inner join 
+	LIVE.SDELIVERY sdh on sdd.SDHNUM_0=sdh.SDHNUM_0
+left join 
+	LIVE.SALESREP r on sdh.REP_0=r.REPNUM_0
+left join 
+	LIVE.SORDERP sop on sdd.SOHNUM_0=sop.SOHNUM_0 AND sdd.SOPLIN_0=sop.SOPLIN_0
+left join 
+	LIVE.SORDER soh on sop.SOHNUM_0=soh.SOHNUM_0
+left join 
+	LIVE.ITMMASTER itm on sdd.ITMREF_0=itm.ITMREF_0
+left join 
+	LIVE.APLSTD apl on sdh.DRN_0 = apl.LANNUM_0
+		and apl.LANCHP_0 = '409'
+		and apl.LAN_0 = 'ENG'

@@ -39,7 +39,7 @@ SORDERLINE as (
 		sum(sop.GROPRI_0*soq.QTY_0) as [Line Amount (Before Discounts)],
 		sum(sop.NETPRI_0*soq.QTY_0) as [Line Amount (After Discounts)],
 		sum(case when VACITM_2='EHF' then CLCAMT1_0 else 0 end) as [Line EHF],
-		sum(Case when DISCRGVAL1_0<>0 then (GROPRI_0-NETPRI_0)*QTY_0 else 0 end) as [Line Discounts]
+		sum((GROPRI_0-NETPRI_0)*QTY_0) as [Line Discounts]
 	from
 		LIVE.SORDERQ soq
 	inner join
