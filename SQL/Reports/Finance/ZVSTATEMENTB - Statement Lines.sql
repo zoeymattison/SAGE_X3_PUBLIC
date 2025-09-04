@@ -1,12 +1,12 @@
 with gaccdudate as (
 	select
 		BPR_0 as [Pay-by],
-		sum(case when CREDAT_0 >= dateadd(day,-30,GETDATE()) then ((AMTCUR_0+TMPCUR_0)-PAYCUR_0)*SNS_0 else 0 end) as [Owing Current],
-		sum(case when CREDAT_0 between dateadd(day,-60,GETDATE()) and dateadd(day,-31,GETDATE()) then ((AMTCUR_0+TMPCUR_0)-PAYCUR_0)*SNS_0 else 0 end) as [Owing Over 30],
-		sum(case when CREDAT_0 between dateadd(day,-90,GETDATE()) and dateadd(day,-61,GETDATE()) then ((AMTCUR_0+TMPCUR_0)-PAYCUR_0)*SNS_0 else 0 end) as [Owing Over 60],
-		sum(case when CREDAT_0 between dateadd(day,-120,GETDATE()) and dateadd(day,-91,GETDATE()) then ((AMTCUR_0+TMPCUR_0)-PAYCUR_0)*SNS_0 else 0 end) as [Owing Over 90],
-		sum(case when CREDAT_0 <= dateadd(day,-121,GETDATE()) then ((AMTCUR_0+TMPCUR_0)-PAYCUR_0)*SNS_0 else 0 end) as [Owing Over 120],
-		sum(((AMTCUR_0+TMPCUR_0)-PAYCUR_0)*SNS_0) as [Owing Total]
+		sum(case when CREDAT_0 >= dateadd(day,-30,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Current],
+		sum(case when CREDAT_0 between dateadd(day,-60,GETDATE()) and dateadd(day,-31,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 30],
+		sum(case when CREDAT_0 between dateadd(day,-90,GETDATE()) and dateadd(day,-61,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 60],
+		sum(case when CREDAT_0 between dateadd(day,-120,GETDATE()) and dateadd(day,-91,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 90],
+		sum(case when CREDAT_0 <= dateadd(day,-121,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 120],
+		sum((AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0) as [Owing Total]
 	from
 		LIVE.GACCDUDATE
 	where
@@ -14,7 +14,7 @@ with gaccdudate as (
 	group by
 		BPR_0
 	having 
-		sum(((AMTCUR_0+TMPCUR_0)-PAYCUR_0)*SNS_0)<>0
+		sum((AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0)<>0
 ),
 invoices as (
 	select

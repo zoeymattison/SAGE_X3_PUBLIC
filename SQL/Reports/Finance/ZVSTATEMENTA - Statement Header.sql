@@ -4,7 +4,7 @@ with gaccdudate as (
 		TYP_0 as [Type],
 		BPR_0 as [Pay-by],
 		DUDDAT_0 as [Due Date],
-		sum(((AMTCUR_0+TMPCUR_0)-PAYCUR_0)*SNS_0) as [Owing]
+		sum((AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0) as [Owing]
 	from
 		LIVE.GACCDUDATE
 	where
@@ -15,7 +15,7 @@ with gaccdudate as (
 		TYP_0,
 		BPR_0
 	having
-		sum(((AMTCUR_0+TMPCUR_0)-PAYCUR_0)*SNS_0)<>0
+		sum((AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0)<>0
 ),
 invoices as (
 	select

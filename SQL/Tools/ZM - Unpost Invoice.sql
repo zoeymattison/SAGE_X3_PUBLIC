@@ -4,7 +4,7 @@ DECLARE @Nums TABLE (NUM_0 VARCHAR(20));
 -- Insert the values once
 INSERT INTO @Nums (NUM_0)
 VALUES 
-('SCM016157');
+('DIR487374');
 
 -- Now use this variable in all your statements
 UPDATE LIVE.SINVOICEV 
