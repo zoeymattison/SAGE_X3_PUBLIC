@@ -1,8 +1,11 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 $ACTIVATE_GLOBALS
 Global Clbfile ZG_MESSAGE(0)
 Global Char ZG_DEST(80)
 Global Char ZG_CCUSR(80)
+Global Char ZG_CCUSR2(80)
 Global Char ZG_SUBJECT(250)
+Global Clbfile ZG_ATTACH(6)
 Return
 
 
@@ -12,12 +15,12 @@ Local Char CODEVT : [L]CODEVT = "ZPT"
 Local Char OPERAT : [L]OPERAT = ""
 Local Char CLEOBJ : [L]CLEOBJ = ""
 Call WORKFLOW([L]TYPEVT,[L]CODEVT,[L]OPERAT,[L]CLEOBJ) From AWRK
-Kill [V]ZG_MESSAGE, [V]ZG_DEST, [V]ZG_CCUSR, [V]ZG_SUBJECT
+Kill [V]ZG_MESSAGE, [V]ZG_DEST, [V]ZG_CCUSR, [V]ZG_SUBJECT, [V]ZG_ATTACH, [V]ZG_CCUSR2
 Return
 
 $GET_PRIO_COUNT
 Gosub ACTIVATE_GLOBALS
-[V]ZG_DEST = "ross.fowlie@monk.ca;kirsten.luker@monk.ca;suzanne.hamilton@monk.ca;david.monteith@monk.ca"
+[V]ZG_DEST = "ross.fowlie@monk.ca;kirsten.luker@monk.ca;suzanne.hamilton@monk.ca"
 [V]ZG_CCUSR = ""
 [V]ZG_SUBJECT = [M:ITM0]ITMREF-"has more than one priority 0 vendor"
 [V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
@@ -44,7 +47,7 @@ Gosub ZW_PRINT
 Return
 
 $SOH_BPCCHECK
-Gosub ZS_PRINT_GLOBALS From ZS_GLOBALS
+Gosub ACTIVATE_GLOBALS
 [V]ZG_DEST = "ar@monk.ca"
 [V]ZG_CCUSR = "service@monk.ca"
 [V]ZG_SUBJECT = "WARNING - Incorrect Bill-to On "+[M:SOH0]SOHNUM
@@ -76,73 +79,109 @@ Gosub ACTIVATE_GLOBALS
 &+"IT Department"+chr$(10)
 Gosub ZW_PRINT
 Return
-$TRANSFER_CLAIM
+
+$POH_WRKEML
 Gosub ACTIVATE_GLOBALS
-[V]ZG_DEST = "zoey.mattison@monk.ca"
+[V]ZG_DEST = [F:ZPOH]ZWRKEML
 [V]ZG_CCUSR = ""
-[V]ZG_SUBJECT = "Transfer claim for store "+[M:ZRR0]PRHFCY+" - "+[M:ZRR0]ZRHNUM
-[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
-Local Char ZL_PCKNUM(10) : [L]ZL_PCKNUM="0"
-For I=0 To [M:ZRR1]NBLIG-1
-    If func AFNC.INTFLD("STOPREH","YMOPICKER",func AFNC.INTFLD("SDELIVERYD","PRHNUM",[M:ZRR1]SDHNUM(I)+"~"+num$([M:ZRR1]SDDLIN(I))))<>""
-        [L]ZL_PCKNUM=func AFNC.INTFLD("STOPREH","YMOPICKER",func AFNC.INTFLD("SDELIVERYD","PRHNUM",[M:ZRR1]SDHNUM(I)+"~"+num$([M:ZRR1]SDDLIN(I))))
-    Endif
-    If [M:ZRR1]LINSTA(I)="SHORT"
-        [V]ZG_MESSAGE += [M:ZRR1]SDHNUM(I)+" --> "+[M:ZRR1]ITMREF(I)+" --> Short by "+num$([M:ZRR1]QTYDLV(I)-[M:ZRR1]QTYRCP(I))+" -- (Picker number: "+[L]ZL_PCKNUM+")"+chr$(10)
-    Endif
-    If [M:ZRR1]LINSTA(I)="OVER"
-        [V]ZG_MESSAGE += [M:ZRR1]SDHNUM(I)+" --> "+[M:ZRR1]ITMREF(I)+" --> Over by "+num$([M:ZRR1]QTYRCP(I)-[M:ZRR1]QTYDLV(I))+" -- (Picker number: "+[L]ZL_PCKNUM+")"+chr$(10)
-    Endif
-Next
-[V]ZG_MESSAGE += chr$(10)
-Local Char ZL_PCKSTA(30) : [L]ZL_PCKSTA=""
-[L]ZL_PCKNUM="0"
-For I=0 To [M:ZRR2]NBLIG-1
-    Case num$([M:ZRR2]PCKERR(I))
-        When "1" : [L]ZL_PCKSTA="Return"
-        When "2" : [L]ZL_PCKSTA="Keep"
-    Endcase
-    If func AFNC.INTFLD("STOPREH","YMOPICKER",func AFNC.INTFLD("SDELIVERYD","PRHNUM",[M:ZRR2]SDHNUM(I)+"~"+"1000"))<>""
-        [L]ZL_PCKNUM=func AFNC.INTFLD("STOPREH","YMOPICKER",func AFNC.INTFLD("SDELIVERYD","PRHNUM",[M:ZRR2]SDHNUM(I)+"~"+"1000"))
-    Endif
-    [V]ZG_MESSAGE += [M:ZRR2]SDHNUM(I)+" --> "+[M:ZRR2]ITMREFPKE(I)+" --> Picking Error --> "+[L]ZL_PCKSTA+" "+num$([M:ZRR2]QTY(I))+" -- (Picker number: "+[L]ZL_PCKNUM+")"+chr$(10)
+[V]ZG_SUBJECT = "PO Receipt Notification - "+[F:ZPOH]POHNUM
+[V]ZG_MESSAGE = "This is an automated message. The following PO lines have been received:"+chr$(10)+chr$(10)
+&+"Purchase Order: "+[F:ZPOH]POHNUM+chr$(10)
+&+"Supplier: "+[F:ZPOH]BPSNUM+" "+func AFNC.INTFLD("BPSUPPLIER","BPSNAM",[F:ZPOH]BPSNUM)+chr$(10)+chr$(10)
+&+"Lines:"+chr$(10)
+If !clalev([ZPTD]) : Local File PRECEIPTD [ZPTD] : Endif
+Filter [ZPTD] Where PTHNUM=[F:PTH]PTHNUM
+For [ZPTD]
+	If [F:ZPTD]POHNUM=[F:ZPOH]POHNUM
+		[V]ZG_MESSAGE+=[F:ZPTD]ITMREF+" - "+[F:ZPTD]ITMDES1+" - "+num$([F:ZPTD]QTYUOM)+" "+[F:ZPTD]UOM+chr$(10)
+	Endif
 Next
 [V]ZG_MESSAGE += chr$(10)+"Thank you,"+chr$(10)+chr$(10)
-&+"IT Department"+chr$(10)+chr$(10)
+&+"IT Department"
 Gosub ZW_PRINT
 Return
 
+$POH_APPROVAL
+Gosub ACTIVATE_GLOBALS
+If [F:ZPO]CREUSR="YSIA" or func AFNC.INTFLD("AUTILIS","ADDEML",[F:ZPO]CREUSR)=""
+	[V]ZG_DEST = "opteam@monk.ca"
+Else
+	[V]ZG_DEST = func AFNC.INTFLD("AUTILIS","ADDEML",[F:ZPO]CREUSR)
+Endif
+[V]ZG_CCUSR = ""
+[V]ZG_SUBJECT = "[ALERT] A PO For "+func AFNC.INTFLD("BPSUPPLIER","BPSNAM",[F:ZPO]BPSNUM)+" Was Approved - "+[F:ZPO]POHNUM
+[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
+&+"A new PO has been placed for "+func AFNC.INTFLD("BPSUPPLIER","BPSNAM",[F:ZPO]BPSNUM)+chr$(10)+chr$(10)
+&+"https://sage.monk.ca/syracuse-main/html/main.html?url=/trans/x3/erp/LIVE/$sessions?f=GESPOH~ZPO/1/OBJPOH/M/"+[F:ZPO]POHNUM+chr$(10)+chr$(10)
+&+"PO Number: "+[F:ZPO]POHNUM+chr$(10)
+&+"Created by: "+func AFNC.NOMUSER([F:ZPO]CREUSR)+chr$(10)
+&+"Before tax: $"+num$([F:ZPO]TOTORD)+chr$(10)+chr$(10)
+    If !clalev([F:ZZPOP]) : Local File PORDERP[ZZPOP] : Endif
+    If !clalev([F:ZZPOQ]) : Local File PORDERQ[ZZPOQ] : Endif
+    Link [ZZPOP] With [ZZPOQ]POQ0=[F:ZZPOP]POHNUM;[F:ZZPOP]POPLIN;[F:ZZPOP]POPSEQ As [ZPO2]
+    Filter [ZPO2] Where POHNUM = [F:ZPO]POHNUM
+    Read [ZPO2] First
+    If fstat = 0
+        For [ZPO2]
+            [V]ZG_MESSAGE += num$([F:ZPO2]POPLIN/1000)+'. '-[F:ZPO2]ITMREF-mess(1,16807,1)-[F:ZZPOQ]ITMREFBPS-mess(1,16807,1)-[F:ZPO2]ITMDES-mess(1,16807,1)-num$([F:ZZPOQ]QTYSTU)-[F:ZZPOQ]STU-mess(1,
+& 16807,1)-
+& chr$(36)+format$("N3vF<:13.2",[F:ZPO2]GROPRI)-mess(1,16807,1)-chr$(36)+format$("N3vF<:13.2",[F:ZPO2]GROPRI*[F:ZZPOQ]QTYSTU)+chr$(13)+chr$(13)+chr$(13)+chr$(13)+chr$(10)+chr$(10)
+        Next
+    Endif
+[V]ZG_MESSAGE+="Thank you,"+chr$(10)+chr$(10)
+&+"IT Department"
+Gosub ZW_PRINT
+Return
 
+$GET_COUNT_VARIANCE
+Gosub ACTIVATE_GLOBALS
+Case [F:ZCUL]STOFCY
+	When "1600" : [V]ZG_DEST=func AFNC.INTFLD("BPADDRESS","WEB(1)","3"+"~"+"1600"+"~"+"STORE")
+	When "2100" : [V]ZG_DEST=func AFNC.INTFLD("BPADDRESS","WEB(1)","3"+"~"+"2100"+"~"+"STORE")
+	When "2200" : [V]ZG_DEST=func AFNC.INTFLD("BPADDRESS","WEB(1)","3"+"~"+"2200"+"~"+"STORE")
+	When "2600" : [V]ZG_DEST=func AFNC.INTFLD("BPADDRESS","WEB(1)","3"+"~"+"2600"+"~"+"STORE")
+Endcase
 
+If [V]ZG_DEST=""
+	[V]ZG_DEST="zoey.mattison@monk.ca"
+	[V]ZG_CCUSR="service@monk.ca"
+Else
+	[V]ZG_CCUSR = "joanne.boyer@monk.ca;scott.matheson@monk.ca"
+	[V]ZG_CCUSR2="service@monk.ca;adam.taft@monk.ca"
+Endif
+[V]ZG_ATTACH=WNOMFIC
+[V]ZG_SUBJECT = "[REPORT] Cycle Count Variance for "+[F:ZCUL]STOFCY+" - "+[F:ZCUL]CUNSSSNUM+" - "+format$("YYYY[-]MM[-]DD",date$)
+[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
+[V]ZG_MESSAGE +="Please review the attached variances for cycle count "+[F:ZCUL]CUNSSSNUM+chr$(10)
+[V]ZG_MESSAGE += chr$(10)+"Thank you,"+chr$(10)+chr$(10)
+[V]ZG_MESSAGE +="IT Department"+chr$(10)+chr$(10)
+Gosub ZW_PRINT
+Return
 
+$UNRECEIVED_DELIVERIES
+Gosub ACTIVATE_GLOBALS
+	[V]ZG_DEST="service@monk.ca"
+	[V]ZG_SUBJECT = "[NOTICE] Unreceived Intersite Deliveries"
+	[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
+    [V]ZG_MESSAGE +="Please review the following deliveries that are 14 or more days old, and have not been received!"+chr$(10)+chr$(10)
+    For [ZSDH]
+		[V]ZG_MESSAGE += num$([F:ZSDH]CREDAT)+"    "+[F:ZSDH]SDHNUM+"    "+[F:ZSDH]STOFCY+"    "+[F:ZSDH]ITMREF+"    "+[F:ZSDH]ITMDES1+"    "+num$([F:ZSDH]QTY)+"    "+[F:ZSDH]SAU+chr$(10)+chr$(10)
+	Next
+    [V]ZG_MESSAGE +="Thank you,"+chr$(10)+chr$(10)
+    [V]ZG_MESSAGE +="IT Department"+chr$(10)+chr$(10)
+Gosub ZW_PRINT
+Return
 
+$TRANSFER_CLAIM
+Gosub ACTIVATE_GLOBALS
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+[V]ZG_DEST="returns@monk.ca"
+[V]ZG_CCUSER="service@monk.ca"
+[V]ZG_ATTACH=WNOMFIC
+[V]ZG_SUBJECT = "[REPORT] Transfer Claim for "+func AFNC.INTFLD("SDELIVERY","BPCORD",[M:ZRR1]SDHNUM(0))+" - "+format$("YYYY[-]MM[-]DD",date$)
+[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
+[V]ZG_MESSAGE +="Please see the attached transfer claim"+chr$(10)+chr$(10)
+[V]ZG_MESSAGE += "Thank you,"+chr$(10)+chr$(10)
+[V]ZG_MESSAGE +="IT Department"+chr$(10)+chr$(10)
+Gosub ZW_PRINT
+Return

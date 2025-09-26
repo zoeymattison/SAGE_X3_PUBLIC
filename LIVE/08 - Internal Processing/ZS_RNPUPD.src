@@ -1,0 +1,30 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+If !clalev([ZBPC]) : Local File BPCUSTOMER [ZBPC] : Endif
+If !clalev([ZALK]) : Local File APLLCK [ZALK] : Endif
+Call OUVRE_TRACE("Disable direct shipments "+format$("YYYY[-]MM[-]DD[-]hhmmss",datetime$)) From LECFIC
+Call ECR_TRACE("Begin update...",-2) From GESECRAN
+Filter [ZBPC] Where ZDIRSHP=1 and left$(BPCNUM,3)="TMS" and BPCSTA=2
+Local Integer COUNT : [L]COUNT=0
+For [ZBPC]
+	Look [ZALK]LCKCLE="BPC"+[F:ZBPC]BPCNUM;0
+	If [S]fstat
+    	[F:ZBPC]ZDIRSHP=2
+    	Rewrite [ZBPC]
+    	If ![S]fstat
+    		[L]COUNT+=1
+    		Call ECR_TRACE([F:ZBPC]BPCNUM+" - "+[F:ZBPC]BPCNAM+" update successful",-1) From GESECRAN
+		Else
+			Call ECR_TRACE([F:ZBPC]BPCNUM+" - "+[F:ZBPC]BPCNAM+" update failed",1) From GESECRAN
+		Endif
+    Else
+    	Call ECR_TRACE([F:ZBPC]BPCNUM+" - "+[F:ZBPC]BPCNAM+" account locked by another user",1) From GESECRAN
+	Endif
+Next
+
+If [L]COUNT>0
+	Call ECR_TRACE(num$([L]COUNT)+" customers updated!",-2) From GESECRAN
+Else
+	Call ECR_TRACE("No customers to update!",1) From GESECRAN
+Endif
+Call FERME_TRACE From LECFIC
+End

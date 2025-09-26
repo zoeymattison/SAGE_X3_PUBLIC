@@ -1,0 +1,26 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Funprog OPEN_DRAWER(PRINTERNAME)
+Value Char PRINTERNAME
+
+Local Char DRAWERCODE(5), PRINTER(250)
+Local Integer HANDLE
+
+# ESC/POS command for cash drawer
+DRAWERCODE = chr$(27) + chr$(112) + chr$(0) + chr$(25) + chr$(250)
+
+# Get printer path/name
+Call GETNUMPRN(PRINTERNAME) From GESECRAN Into PRINTER
+If PRINTER <> ""
+    # Open printer
+    Call OPENPRN(PRINTER) From GESECRAN Into HANDLE
+    If HANDLE > 0
+        # Send drawer command
+        Call SENDPRN(HANDLE, DRAWERCODE) From GESECRAN
+        # Close printer
+        Call CLOSEPRN(HANDLE) From GESECRAN
+    Endif
+Endif
+
+End
+
+

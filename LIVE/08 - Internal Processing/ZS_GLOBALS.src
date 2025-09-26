@@ -1,3 +1,4 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 Subprog ZSUB_WRKGLOBALS(ZEMAIL)
 Value Char ZEMAIL
 [V]ZG_EXP_MAIL = ZEMAIL

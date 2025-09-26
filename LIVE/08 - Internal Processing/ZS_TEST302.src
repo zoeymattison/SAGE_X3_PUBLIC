@@ -1,0 +1,9 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([ZCVR]) : Local File ZVCUNVAR [ZCVR] : Endif
+Filter [ZCVR] Where CUNLIS="CNT008356"
+Read [ZCVR] First
+If ![S]fstat
+    Infbox "Success"
+Endif
+
+

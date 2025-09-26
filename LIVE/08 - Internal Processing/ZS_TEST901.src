@@ -1,0 +1,8 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([ZSDD]) : LocaL File SDELIVERYD [ZSDD] : Endif
+Filter [ZSDD] Where RCPQTYSTU=0 and left$(BPCORD,3)="ICR" and left$(SDHNUM,4)<>"DC52" Order by SDHNUM Asc; SDDLIN Asc
+For [ZSDD]
+    infbox [F:ZSDD]SDHNUM
+Next
+
+

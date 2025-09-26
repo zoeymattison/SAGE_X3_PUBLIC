@@ -1,0 +1,23 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([ZCR]) : Local File ZVCSKREC [ZCR] : Endif
+Filter [ZCR] Where PTHNUM=""
+#For [ZCR]
+#    Infbox [F:ZCR]SDHNUM
+#Next
+
+Read [ZCR] first
+If ![S]fstat
+    infbox [F:ZCR]SDHNUM
+else
+     infbox "Error reading the table!"
+endif
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,30 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+
+ Local Integer  STA
+ Local Integer  TRACE
+ Local Char      FIC_TRACE(250)
+ Local Char      ISSUERMAIL(250)
+ Local Char      A_USER(250)(1..)
+ Local Char      CC_USER(250)(1..)
+ Local Char      HEADER(250)
+ Local Clbfile   BODY(0)
+ Local Char      ATTACHMENTS(250)(1..)
+
+    A_USER(1)="zoey.mattison@monk.ca"
+    HEADER="Excel Test"
+    ISSUERMAIL="noreply@monk.ca"
+    ATTACHMENTS(1) = "D:\Sage\X3\folders\LIVE\ZATTACH\ZARCHIVE\BackOrderReport_20240709.xlsx"
+    ATTACHMENTS(2) = "D:\Sage\X3\folders\LIVE\ZATTACH\ZARCHIVE\BackOrderReport_20240710.xlsx"
+    ATTACHMENTS(3) = "D:\Sage\X3\folders\LIVE\ZATTACH\ZARCHIVE\BackOrderReport_20240711.xlsx"
+    TRACE = 2
+
+    Append BODY , "This is an automated message."
+
+    STA =func ASYRMAIL.ASEND_MAIL(GACTX,ISSUERMAIL,A_USER,CC_USER,HEADER,BODY,ATTACHMENTS,TRACE)
+    If STA <> [V]CST_AOK Then
+       Infbox( mess(1163,196,1))
+    Endif
+
+
+
+

@@ -1,0 +1,27 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+# [YIMPORT]/PIHGEN_#
+If !clalev([ZPIH]) : Local File PINVOICE [ZPIH] : Endif
+If !clalev([ZPTH]) : Local File PRECEIPT [ZPTH] : Endif
+Filter [ZPTH] Where CREDAT>=gdat$('20250617') and BPSNDE<>"" and BETFCY=1 and left$(PRHFCY,2)="DC" and left$(BPSNUM,1)="V" and ZPTHFLG=2 and ZPOHNUM<>"" and ZINVFLG<>2
+For [ZPTH]
+	Look [ZPIH]PIH1=func AFNC.INTFLD("BPSUPPLIER","BPRPAY",[F:ZPTH]BPSNUM);[F:ZPTH]BPSNDE
+	If ![S]fstat
+		[F:ZPTH]ZINVFLG=2
+		Rewrite [F:ZPTH]
+	Endif
+Next
+End
+
+
+
+
+
+
+
+
+
+
+
+
+
+

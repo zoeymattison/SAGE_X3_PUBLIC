@@ -1,0 +1,54 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+If !clalev([ZBIE]) : Local File ZVBPCSIHEML [ZBIE] : Endif
+If !clalev([ZSIH]) : Local File SINVOICE [ZSIH] : Endif
+
+Local Char FONCTION(30)
+Local Char TBPAR(150)(150)
+Local Char TBVAL(150)(150)
+Global Clbfile ZG_SIHMES(0)
+Global Char ZG_SIHEML(80)
+Global Char ZG_SIHECC(80)
+Global Char ZG_SIHSBJ(250)
+Global Char ZG_SIHSND(250)
+Global Char ZV_ZW_GESSIHR(2) : [V]ZV_ZW_GESSIHR="T"
+Local Char BPC_EML(80) : [L]BPC_EML=""
+
+Filter [ZBIE] Order By SHIPTO Asc;NUM Asc
+
+For [ZBIE]
+	Read [ZSIH]SIH0=[F:ZBIE]NUM
+	If ![S]fstat
+		[F:ZSIH]ZBPCEML=2
+		Rewrite [ZSIH]
+		If ![S]fstat
+
+            TBPAR(0) = "vcrdeb"	: TBVAL(0) = [F:ZBIE]NUM
+            TBPAR(1) = "vcrfin"	: TBVAL(1) = [F:ZBIE]NUM
+            TBPAR(2) = "datedeb"	: TBVAL(2) = format$("MM[/]DD[/]YYYY",date$-365*10)
+            TBPAR(3) = "datefin"	: TBVAL(3) = format$("MM[/]DD[/]YYYY",date$+365*10)
+            TBPAR(4) = "bpdeb"	: TBVAL(4) = [F:ZBIE]BILLTO
+            TBPAR(5) = "bpfin"	: TBVAL(5) = [F:ZBIE]BILLTO
+            TBPAR(6) = "balance"	: TBVAL(6) = "3"
+            TBPAR(7) = "edd"	: TBVAL(7) = "1"
+            TBPAR(8) = "duddeb"	: TBVAL(8) = format$("MM[/]DD[/]YYYY",date$-365*10)
+            TBPAR(9) = "dudfin"	: TBVAL(9) = format$("MM[/]DD[/]YYYY",date$+365*10)
+			If [F:ZBIE]SIHEML="" : [L]BPC_EML="ar@monk.ca" : Else [L]BPC_EML=[F:ZBIE]SIHEML : Endif
+            [V]ZG_SIHSND="ar@monk.ca"
+            [V]ZG_SIHEML=[L]BPC_EML
+            [V]ZG_SIHECC="ar@monk.ca"
+            [V]ZG_SIHSBJ="Monk Office "+tolower(mess(val(func AFNC.INTFLD("SINVOICE","INVTYP",[F:ZBIE]NUM)),645,1))+' - '+[F:ZBIE]NUM
+            [V]ZG_SIHMES+="Hello, this is an automated message intended for "+func AFNC.INTFLD('BPCUSTOMER','BPCNAM',[F:ZBIE]SHIPTO)+"."+chr$(10)+chr$(10)
+            [V]ZG_SIHMES+="Please find attached your "+tolower(mess(val(func AFNC.INTFLD('SINVOICE','INVTYP',[F:ZBIE]NUM)),645,1))+" from Monk Office."+chr$(10)+chr$(10)
+            [V]ZG_SIHMES+="Thank you,"+chr$(10)+chr$(10)
+            [V]ZG_SIHMES+="Accounts Receivable"+chr$(10)
+            [V]ZG_SIHMES+="Monk Office"+chr$(10)
+            [V]ZG_SIHMES+="800 Viewfield Road"+chr$(10)
+            [V]ZG_SIHMES+="Victoria, BC V9A4V1"+chr$(10)
+            [V]ZG_SIHMES+="P: 250-414-3359 E: ar@monk.ca"
+            Call ETAT("MONK-INVOICE", "EMAILX3" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+            Raz [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND,TBPAR,TBVAL,[L]BPC_EML
+		Endif
+	Endif
+Next
+Kill [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND,[V]ZV_ZW_GESSIHR
+End

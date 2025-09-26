@@ -1,0 +1,119 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([ZVM]) : Local File ZVMATCH [ZVM] : Endif
+If !clalev([ZAE]) : Local File GACCENTRYD [ZAE] : Endif
+If !clalev([ZMC]) : Local File MATCHCODE [ZMC] : Endif
+If !clalev([ZAL]) : Local File APLLCK [ZAL] : Endif
+If !clalev([ZMA]) : Local File MTCAUTO [ZMA] : Endif
+
+Columns [ZAE] (BPR,COA,ACC,ACCDAT,AMTCUR,MTC,MTCDAT,MTCDATMIN,MTCDATMAX,NUM,UPDDATTIM,UPDUSR)
+
+#0: USED To DISPLAY MESSAGES IN BLACK COLOR.
+#1: USED To INDICATE ERROR MESSAGES IN RED COLOR.
+#-1: USED To PRESENT MESSAGES IN GREEN COLOR.
+#-2: USED To SHOWCASE MESSAGES IN BLUE COLOR.
+
+Local Char ZL_BPCNUM(30)(1..),ZL_BPCCOA(30)(1..),ZL_BPCACC(30)(1..) : [L]ZL_BPCNUM=""
+Local Integer ZL_INDEX1 : [L]ZL_INDEX1=1
+Local Char ZL_DATETIME(60) : ZL_DATETIME=format$("YYYY[-]MM[-]DD[_]hh[:]mm[:]ss",datetime$)
+Local Date ZL_MINDAT
+Local Date ZL_MAXDAT
+
+Call OUVRE_TRACE("Automatic $0 Matching "+[L]ZL_DATETIME) From LECFIC
+
+Filter [ZAE] Where BPR<>"" and AMTCUR=0 and MTC="" Order By BPR Asc;NUM Asc
+For [ZAE]
+	Read [ZAL]LCKCLE="MTC MAIN "+[F:ZAE]ACC+" "+[F:ZAE]BPR;0
+	If [S]fstat
+    	If ZL_INDEX1>1 and [L]ZL_BPCNUM(ZL_INDEX1-1)<>[F:ZAE]BPR
+    		[L]ZL_BPCNUM(ZL_INDEX1)=[F:ZAE]BPR
+    		[L]ZL_BPCCOA(ZL_INDEX1)=[F:ZAE]COA
+    		[L]ZL_BPCACC(ZL_INDEX1)=[F:ZAE]ACC
+    		ZL_INDEX1+=1
+    	Else
+    		If ZL_INDEX1=1
+        		[L]ZL_BPCNUM(ZL_INDEX1)=[F:ZAE]BPR
+        		[L]ZL_BPCCOA(ZL_INDEX1)=[F:ZAE]COA
+        		[L]ZL_BPCACC(ZL_INDEX1)=[F:ZAE]ACC
+        		ZL_INDEX1+=1
+        	Endif
+    	Endif
+    Endif
+Next
+#Infbox num$([L]ZL_INDEX1)+" "+num$([L]ZL_INDEX1-1)+" "+num$(maxtab([L]ZL_BPCNUM))
+
+If [L]ZL_BPCNUM(1)<>""
+	Call ECR_TRACE("Found "+num$(maxtab([L]ZL_BPCNUM))+" accounts to match!",-2) From GESECRAN
+    For I=1 To maxtab([L]ZL_BPCNUM)
+    	If [L]ZL_BPCNUM(I)<>""
+        	#Infbox "Inside For Loop"
+        	Filter [ZMA] Where BPR=[L]ZL_BPCNUM(I)
+    		Read [ZMA] First
+    		If [S]fstat
+                Read [ZMC]MTC0=[L]ZL_BPCCOA(I);[L]ZL_BPCACC(I);[L]ZL_BPCNUM(I)
+                If ![S]fstat
+                	Filter [ZAE] Where BPR=[L]ZL_BPCNUM(I) and AMTCUR=0 and MTC="" and BPR<>"" Order By BPR Asc;NUM Asc
+                	#Infbox "After First Filter"
+                	Read [ZAE] First
+                	If ![S]fstat
+                		#Infbox num$([F:ZAE]ACCDAT)
+                		[L]ZL_MINDAT=[F:ZAE]ACCDAT
+        			Endif
+        			Read [ZAE] Last
+        			If ![S]fstat
+        				#Infbox num$([F:ZAE]ACCDAT)
+        				[L]ZL_MAXDAT=[F:ZAE]ACCDAT
+        			Endif
+        			Read [ZAE]
+                	Call ECR_TRACE(" ",0) From GESECRAN
+                	Call ECR_TRACE("#### Account number "+[L]ZL_BPCNUM(I)+" ####",-2) From GESECRAN
+                    For [ZAE]
+                    	#Infbox [F:ZAE]BPR
+                    	If [F:ZAE]AMTCUR=0 and [F:ZAE]BPR=[L]ZL_BPCNUM(I) and [F:ZAE]MTC="" and [F:ZAE]BPR<>""
+                    		#Infbox "Inside second For loop"
+                            [F:ZAE]MTC=[F:ZMC]MTC
+                            [F:ZAE]MTCDAT=date$
+                            [F:ZAE]MTCDATMIN=[L]ZL_MINDAT
+                            [F:ZAE]MTCDATMAX=[L]ZL_MAXDAT
+                            Rewrite [ZAE]
+                            If ![S]fstat
+                            	Call ECR_TRACE("Invoice "+[F:ZAE]NUM+" matched with letter "+[F:ZMC]MTC,-1) From GESECRAN
+            				Else
+            					Call ECR_TRACE("Invoice "+[F:ZAE]NUM+" unable to be matched due to error",1) From GESECRAN
+        					Endif
+        				Endif
+                    Next
+                    Filter [ZVM] Where BPR=[L]ZL_BPCNUM(I) Order By LENGTH Desc;LASTLET Desc
+            		Read [ZVM] First
+            		If ![S]fstat
+                		[F:ZMC]MTC=[F:ZVM]NEXTLET
+                		Rewrite [ZMC]
+                		If ![S]fstat
+            				Call ECR_TRACE("New matching letter for account "+[L]ZL_BPCNUM(I)+": "+[F:ZVM]NEXTLET,-2) From GESECRAN
+        				Endif
+                	Endif
+            	Else
+            		Call ECR_TRACE(" ",0) From GESECRAN
+            		Call ECR_TRACE("No match code found for "+[L]ZL_BPCNUM(I)+"!",1) From GESECRAN
+            		[F:ZMC]COA=[L]ZL_BPCCOA(I)
+            		[F:ZMC]ACC=[L]ZL_BPCACC(I)
+            		[F:ZMC]BPR=[L]ZL_BPCNUM(I)
+            		[F:ZMC]MTC="A"
+            		Write [ZMC]
+            		If ![S]fstat
+            			Call ECR_TRACE("New matching record successfully generated for "+[L]ZL_BPCNUM(I),-2) From GESECRAN
+					Else
+						Call ECR_TRACE("Error during creation of new matching record for "+[L]ZL_BPCNUM(I)+"!",1) From GESECRAN
+					Endif
+            	Endif
+            Else
+           		Call ECR_TRACE("Account number "+[L]ZL_BPCNUM(I)+" unable to be matched: automatic matching in progress!",1) From GESECRAN
+    		Endif
+    	Endif
+    Next
+Endif
+
+Call FERME_TRACE From LECFIC
+Call LEC_TRACE From LECFIC
+
+
+

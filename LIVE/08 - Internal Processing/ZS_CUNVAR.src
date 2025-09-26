@@ -1,0 +1,31 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+If !clalev([ZCUL]) : Local File CUNLISTE [ZCUL] : Endif
+If !clalev([ZALK]) : Local File APLLCK [ZALK] : Endif
+Filter [ZCUL] Where CUNLISSTA=6 and ZVARSTA<>2
+For [ZCUL]
+	Read [ZALK]LCKCLE="CUN"+[F:ZCUL]CUNSSSNUM;0
+	If [S]fstat
+		[F:ZCUL]ZVARSTA=2 : Rewrite [ZCUL]
+		If ![S]fstat
+    		Local Char WNOMFIC(250) : WNOMFIC="sageemmain.monk.ca@D:\Sage\X3\folders\LIVE\ZATTACH\"+[F:ZCUL]CUNLISNUM+".csv"	# File path and name
+    		Openo WNOMFIC Using [ZZZ]
+    		adxifs=chr$(9)
+    		adxirs=chr$(13)+chr$(10)
+    		If !clalev([ZCVR]) : Local File ZVCUNVAR [ZCVR] : Endif
+    		Filter [ZCVR] Where CUNLIS=[F:ZCUL]CUNLISNUM
+			Wrseq "sep="+chr$(9) Using [ZZZ]
+			Wrseq "Product","Description","Class","Expected","Variance","Variance Cost","Status","Date Created","Last Invoice","Qty Sold 1Y" Using [ZZZ]
+    		For [ZCVR]
+    			Wrseq [F:ZCVR]ITMREF,[F:ZCVR]ITMDES,[F:ZCVR]TSICOD,num$([F:ZCVR]QTYEXP),num$([F:ZCVR]QTYVAR),num$([F:ZCVR]CSTVAR),[F:ZCVR]MONKSTA,num$([F:ZCVR]CREDAT),num$([F:ZCVR]LASTINV),num$([F:ZCVR]QTY1Y) 
+& Using [ZZZ]
+    		Next
+    		Openo Using [ZZZ]
+    		Gosub GET_COUNT_VARIANCE From ZS_PRINT
+    		Sleep(30)
+    		Local Char DESPATH(200) : [L]DESPATH = "D:\Sage\X3\folders\LIVE\ZATTACH\ARCHIVE"
+    		Local Integer STAT : [L]STAT = 1
+    		Call MOVE([L]WNOMFIC, [L]DESPATH, [L]STAT) From ORDSYS
+    		#Infbox [F:ZCUL]CUNSSSNUM+" "+[F:ZCUL]CUNLISNUM
+    	Endif
+	Endif
+Next

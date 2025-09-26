@@ -1,0 +1,59 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+If !clalev([ZSDD]) : Local File SDELIVERYD [ZSDD] : Endif
+If !clalev([ZALK]) : Local File APLLCK [ZALK] : Endif
+
+Local Char WNOMFIC(250)(1..),CUR_SDHNUM(50)
+Local Integer ZL_COUNT,WNOM_I : [L]ZL_COUNT=0 : [L]WNOM_I=1
+Filter [ZSDD] Where RCPQTYSTU=0 and left$(BPCORD,3)="ICR" and left$(SDHNUM,4)<>"DC52" Order By SDHNUM Asc; SDDLIN Asc
+Call OUVRE_TRACE("Receiving import "+format$("YYYY[-]MM[-]DD[-]hhmmss",datetime$)) From LECFIC
+Call ECR_TRACE("Begin file export...............",-1) From GESECRAN
+For [ZSDD]
+	Look [ZALK]LCKCLE="SDH"+[F:ZSDD]SDHNUM
+	If [S]fstat
+    	#Infbox [F:ZSDD]SDHNUM
+    	If [L]CUR_SDHNUM<>[F:ZSDD]SDHNUM
+        	[L]CUR_SDHNUM=[F:ZSDD]SDHNUM
+    		WNOMFIC(WNOM_I)=filpath("","ZATTACH\TEMP\CARREC_"+[F:ZSDD]SDHNUM+"_"+num$(time),"txt")
+    		Local Char TEMP_WNOM(250) : [L]TEMP_WNOM=WNOMFIC(WNOM_I)
+    		WNOM_I+=1
+
+    		Openo [L]TEMP_WNOM Using [ZZZ]
+            adxifs=chr$(9)
+            adxirs=chr$(13)+chr$(10)
+
+            Call ECR_TRACE("",0) From GESECRAN
+        	Call ECR_TRACE("File opened for writing: "+"CARREC_"+[F:ZSDD]SDHNUM+"_"+num$(time)+".txt",-2) From GESECRAN
+
+    		Local Char STOCK_SITE(15) : If left$([F:ZSDD]STOFCY,2)="DC" : [L]STOCK_SITE="I"+[F:ZSDD]STOFCY : Else : [L]STOCK_SITE=[F:ZSDD]STOFCY : Endif
+
+    		Wrseq "E",right$([F:ZSDD]BPCORD,2),[L]STOCK_SITE,format$("YYYYMMDD",date$) Using [ZZZ]
+    		Wrseq "L",[F:ZSDD]SDHNUM,[F:ZSDD]SDDLIN,[F:ZSDD]ITMREF,[F:ZSDD]ITMDES1,[F:ZSDD]SAU,[F:ZSDD]QTY Using [ZZZ]
+    		Call ECR_TRACE([F:ZSDD]SDHNUM+"   "+num$([F:ZSDD]SDDLIN)+"   "+[F:ZSDD]ITMREF+"   "+num$([F:ZSDD]QTY)+"   "+[F:ZSDD]SAU,0) From GESECRAN
+    		[L]ZL_COUNT+=1
+        Else
+    		Wrseq "L",[F:ZSDD]SDHNUM,[F:ZSDD]SDDLIN,[F:ZSDD]ITMREF,[F:ZSDD]ITMDES1,[F:ZSDD]SAU,[F:ZSDD]QTY Using [ZZZ]
+    		#Wrseq "S","A","","","","","","","" Using [ZZZ]
+    		Call ECR_TRACE([F:ZSDD]SDHNUM+"   "+num$([F:ZSDD]SDDLIN)+"   "+[F:ZSDD]ITMREF+"   "+num$([F:ZSDD]QTY)+"   "+[F:ZSDD]SAU,0) From GESECRAN
+    		[L]ZL_COUNT+=1
+    	Endif
+    Endif
+Next
+If [L]ZL_COUNT>0
+	Openo Using [ZZZ]
+	Call ECR_TRACE("",-1) From GESECRAN
+	Call ECR_TRACE(num$([L]ZL_COUNT)+" lines successfully written...",-1) From GESECRAN
+	Call ECR_TRACE("",-1) From GESECRAN
+	Call ECR_TRACE("Begin receipt creation...",-1) From GESECRAN
+	Call ECR_TRACE("",-1) From GESECRAN
+	Local Char DESPATH(200) : [L]DESPATH = "D:\Sage\X3\folders\LIVE\YIMPORT"
+	Local Integer STAT : [L]STAT=1
+	For I=1 To maxtab(WNOMFIC)
+		#If GUSER<>"MOZM" : Call MOVE(WNOMFIC(I),[L]DESPATH,[L]STAT) From ORDSYS : Endif
+		Call IMPORTSIL("ZPTHIMP2",WNOMFIC(I)) From GIMPOBJ
+	Next
+Else
+	Call ECR_TRACE("",-1) From GESECRAN
+	Call ECR_TRACE("Nothing to import!",-1) From GESECRAN
+Endif
+Call FERME_TRACE From LECFIC
+#If GUSER="MOZM" : Call LEC_TRACE From LECFIC : Endif

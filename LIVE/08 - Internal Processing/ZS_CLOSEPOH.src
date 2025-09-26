@@ -1,0 +1,5 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([ZPOQ]) : Local File PORDERQ [ZPOQ] : Endif
+Update [ZPOQ] where POHNUM="PO21081036" and ITMREF="GRXR05DC4050" with LINCLEFLG=2
+
+

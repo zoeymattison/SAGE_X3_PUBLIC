@@ -1,36 +1,34 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 Subprog OPENFILES
   Local Char FILE1(250), FILE2(250)
   Local Integer FSTAT1, FSTAT2
   Local Char LINE1(250), LINE2(250)
 
-  FILE1 = "D:\Sage\X3\folders\LIVE\ZFILES\filenames.txt"
-  FILE2 = "D:\Sage\X3\folders\LIVE\ZFILES\filepaths.txt"
+  [L]FILE1 = "D:\Sage\X3\folders\LIVE\ZFILES\filenames.txt"
+  [L]FILE2 = "D:\Sage\X3\folders\LIVE\ZFILES\filepaths.txt"
 
-  Openi FILE1 Using [ZFILE1]
+  Openi [L]FILE1 Using [ZFILE1]
   Iomode adxifs chr$(13)+chr$(10) Using [ZFILE1]
 
-  Openi FILE2 Using [ZFILE2]
+  Openi  [L]FILE2 Using [ZFILE2]
   Iomode adxifs chr$(13)+chr$(10) Using [ZFILE2]
 
   Repeat
-    Rdseq LINE1 Using [ZFILE1]
-    FSTAT1 = fstat
+    Rdseq  [L]LINE1 Using [ZFILE1]
+     [L]FSTAT1 = [S]fstat
 
     Rdseq LINE2 Using [ZFILE2]
-    FSTAT2 = fstat
+     [L]FSTAT2 = [S]fstat
 
-    If FSTAT1 = 0 And FSTAT2 = 0
-      If LINE1 <> "" And LINE2 <> "" Then
-        Infbox LINE1,LINE2
+    If  [L]FSTAT1 = 0 and  [L]FSTAT2 = 0
+      If  [L]LINE1 <> "" and  [L]LINE2 <> "" Then
+        Infbox  [L]LINE1, [L]LINE2
       Endif
     Else
       Break
-    ENdif
-  Until FSTAT1 <> 0 Or FSTAT2 <> 0
+    Endif
+  Until  [L]FSTAT1 <> 0 or  [L]FSTAT2 <> 0
 
   Openi Using [ZFILE1]
   Openi Using [ZFILE2]
 End
-
-
-

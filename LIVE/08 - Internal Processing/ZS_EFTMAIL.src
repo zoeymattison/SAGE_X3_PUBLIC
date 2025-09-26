@@ -1,0 +1,56 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !Clalev([ZDD]) : Local File ZDOCDATA[ZDD] : Endif
+If !Clalev([ZPY]) : Local File PAYMENTH[ZPY] : Endif
+
+Global Char ZG_EFTNOT
+Global Clbfile ZG_EFTEMAIL
+Global Char ZG_EFTVCR
+Global Char ZG_EFTMID : ZG_EFTMID = "EFT Mailing"
+Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+    TBPAR_BP(1) = "regdeb"
+Local Char ZMAILED(50)(1..)
+Local Integer ZI
+    ZI = 1
+
+Filter [ZDD] Where ZTYPE = 'PAYET' and ZNAME = 'MAILING' And CREDAT >= date$-100
+
+For [ZDD]
+    ZMAILED(ZI) = [F:ZDD]ZNUM
+    ZI = ZI+1
+Next
+
+Filter [ZPY] Where pat(NUM, 'PAYET*') and !find(NUM, ZMAILED) and STA = 9 and CREDAT >= date$-90
+
+For [ZPY]
+    ZG_EFTEMAIL = func AFNC.INTFLD('BPSUPPLIER','YACHWEB',[F:ZPY]BPR)
+    if ZG_EFTEMAIL = ''
+        ZG_EFTNOT = '(NO RECIPIENT)'
+    Endif
+    TBVAL_BP(1) = [F:ZPY]NUM
+    ZG_EFTVCR  = [F:ZPY]NUM
+    [F:ZDD]ZNUM = [F:ZPY]NUM
+    [F:ZDD]ZTYPE = 'PAYET'
+    [F:ZDD]ZNAME = 'MAILING'
+    [F:ZDD]CREDAT = [F:ZPY]CREDAT
+    Write [ZDD]
+    Call ETAT("ZPAYET","EMAILX3","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+    Raz ZG_EFTEMAIL, ZG_EFTNOT, TBVAL_BP(1), ZG_EFTVCR
+Next
+
+Raz ZG_EFTMID, TBPAR_BP, ZMAILED, ZI
+
+Close Local File [ZDD], [ZPY]
+End
+
+
+
+
+
+
+
+
+
+
+
+
+

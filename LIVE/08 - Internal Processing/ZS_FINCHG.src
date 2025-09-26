@@ -1,0 +1,72 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([DUD]) : Local File GACCDUDATE [DUD] : Endif
+
+Local Char ZL_DUDDAT(30)
+
+Case month(date$)
+	When 1 : [L]ZL_DUDDAT=num$(year(date$)-1)+"11"+"01"
+	When 2 : [L]ZL_DUDDAT=num$(year(date$)-1)+"12"+"01"
+	When 3 : [L]ZL_DUDDAT=num$(year(date$))+"01"+"01"
+	When 4 : [L]ZL_DUDDAT=num$(year(date$))+"02"+"01"
+	When 5 : [L]ZL_DUDDAT=num$(year(date$))+"03"+"01"
+	When 6 : [L]ZL_DUDDAT=num$(year(date$))+"04"+"01"
+	When 7 : [L]ZL_DUDDAT=num$(year(date$))+"05"+"01"
+	When 8 : [L]ZL_DUDDAT=num$(year(date$))+"06"+"01"
+	When 9 : [L]ZL_DUDDAT=num$(year(date$))+"07"+"01"
+	When 10 : [L]ZL_DUDDAT=num$(year(date$))+"08"+"01"
+	When 11 : [L]ZL_DUDDAT=num$(year(date$))+"09"+"01"
+	When 12 : [L]ZL_DUDDAT=num$(year(date$))+"10"+"01"
+Endcase
+
+
+Filter [DUD] Where (TYP<>"NP" and TYP<>"NEWPR" and TYP<>"NEW" and TYP<>"CLO" and TYP<>"INT" and TYP<>"*SO") and SAC="AR" and (SNS*(AMTCUR-PAYCUR))<>0 and DUDDAT<=eomonth(gdat$([L]ZL_DUDDAT)) Order By 
+& BPRPAY
+& Asc
+Read [DUD] First
+If [S]fstat
+Infbox "Nope!" : End
+Endif
+Local Char WNOMFIC(250) : WNOMFIC=filpath("","YIMPORT\FinanceCharges_"+format$("YYMMDDhhmmss",date$),"")	# File path and name
+Openo WNOMFIC Using [ZZZ]
+adxifs=chr$(9)
+adxirs=chr$(13)+chr$(10)
+
+Local Decimal ZL_FINCHG : [L]ZL_FINCHG=0
+Local Char BPLAST(30)
+Read [DUD] First
+If ![S]fstat
+	[L]BPLAST=[F:DUD]BPRPAY
+Else
+	End
+Endif
+For [DUD]
+	If func AFNC.INTFLD("BPCUSTOMER","YFINCHG",[F:DUD]BPRPAY)="2"
+    	If [F:DUD]BPRPAY=[L]BPLAST
+    		[L]ZL_FINCHG+=[F:DUD]SNS*([F:DUD]AMTCUR-[F:DUD]PAYCUR)
+    	Else
+    		If [L]ZL_FINCHG>=1
+                Wrseq "T","INT",[L]BPLAST,format$("YYYYMMDD",date$),"CAD",[L]BPLAST,format$("YYYYMMDD",date$),"NT",ar2([L]ZL_FINCHG*0.02),ar2([L]ZL_FINCHG*0.02),"Auto Finance Charge" Using [ZZZ]
+                Wrseq "D","44100",[L]BPLAST,ar2([L]ZL_FINCHG*0.02),0,"NT","Auto Finance Charge" Using [ZZZ]
+                Wrseq "A",ar2([L]ZL_FINCHG*0.02),0 Using [ZZZ]
+                [L]BPLAST=[F:DUD]BPRPAY
+                [L]ZL_FINCHG=[F:DUD]SNS*([F:DUD]AMTCUR-[F:DUD]PAYCUR)
+            Else
+                [L]BPLAST=[F:DUD]BPRPAY
+            	[L]ZL_FINCHG=[F:DUD]SNS*([F:DUD]AMTCUR-[F:DUD]PAYCUR)
+            Endif
+    	Endif
+    Endif
+Next
+
+If [L]ZL_FINCHG>=1
+    Wrseq "T","INT",[L]BPLAST,format$("YYYYMMDD",date$),"CAD",[L]BPLAST,format$("YYYYMMDD",date$),"NT",ar2([L]ZL_FINCHG*0.02),ar2([L]ZL_FINCHG*0.02),"Auto Finance Charge" Using [ZZZ]
+    Wrseq "D","44100",[L]BPLAST,ar2([L]ZL_FINCHG*0.02),0,"NT","Auto Finance Charge" Using [ZZZ]
+    Wrseq "A",ar2([L]ZL_FINCHG*0.02),0 Using [ZZZ]
+Endif
+
+Openo Using [ZZZ]
+
+If clalev([DUD]) : Close File [DUD] : Endif
+
+
+

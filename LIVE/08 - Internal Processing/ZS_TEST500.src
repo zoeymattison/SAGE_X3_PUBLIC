@@ -1,0 +1,9 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Local Char TBPAR(240)(100),TBVAL(240)(100)
+TBPAR(1)="billto" : TBVAL(1)="79061"
+TBPAR(2)="datedeb" : TBVAL(2)=num$(date$-365)
+TBPAR(3)="datefin" : TBVAL(3)=num$(date$)
+#Call ETAT("ZRPT-GESSIH", "EMAILX3" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+Call ETAT("MONK-COLLECTION","PREVIEW","",0,"",TBPAR,TBVAL) from AIMP3
+
+

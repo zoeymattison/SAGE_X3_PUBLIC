@@ -1,3 +1,4 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 $ACTION
 Case ACTION
     When "OUVRE" : Gosub CHECK
@@ -42,3 +43,8 @@ Endif
 Raz [M:ZSLA]ZVALEUR
 Raz [M:ZSLA]ZDISTCNT
 Return
+
+
+
+
+

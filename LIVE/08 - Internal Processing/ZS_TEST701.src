@@ -1,0 +1,9 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Local Char              Y_JSDATA    (250) 
+[L]Y_JSDATA = "javascript:new Audio('https://themushroomkingdom.net/sounds/wav/smb/smb_1-up.wav'"       +").play()"
+Local clbfile Y_RESULT
+[L]Y_RESULT = "UIAction="+chr$(1)+"OpenFile,UILocalDir="+chr$(1)+"APP,UIWindowName="+chr$(1)+"_parent,UILocalFile="+chr$(1)+[L]Y_JSDATA
+Callui [L]Y_RESULT
+
+
+

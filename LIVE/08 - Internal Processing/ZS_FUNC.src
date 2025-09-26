@@ -1,0 +1,15 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Funprog BPTOTAL
+Local Decimal RETVAL
+If !Clalev([ZSV]) : Local File SINVOICEV[ZSV] : Endif
+If !Clalev([ZSI]) : Local File SINVOICE[ZSI] : Endif
+Local Decimal ZL_AMTATI
+Link [ZSV] With [ZSI]SIH0=[F:ZSV]NUM As [ZSH] Where ([F:ZSV]BPCORD = [M:BPC0]BPCNUM or [F:ZSV]BPCINV = [M:BPC0]BPCNUM)
+For [ZSH]
+[L]ZL_AMTATI += [F:ZSI]AMTATI*[F:ZSI]SNS
+Next
+Infbox num$([L]ZL_AMTATI)
+Raz [L]ZL_AMTATI
+
+
+

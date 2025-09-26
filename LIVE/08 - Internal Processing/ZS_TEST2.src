@@ -1,0 +1,16 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Funprog ZFUNC_TOTABCA(ZL_POHNUM)
+Value Char ZL_POHNUM
+Local Integer ZL_ABCA
+Local Char RETVAL
+
+If !clalev([ZPQ]) : Local File PORDERQ[ZPQ] : Endif
+Columns [ZPQ] (POHNUM, ITMREF, LINCLEFLG, PRHFCY)
+Filter [ZPQ] Where POHNUM = [L]ZL_POHNUM and LINCLEFLG = 1
+For [ZPQ]
+    If func AFNC.INTFLD("ITMFACILIT","ABCCLS",[F:ZPQ]ITMREF+'~'+[F:ZPQ]PRHFCY) = num$(1)
+        [L]ZL_ABCA += 1
+    Endif
+Next
+RETVAL = num$([L]ZL_ABCA)
+End RETVAL

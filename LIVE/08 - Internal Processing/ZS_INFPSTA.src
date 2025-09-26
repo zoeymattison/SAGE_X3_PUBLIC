@@ -1,3 +1,4 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 #####################################################################################
 ##                                                                                 ##
 ## SCRIPT            : InfoPOS Last Import Status Report for Monk Service Team     ##
@@ -12,422 +13,253 @@
 ##                                                                                 ##
 #####################################################################################
 
-IF !CLALEV([ZXS]) : LOCAL FILE ZXINFSTA[ZXS] : ENDIF
-IF !CLALEV([ZSO]) : LOCAL FILE SORDER[ZSO] : ENDIF
-IF !CLALEV([ZSD]) : LOCAL FILE SDELIVERY[ZSD] : ENDIF
-IF !CLALEV([ZSI]) : LOCAL FILE SINVOICE[ZSI] : ENDIF
+If !clalev([ZXS]) : Local File ZXINFSTA[ZXS] : Endif
+If !clalev([ZSO]) : Local File SORDER[ZSO] : Endif
+If !clalev([ZSD]) : Local File SDELIVERY[ZSD] : Endif
+If !clalev([ZSI]) : Local File SINVOICE[ZSI] : Endif
 
 # format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [F:SOH]CREDATTIM))
 
-LOCAL CHAR ZS16SOH(100)
-LOCAL CHAR ZS16SDH(100)
-LOCAL CHAR ZS16SIH(100)
-LOCAL CHAR ZS18SOH(100)
-LOCAL CHAR ZS18SDH(100)
-LOCAL CHAR ZS18SIH(100)
-LOCAL CHAR ZS21SOH(100)
-LOCAL CHAR ZS21SDH(100)
-LOCAL CHAR ZS21SIH(100)
-LOCAL CHAR ZS22SOH(100)
-LOCAL CHAR ZS22SDH(100)
-LOCAL CHAR ZS22SIH(100)
-LOCAL CHAR ZS23SOH(100)
-LOCAL CHAR ZS23SDH(100)
-LOCAL CHAR ZS23SIH(100)
-LOCAL CHAR ZS26SOH(100)
-LOCAL CHAR ZS26SDH(100)
-LOCAL CHAR ZS26SIH(100)
-LOCAL CHAR ZS28SOH(100)
-LOCAL CHAR ZS28SDH(100)
-LOCAL CHAR ZS28SIH(100)
+Local Char ZS16SOH(100)
+Local Char ZS16SDH(100)
+Local Char ZS16SIH(100)
+Local Char ZS21SOH(100)
+Local Char ZS21SDH(100)
+Local Char ZS21SIH(100)
+Local Char ZS22SOH(100)
+Local Char ZS22SDH(100)
+Local Char ZS22SIH(100)
+Local Char ZS26SOH(100)
+Local Char ZS26SDH(100)
+Local Char ZS26SIH(100)
 
-LOCAL INTEGER   STA
-LOCAL INTEGER   TRACE
-LOCAL CHAR      FIC_TRACE(250)
-LOCAL CHAR      ISSUERMAIL(250)
-LOCAL CHAR      A_USER(250)(1..)
-LOCAL CHAR      CC_USER(250)(1..)
-LOCAL CHAR      HEADER(250)
-LOCAL CLBFILE   BODY(0)
-LOCAL CHAR      ATTACHMENTS(250)(1..)
+Local Integer   STA
+Local Integer   TRACE
+Local Char      FIC_TRACE(250)
+Local Char      ISSUERMAIL(250)
+Local Char      A_USER(250)(1..)
+Local Char      CC_USER(250)(1..)
+Local Char      HEADER(250)
+Local Clbfile   BODY(0)
+Local Char      ATTACHMENTS(250)(1..)
 
 # STORE 16 #
 
-FILTER  [ZSO] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '1600'
-READ [ZSO] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '1600'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSO]SOHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '1600' WITH ZLASNUM = [ZSO]SOHNUM
+Filter  [ZSO] Where CREUSR = 'INFP' and CREDAT >= date$-1 and SALFCY = '1600'
+Read [ZSO] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SOH' and ZXSTORE = '1600'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSO]SOHNUM
+            Update [ZXS] Where ZXNAME = 'LAST_SOH' and ZXSTORE = '1600' With ZLASNUM = [ZSO]SOHNUM
             ZS16SOH = '[SALES ORDER] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS16SOH = '[SALES ORDER] NO UPDATE SINCE'-[ZSO]SOHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS16SOH = '[SALES ORDER] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
-FILTER  [ZSD] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '1600'
-READ [ZSD] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '1600'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSD]SDHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '1600' WITH ZLASNUM = [ZSD]SDHNUM
+Filter  [ZSD] Where CREUSR = 'INFP' and CREDAT >= date$-1 and SALFCY = '1600'
+Read [ZSD] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SDH' and ZXSTORE = '1600'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSD]SDHNUM
+            Update [ZXS] Where ZXNAME = 'LAST_SDH' and ZXSTORE = '1600' With ZLASNUM = [ZSD]SDHNUM
             ZS16SDH = '[DELIVERY] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS16SDH = '[DELIVERY] NO UPDATE SINCE'-[ZSD]SDHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS16SDH = '[DELIVERY] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
-FILTER  [ZSI] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND FCY = '1600'
-READ [ZSi] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '1600'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSI]NUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '1600' WITH ZLASNUM = [ZSI]NUM
+Filter  [ZSI] Where CREUSR = 'INFP' and CREDAT >= date$-1 and FCY = '1600'
+Read [ZSI] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SIH' and ZXSTORE = '1600'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSI]NUM
+            Update [ZXS] Where ZXNAME = 'LAST_SIH' and ZXSTORE = '1600' With ZLASNUM = [ZSI]NUM
             ZS16SIH = '[INVOICE] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS16SIH = '[INVOICE] NO UPDATE SINCE'-[ZSI]NUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS16SIH = '[INVOICE] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
-
-# STORE 18 #
-
-FILTER  [ZSO] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '1800'
-READ [ZSO] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '1800'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSO]SOHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '1800' WITH ZLASNUM = [ZSO]SOHNUM
-            ZS18SOH = '[SALES ORDER] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ELSE
-            ZS18SOH = '[SALES ORDER] NO UPDATE SINCE'-[ZSO]SOHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
-ZS18SOH = '[SALES ORDER] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
-
-FILTER  [ZSD] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '1800'
-READ [ZSD] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '1800'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSD]SDHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '1800' WITH ZLASNUM = [ZSD]SDHNUM
-            ZS18SDH = '[DELIVERY] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ELSE
-            ZS18SDH = '[DELIVERY] NO UPDATE SINCE'-[ZSD]SDHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
-ZS18SDH = '[DELIVERY] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
-
-FILTER  [ZSI] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND FCY = '1800'
-READ [ZSi] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '1800'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSI]NUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '1800' WITH ZLASNUM = [ZSI]NUM
-            ZS18SIH = '[INVOICE] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ELSE
-            ZS18SIH = '[INVOICE] NO UPDATE SINCE'-[ZSI]NUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
-ZS18SIH = '[INVOICE] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
 # STORE 21 #
 
-FILTER  [ZSO] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2100'
-READ [ZSO] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2100'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSO]SOHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2100' WITH ZLASNUM = [ZSO]SOHNUM
+Filter  [ZSO] Where CREUSR = 'INFP' and CREDAT >= date$-1 and SALFCY = '2100'
+Read [ZSO] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SOH' and ZXSTORE = '2100'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSO]SOHNUM
+            Update [ZXS] Where ZXNAME = 'LAST_SOH' and ZXSTORE = '2100' With ZLASNUM = [ZSO]SOHNUM
             ZS21SOH = '[SALES ORDER] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS21SOH = '[SALES ORDER] NO UPDATE SINCE'-[ZSO]SOHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS21SOH = '[SALES ORDER] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
-FILTER  [ZSD] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2100'
-READ [ZSD] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2100'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSD]SDHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2100' WITH ZLASNUM = [ZSD]SDHNUM
+Filter  [ZSD] Where CREUSR = 'INFP' and CREDAT >= date$-1 and SALFCY = '2100'
+Read [ZSD] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SDH' and ZXSTORE = '2100'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSD]SDHNUM
+            Update [ZXS] Where ZXNAME = 'LAST_SDH' and ZXSTORE = '2100' With ZLASNUM = [ZSD]SDHNUM
             ZS21SDH = '[DELIVERY] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS21SDH = '[DELIVERY] NO UPDATE SINCE'-[ZSD]SDHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS21SDH = '[DELIVERY] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
-FILTER  [ZSI] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND FCY = '2100'
-READ [ZSi] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2100'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSI]NUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2100' WITH ZLASNUM = [ZSI]NUM
+Filter  [ZSI] Where CREUSR = 'INFP' and CREDAT >= date$-1 and FCY = '2100'
+Read [ZSI] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SIH' and ZXSTORE = '2100'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSI]NUM
+            Update [ZXS] Where ZXNAME = 'LAST_SIH' and ZXSTORE = '2100' With ZLASNUM = [ZSI]NUM
             ZS21SIH = '[INVOICE] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS21SIH = '[INVOICE] NO UPDATE SINCE'-[ZSI]NUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS21SIH = '[INVOICE] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
 # STORE 22 #
 
-FILTER  [ZSO] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2200'
-READ [ZSO] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2200'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSO]SOHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2200' WITH ZLASNUM = [ZSO]SOHNUM
+Filter  [ZSO] Where CREUSR = 'INFP' and CREDAT >= date$-1 and SALFCY = '2200'
+Read [ZSO] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SOH' and ZXSTORE = '2200'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSO]SOHNUM
+            Update [ZXS] Where ZXNAME = 'LAST_SOH' and ZXSTORE = '2200' With ZLASNUM = [ZSO]SOHNUM
             ZS22SOH = '[SALES ORDER] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS22SOH = '[SALES ORDER] NO UPDATE SINCE'-[ZSO]SOHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS22SOH = '[SALES ORDER] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
-FILTER  [ZSD] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2200'
-READ [ZSD] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2200'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSD]SDHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2200' WITH ZLASNUM = [ZSD]SDHNUM
+Filter  [ZSD] Where CREUSR = 'INFP' and CREDAT >= date$-1 and SALFCY = '2200'
+Read [ZSD] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SDH' and ZXSTORE = '2200'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSD]SDHNUM
+            Update [ZXS] Where ZXNAME = 'LAST_SDH' and ZXSTORE = '2200' With ZLASNUM = [ZSD]SDHNUM
             ZS22SDH = '[DELIVERY] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS22SDH = '[DELIVERY] NO UPDATE SINCE'-[ZSD]SDHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS22SDH = '[DELIVERY] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
-FILTER  [ZSI] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND FCY = '2200'
-READ [ZSi] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2200'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSI]NUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2200' WITH ZLASNUM = [ZSI]NUM
+Filter  [ZSI] Where CREUSR = 'INFP' and CREDAT >= date$-1 and FCY = '2200'
+Read [ZSI] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SIH' and ZXSTORE = '2200'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSI]NUM
+            Update [ZXS] Where ZXNAME = 'LAST_SIH' and ZXSTORE = '2200' With ZLASNUM = [ZSI]NUM
             ZS22SIH = '[INVOICE] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS22SIH = '[INVOICE] NO UPDATE SINCE'-[ZSI]NUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS22SIH = '[INVOICE] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
-
-# STORE 23 #
-
-FILTER  [ZSO] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2300'
-READ [ZSO] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2300'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSO]SOHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2300' WITH ZLASNUM = [ZSO]SOHNUM
-            ZS23SOH = '[SALES ORDER] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ELSE
-            ZS23SOH = '[SALES ORDER] NO UPDATE SINCE'-[ZSO]SOHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
-ZS23SOH = '[SALES ORDER] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
-
-FILTER  [ZSD] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2300'
-READ [ZSD] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2300'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSD]SDHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2300' WITH ZLASNUM = [ZSD]SDHNUM
-            ZS23SDH = '[DELIVERY] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ELSE
-            ZS23SDH = '[DELIVERY] NO UPDATE SINCE'-[ZSD]SDHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
-ZS23SDH = '[DELIVERY] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
-
-FILTER  [ZSI] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND FCY = '2300'
-READ [ZSi] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2300'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSI]NUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2300' WITH ZLASNUM = [ZSI]NUM
-            ZS23SIH = '[INVOICE] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ELSE
-            ZS23SIH = '[INVOICE] NO UPDATE SINCE'-[ZSI]NUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
-ZS23SIH = '[INVOICE] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
 # STORE 26 #
 
-FILTER  [ZSO] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2600'
-READ [ZSO] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2600'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSO]SOHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2600' WITH ZLASNUM = [ZSO]SOHNUM
+Filter  [ZSO] Where CREUSR = 'INFP' and CREDAT >= date$-1 and SALFCY = '2600'
+Read [ZSO] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SOH' and ZXSTORE = '2600'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSO]SOHNUM
+            Update [ZXS] Where ZXNAME = 'LAST_SOH' and ZXSTORE = '2600' With ZLASNUM = [ZSO]SOHNUM
             ZS26SOH = '[SALES ORDER] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS26SOH = '[SALES ORDER] NO UPDATE SINCE'-[ZSO]SOHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS26SOH = '[SALES ORDER] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
-FILTER  [ZSD] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2600'
-READ [ZSD] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2600'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSD]SDHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2600' WITH ZLASNUM = [ZSD]SDHNUM
+Filter  [ZSD] Where CREUSR = 'INFP' and CREDAT >= date$-1 and SALFCY = '2600'
+Read [ZSD] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SDH' and ZXSTORE = '2600'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSD]SDHNUM
+            Update [ZXS] Where ZXNAME = 'LAST_SDH' and ZXSTORE = '2600' With ZLASNUM = [ZSD]SDHNUM
             ZS26SDH = '[DELIVERY] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS26SDH = '[DELIVERY] NO UPDATE SINCE'-[ZSD]SDHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS26SDH = '[DELIVERY] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
-FILTER  [ZSI] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND FCY = '2600'
-READ [ZSi] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2600'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSI]NUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2600' WITH ZLASNUM = [ZSI]NUM
+Filter  [ZSI] Where CREUSR = 'INFP' and CREDAT >= date$-1 and FCY = '2600'
+Read [ZSI] Last
+If !fstat
+    Filter [ZXS] Where ZXNAME = 'LAST_SIH' and ZXSTORE = '2600'
+    Read [ZXS] Last
+    If !fstat
+        If [ZXS]ZLASNUM <> [ZSI]NUM
+            Update [ZXS] Where ZXNAME = 'LAST_SIH' and ZXSTORE = '2600' With ZLASNUM = [ZSI]NUM
             ZS26SIH = '[INVOICE] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ELSE
+        Else
             ZS26SIH = '[INVOICE] NO UPDATE SINCE'-[ZSI]NUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
+        Endif
+    Endif
+Else
 ZS26SIH = '[INVOICE] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
+Endif
 
-# STORE 28 #
-
-FILTER  [ZSO] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2800'
-READ [ZSO] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2800'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSO]SOHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SOH' AND ZXSTORE = '2800' WITH ZLASNUM = [ZSO]SOHNUM
-            ZS28SOH = '[SALES ORDER] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ELSE
-            ZS28SOH = '[SALES ORDER] NO UPDATE SINCE'-[ZSO]SOHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSO]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
-ZS28SOH = '[SALES ORDER] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
-
-FILTER  [ZSD] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND SALFCY = '2800'
-READ [ZSD] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2800'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSD]SDHNUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SDH' AND ZXSTORE = '2800' WITH ZLASNUM = [ZSD]SDHNUM
-            ZS28SDH = '[DELIVERY] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ELSE
-            ZS28SDH = '[DELIVERY] NO UPDATE SINCE'-[ZSD]SDHNUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSD]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
-ZS28SDH = '[DELIVERY] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
-
-FILTER  [ZSI] WHERE CREUSR = 'INFP' AND CREDAT >= DATE$-1 AND FCY = '2800'
-READ [ZSi] LAST
-IF !FSTAT
-    FILTER [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2800'
-    READ [ZXS] LAST
-    IF !FSTAT
-        IF [ZXS]ZLASNUM <> [ZSI]NUM
-            Update [ZXS] WHERE ZXNAME = 'LAST_SIH' AND ZXSTORE = '2800' WITH ZLASNUM = [ZSI]NUM
-            ZS28SIH = '[INVOICE] SUCCESSFULLY UPDATED ON'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ELSE
-            ZS28SIH = '[INVOICE] NO UPDATE SINCE'-[ZSI]NUM-'-'-format$("D:YYYY[/]MM[/]DD[ - ]hh[:]mm[:]ss",func TIMEZONE_CSTD.TO_LOCAL('Pacific Standard Time', [ZSI]CREDATTIM))+chr$(10)
-        ENDIF
-    ENDIF
-ELSE
-ZS28SIH = '[INVOICE] NO UPDATE IN LAST 24 HOURS'+chr$(10)
-ENDIF
-
-A_USER(1)="zoey.mattison@monk.ca"
-A_USER(2)="service@monk.ca"
+A_USER(1)="service@monk.ca"
 HEADER='InfoPOS Document Delay Report'
 ISSUERMAIL='noreply@monk.ca'
 TRACE = 2
- 
+
 Append BODY , 'This is an automated message.'+chr$(10)
 Append BODY , 'Pelase see below the current status of the last document imports from InfoPOS!'+chr$(10)+chr$(10)
 Append BODY , 'STORE 16'+chr$(10)
@@ -435,22 +267,12 @@ Append BODY , '-----------------------------------'+chr$(10)
 Append BODY , ZS16SOH+chr$(10)
 Append BODY , ZS16SDH+chr$(10)
 Append BODY , ZS16SIH+chr$(10)
-Append BODY , 'STORE 18'+chr$(10)
-Append BODY , '-----------------------------------'+chr$(10)
-Append BODY , ZS18SOH+chr$(10)
-Append BODY , ZS18SDH+chr$(10)
-Append BODY , ZS18SIH+chr$(10)
 Append BODY , 'STORE 21'+chr$(10)
 Append BODY , '-----------------------------------'+chr$(10)
 Append BODY , ZS21SOH+chr$(10)
 Append BODY , ZS21SDH+chr$(10)
 Append BODY , ZS21SIH+chr$(10)
 Append BODY , 'STORE 22'+chr$(10)
-Append BODY , '-----------------------------------'+chr$(10)
-Append BODY , ZS22SOH+chr$(10)
-Append BODY , ZS22SDH+chr$(10)
-Append BODY , ZS22SIH+chr$(10)
-Append BODY , 'STORE 23'+chr$(10)
 Append BODY , '-----------------------------------'+chr$(10)
 Append BODY , ZS23SOH+chr$(10)
 Append BODY , ZS23SDH+chr$(10)
@@ -460,15 +282,10 @@ Append BODY , '-----------------------------------'+chr$(10)
 Append BODY , ZS26SOH+chr$(10)
 Append BODY , ZS26SDH+chr$(10)
 Append BODY , ZS26SIH+chr$(10)
-Append BODY , 'STORE 28'+chr$(10)
-Append BODY , '-----------------------------------'+chr$(10)
-Append BODY , ZS28SOH+chr$(10)
-Append BODY , ZS28SDH+chr$(10)
-Append BODY , ZS28SIH
-    
+
 STA =func ASYRMAIL.ASEND_MAIL(GACTX,ISSUERMAIL,A_USER,CC_USER,HEADER,BODY,ATTACHMENTS,TRACE)
 If STA <> [V]CST_AOK Then
-    infbox( mess(1163,196,1))
+    Infbox( mess(1163,196,1))
 Endif
-CLOSE LOCAL FILE [ZXS],[ZSO],[ZSD],[ZSI]
-END
+Close Local File [ZXS],[ZSO],[ZSD],[ZSI]
+End

@@ -1,0 +1,21 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Local Char ZL_DUDDAT(30)
+
+Case month(date$)
+	When 1 : [L]ZL_DUDDAT=num$(year(date$)-1)+"11"+"01"
+	When 2 : [L]ZL_DUDDAT=num$(year(date$)-1)+"12"+"01"
+	When 3 : [L]ZL_DUDDAT=num$(year(date$))+"01"+"01"
+	When 4 : [L]ZL_DUDDAT=num$(year(date$))+"02"+"01"
+	When 5 : [L]ZL_DUDDAT=num$(year(date$))+"03"+"01"
+	When 6 : [L]ZL_DUDDAT=num$(year(date$))+"04"+"01"
+	When 7 : [L]ZL_DUDDAT=num$(year(date$))+"05"+"01"
+	When 8 : [L]ZL_DUDDAT=num$(year(date$))+"06"+"01"
+	When 9 : [L]ZL_DUDDAT=num$(year(date$))+"07"+"01"
+	When 10 : [L]ZL_DUDDAT=num$(year(date$))+"08"+"01"
+	When 11 : [L]ZL_DUDDAT=num$(year(date$))+"09"+"01"
+	When 12 : [L]ZL_DUDDAT=num$(year(date$))+"10"+"01"
+Endcase
+
+Infbox num$(eomonth([L]ZL_DUDDAT))
+
+

@@ -1,0 +1,11 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Local Char Y_JSDATA(250)
+[L]Y_JSDATA = "javascript:new Audio('https://themushroomkingdom.net/sounds/wav/smsunshine/smsunshine_talk_end.wav')"+".play()"
+
+Callui Y_RESULT = "" With    "UIAction="+        chr$( 1)    +"OpenFile",
+&                                   "UILocalDir="+      chr$( 1)    +"APP",
+&                                   "UIWindowName="+    chr$( 1)    +"_parent",
+&                                   "UILocalFile="+     chr$( 1)    +[L]Y_JSDATA
+
+
+

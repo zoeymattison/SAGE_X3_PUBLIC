@@ -1,0 +1,57 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog ZSUB_BTSPAYI
+If !clalev([ZIME]) : Local File ZIMPERR [ZIME] : Endif
+
+Local Char 		DIR(GDIMFIC),FILELIST(GDIMFIC)(1..)
+Local Integer	LNGTH,COUNTA : COUNTA=0
+Local Char		FILEPATH(240) : [L]FILEPATH="D:\Sage\X3\folders\LIVE\YERROR\"
+Global Char ZV_IMPORT_ERROR_FILE(240)
+Global Char	ZV_IMPORT_TYPE(240)
+Local Char CASE_NAME(240)
+
+# STEP 1 - BUILD THE FILE LIST
+Call SYSTEME2(adxmac(0),"lsadx"-"D:\Sage\X3\folders\LIVE\YERROR","",LNGTH,FILELIST) From ORDSYS
+# STEP 2 - CHECK IF THE FILE LIST FILES ARE GONE AND DELETE THEM FROM THE TABLE
+
+Filter [ZIME]
+For [ZIME]
+    If !find([F:ZIME]ERRNUM,FILELIST)
+        Delete [ZIME]
+    Endif
+Next
+
+# STEP 3 - ADD NEW FILES FROM THE FILE LIST TO THE TABLE
+
+For I=3 To LNGTH
+   Read [ZIME]ZIME0=FILELIST(I)
+   If [S]fstat
+        [F:ZIME]ERRNUM=FILELIST(I)
+        [F:ZIME]EMLFLG=2
+        Write [ZIME]
+       	If ![S]fstat
+       		[V]ZV_IMPORT_ERROR_FILE=[L]FILEPATH+[L]FILELIST(I)
+				[V]ZV_IMPORT_TYPE=""
+       			If pat(toupper(FILELIST(I)),"RECPO_*") : [V]ZV_IMPORT_TYPE="ZPOH4" : Endif
+       			If pat(toupper(FILELIST(I)),"INTREC_*") : [V]ZV_IMPORT_TYPE="ZPTHIMP" : Endif
+				If pat(toupper(FILELIST(I)),"CARREC_*") : [V]ZV_IMPORT_TYPE="ZPTHIMP" : Endif
+				If pat(toupper(FILELIST(I)),"PIHGEN_*") : [V]ZV_IMPORT_TYPE="ZPIHIMP" : Endif
+				If pat(toupper(FILELIST(I)),"*YSIF*") : [V]ZV_IMPORT_TYPE="YSIFORD" : Endif
+				If pat(toupper(FILELIST(I)),"CB000*") : [V]ZV_IMPORT_TYPE="INFOPOS PAYMENT ROUTINE" : Endif
+				If pat(toupper(FILELIST(I)),"IN000*") : [V]ZV_IMPORT_TYPE="INFOPOS MATCHING ROUTINE" : Endif
+				If pat(toupper(FILELIST(I)),"YITM*") : [V]ZV_IMPORT_TYPE="PRODUCT GENERATION OR UPDATE" : Endif
+				If pat(toupper(FILELIST(I)),"YITF*") : [V]ZV_IMPORT_TYPE="PRODUCT-SITE GENERATION OR UPDATE" : Endif
+				If pat(toupper(FILELIST(I)),"PAYM*") : [V]ZV_IMPORT_TYPE="YBTSPAY" : Endif
+				If pat(toupper(FILELIST(I)),"SAGE_BTS*") : [V]ZV_IMPORT_TYPE="YBTSSOH" : Endif
+				If pat(toupper(FILELIST(I)),"YSIH*") : [V]ZV_IMPORT_TYPE="YSIHMS" : Endif
+				If [V]ZV_IMPORT_TYPE="" : [V]ZV_IMPORT_TYPE="UNKNOWN" : Endif
+            Local Integer TYPEVT : [L]TYPEVT = 1
+            Local Char CODEVT(3) : [L]CODEVT = "ZIE"
+            Local Char OPERAT(20) : [L]OPERAT = ""
+            Local Char CLEOBJ(10) : [L]CLEOBJ = ""
+            Call WORKFLOW([L]TYPEVT,[L]CODEVT,[L]OPERAT,[L]CLEOBJ) From AWRK
+            Sleep(1)
+		Endif
+   Endif
+Next
+Kill [V]ZV_IMPORT_ERROR_FILE, [V]ZV_IMPORT_TYPE
+End

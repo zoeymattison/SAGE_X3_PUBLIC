@@ -1,35 +1,234 @@
-If !clalev([ZDUD]) : Local File GACCDUDATE [ZDUD] : Endif
-Local Char ZL_BPCN60(30)(1..),ZL_BPCN90(30)(1..),ZL_BPCN12(30)(1..)
-Global Char ZG_FICHIER(240)
-Global Char ZV_IDENTI(30) : [V]ZV_IDENTI="COLLECTIONS"
-Local Integer ZL_I1 : [L]ZL_I1=1
-Local Char FONCTION(30)
-Local Char TBPAR(150)(150)
-Local Char TBVAL(150)(150)
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([ZCOL]) : Local File ZVCOLLECT [ZCOL] : Endif
+If !clalev([ZBPC]) : Local File BPCUSTOMER [ZBPC] : Endif
+If !clalev([ZSIH]) : Local File SINVOICE [ZSIH] : Endif
 
-Filter [ZDUD] Where DUDDAT<=date$-60 and DUDDAT>=date$-89 and AMTCUR-PAYCUR>0 and find(TYP,"CSDIR","CSINV") Order By BPRPAY Asc
-For [ZDUD]
-	If !find([F:ZDUD]BPRPAY,[L]ZL_BPCN60)
-    	[L]ZL_BPCN60([L]ZL_I1)=[F:ZDUD]BPRPAY
+# ZCOLLECT1 - Over 10
+# ZCOLLECT2 - Over 30
+# ZCOLLECT3 - Over 45
 
-        TBPAR(0) = "vcrdeb"		: TBVAL(0) = "0"
-        TBPAR(1) = "vcrfin"		: TBVAL(1) = "ZZZZZZZZZZZZZZZZZZZZ"
-        TBPAR(2) = "datedeb"	: TBVAL(2) = format$("MM[/]DD[/]YYYY",date$-360*10)
-        TBPAR(3) = "datefin"	: TBVAL(3) = format$("MM[/]DD[/]YYYY",date$+365*10)
-        TBPAR(4) = "bpdeb"		: TBVAL(4) = [F:ZDUD]BPRPAY
-        TBPAR(5) = "bpfin"		: TBVAL(5) = [F:ZDUD]BPRPAY
-        TBPAR(6) = "balance"	: TBVAL(6) = "2"
-        TBPAR(7) = "edd"		: TBVAL(7) = "1"
-        TBPAR(8) = "duddeb"		: TBVAL(8) = format$("MM[/]DD[/]YYYY",date$-89)
-        TBPAR(9) = "dudfin"		: TBVAL(9) = format$("MM[/]DD[/]YYYY",date$-60)
+Global Char ZV_COLLECTIONS_CODE(240),ZV_COLLECTIONS_SUBJECT(240),ZV_COLLECTIONS_RECIPIENT(240),ZV_COLLECTIONS_FICHIER(240) : [V]ZV_COLLECTIONS_CODE="COLLECTIONS"
+Global Clbfile ZV_COLLECTIONS_MESSAGE
 
-		[V]ZG_FICHIER=[F:ZDUD]BPRPAY+" Collections.pdf"
+Local Char ZL_BPR(50)(1..),TBPAR(15)(1..50),TBVAL(30)(1..50),ZL_BPCEML(240)
+Local Shortint ZL_BPR_I : [L]ZL_BPR_I=1
 
-        Call ETAT("MONK-INVOICE", "EMAILX3", "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+# STEP 1 - Collect all Over 45 BPRs, put them on hold and send the account statement+all outstanding invoices.
 
-    	[L]ZL_I1+=1
-    Endif
+# STEP 1a - Collect a list of all unique BPRs
+# STEP 1a.1 - Filter the ZVCOLLECT table for all OVER45 collection type lines.
+#Infbox "Before Filter"
+Filter [ZCOL] Where COLTYP="OVER45" Order By BPR Asc;NUM Asc
+#Infbox "After Filter"
+# STEP 1a.2 - Use simple logic to assign each unique BPR number to an indexed variable.
+For [ZCOL]
+	Read [ZSIH]SIH0=[F:ZCOL]NUM
+	If ![S]fstat
+		[F:ZSIH]ZCOLLECT1=2
+		[F:ZSIH]ZCOLLECT2=2
+		[F:ZSIH]ZCOLLECT3=2
+		Rewrite [ZSIH]
+	Endif
+	Read [ZSIH]
+	If [L]ZL_BPR_I>1 and [L]ZL_BPR([L]ZL_BPR_I-1)<>[F:ZCOL]BPR
+		#Infbox [F:ZCOL]BPR
+    	[L]ZL_BPR([L]ZL_BPR_I)=[F:ZCOL]BPR
+    	[L]ZL_BPR_I+=1
+    Else
+    	If [L]ZL_BPR(1)=""
+    		#Infbox [F:ZCOL]BPR
+        	[L]ZL_BPR([L]ZL_BPR_I)=[F:ZCOL]BPR
+        	[L]ZL_BPR_I+=1
+		Endif
+	Endif
+Next
+#Infbox "After BPR Collection"
+Filter [ZCOL]
+# STEP 1a.3 - Attempt to put all of the accounts on hold
+For I=1 To [L]ZL_BPR_I-1
+	Read [ZBPC]BPC0=[L]ZL_BPR(I)
+	If ![S]fstat
+		[F:ZBPC]OSTCTL=3
+		Rewrite [ZBPC]
+	Endif
+	Read [ZBPC]
+	#Filter [ZBPC] Where pat(BPCNUM,[L]ZL_BPR(I)+"*")
+	#For [ZBPC]
+	#	[F:ZBPC]OSTCTL=3
+	#	Rewrite [ZBPC]
+	#Next
+	#Filter [ZBPC]
+Next
+#Infbox "After Hold Rewrite"
+
+
+# STEP 1a.4 - Attempt to mark all of their invoices as collect-complete (to prevent sending in the below)
+For I=1 To [L]ZL_BPR_I-1
+	Filter [ZCOL] Where COLTYP<>"OVER45" and BPR=[L]ZL_BPR(I) Order By BPR Asc;NUM Asc
+	For [ZCOL]
+		Read [ZSIH]SIH0=[F:ZCOL]NUM
+		If ![S]fstat
+    		[F:ZSIH]ZCOLLECT1=2
+    		[F:ZSIH]ZCOLLECT2=2
+    		[F:ZSIH]ZCOLLECT3=2
+    		Rewrite [ZSIH]
+		Endif
+		Read [ZSIH]
+	Next
+	Filter [ZCOL]
 Next
 
+# STEP 1b - Email each customer to notify them that the account has been put on hold
+For I=1 To [L]ZL_BPR_I-1
+	Read [ZBPC]BPC0=[L]ZL_BPR(I)
+	If ![S]fstat
+		If func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[L]ZL_BPR(I)+"~ADDR")=""
+			[L]ZL_BPCEML="ar@monk.ca"
+		Else
+			[L]ZL_BPCEML=func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[L]ZL_BPR(I)+"~ADDR")
+		Endif
+    	[V]ZV_COLLECTIONS_RECIPIENT=[L]ZL_BPCEML
+    	[V]ZV_COLLECTIONS_SUBJECT="Account On Hold "+[L]ZL_BPR(I)+" – Action Required!"
+    	[V]ZV_COLLECTIONS_MESSAGE+="Attention "+[F:ZBPC]BPCNAM+" Team,"+chr$(10)+chr$(10)
+    	[V]ZV_COLLECTIONS_MESSAGE+="You are 45 days past your payment due date on one or more invoices. Your account is now on hold! "+chr$(10)+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="Please find attached your account statement and all outstanding invoices. Review your account "
+&		+"and provide reasoning for non-payment. If no reason is applicable, please arrange payment for the past due balances to re-establish service."+chr$(10)+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="We accept payment in many different forms depending on what is most convenient for you:"+chr$(10)+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="1. EFT (Electronic Fund Transfer) – if requested we will provide you our direct deposit authorization."+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to ar@monk.ca, include your account number in the comments."+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="3. Credit Card (pay online, call in payment, or authorize an automated monthly charge for statement balance)"
+&		+" – Credit Card details required, ask for our secure authorization form if interested."+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 800 Viewfield Road, Victoria BC V9A 4V1"+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="5. Online Banking (available to Credit Unions, TD, BMO, CIBC and Scotiabank users) Payee: Monk Office Supply Ltd."+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="6. PAD (Pre-Authorized Debit) – Banking details required – ask for authorization form."+chr$(10)+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="Past due balances will accrue interest fees at a rate of 2% monthly. "+chr$(10)+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="Regards,"+chr$(10)+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="Accounts Receivable"+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="Monk Office Supply"+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="800 Viewfield Road"+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="Victoria, BC V9A 4V1"+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="P: 250-414-3359 E: ar@monk.ca"+chr$(10)
 
-Kill [V]ZG_FICHIER
+		#[V]ZV_COLLECTIONS_MESSAGE+=[L]ZL_BPCEML
+		[V]ZV_COLLECTIONS_FICHIER="Account Statement "+[L]ZL_BPR(I)
+        TBPAR(1) = "billto" : TBVAL(1) = [L]ZL_BPR(I)
+        TBPAR(2) = "datedeb" : TBVAL(2) = "01/01/2020"
+        TBPAR(3) = "datefin" : TBVAL(3) = "12/31/2099"
+        Call ETAT("MONK-COLLECTION","EMAILX3","",0,"",[L]TBPAR,[L]TBVAL) From AIMP3
+        Gosub RAZ_VARS
+        Gosub WAIT_TIMER
+	Endif
+Next
+#Infbox "After Emails have been sent!"
+
+Filter [ZCOL]
+Raz [L]ZL_BPR,[L]ZL_BPR_I
+
+# STEP 2 - Collect all Over 30 Invoices, update the ZCOLLECT1 and 2 values, and send the individual invoice with the statement to the client
+
+# STEP 2a.1 - Filter the Table
+Filter [ZCOL] Where COLTYP="OVER30" Order By BPR Asc;NUM Asc
+
+# STEP 2a.2 - Update ZCOLLECT 1 and 2, and send the invoices if the update was successful.
+For [ZCOL]
+	Read [ZSIH]SIH0=[F:ZCOL]NUM
+	If ![S]fstat
+		[F:ZSIH]ZCOLLECT1=2
+		[F:ZSIH]ZCOLLECT2=2
+		Rewrite [ZSIH]
+		If ![S]fstat
+			If func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:ZCOL]BPR+"~ADDR")=""
+    			[L]ZL_BPCEML="ar@monk.ca"
+    		Else
+    			[L]ZL_BPCEML=func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:ZCOL]BPR+"~ADDR")
+    		Endif
+			[V]ZV_COLLECTIONS_RECIPIENT=[L]ZL_BPCEML
+			[V]ZV_COLLECTIONS_SUBJECT="Past Due Account Notice "+[F:ZCOL]BPR
+			[V]ZV_COLLECTIONS_MESSAGE+="Attention "+[F:ZCOL]BPRNAM+" Team,"+chr$(10)+chr$(10)
+			[V]ZV_COLLECTIONS_MESSAGE+="You are 30 days past your payment due date."+chr$(10)+chr$(10)
+			[V]ZV_COLLECTIONS_MESSAGE+="Please find attached your account statement and past-due invoice."
+&			+" Review your account and provide reasoning for non-payment. If no reason is applicable, please arrange payment for the past due balances."+chr$(10)+chr$(10)
+			[V]ZV_COLLECTIONS_MESSAGE+="This account will be placed on a service/ supply hold if not paid within the following 2 weeks."+chr$(10)+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="We accept payment in many different forms depending on what is most convenient for you:"+chr$(10)+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="1. EFT (Electronic Fund Transfer) – if requested we will provide you our direct deposit authorization."+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to ar@monk.ca, include your account number in the comments."+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="3. Credit Card (pay online, call in payment, or authorize an automated monthly charge for statement balance)"
+&			+" – Credit Card details required, ask for our secure authorization form if interested."+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 800 Viewfield Road, Victoria BC V9A 4V1"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="5. Online Banking (available to Credit Unions, TD, BMO, CIBC and Scotiabank users) Payee: Monk Office Supply Ltd."+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="6. PAD (Pre-Authorized Debit) – Banking details required – ask for authorization form."+chr$(10)+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Past due balances will accrue interest fees at a rate of 2% monthly, extended periods of non-payment "
+&			+"will result in account holds and service disruptions."+chr$(10)+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Regards,"+chr$(10)+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Accounts Receivable"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Monk Office Supply"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="800 Viewfield Road"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Victoria, BC V9A 4V1"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="P: 250-414-3359 E: ar@monk.ca"+chr$(10)
+
+    		[V]ZV_COLLECTIONS_FICHIER="Invoice "+[F:ZCOL]NUM+" and Account Statement"
+            TBPAR(1) = "vcrnum" : TBVAL(1) = [F:ZCOL]NUM
+            TBPAR(2) = "billto" : TBVAL(2) = [F:ZCOL]BPR
+            Call ETAT("MONK-COLLECT-SN","EMAILX3","",0,"",[L]TBPAR,[L]TBVAL) From AIMP3
+            Gosub RAZ_VARS
+            Gosub WAIT_TIMER
+		Endif
+	Endif
+	Read [ZSIH]
+Next
+Filter [ZCOL]
+
+
+# STEP 3
+
+Filter [ZCOL] Where COLTYP="OVER10" Order By BPR Asc; NUM Asc
+For [ZCOL]
+	Read [ZSIH]SIH0=[F:ZCOL]NUM
+	If ![S]fstat
+		[F:ZSIH]ZCOLLECT1=2
+		Rewrite [ZSIH]
+		If ![S]fstat
+    		If func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:ZCOL]BPR+"~ADDR")=""
+    			[L]ZL_BPCEML="ar@monk.ca"
+    		Else
+    			[L]ZL_BPCEML=func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:ZCOL]BPR+"~ADDR")
+    		Endif
+			[V]ZV_COLLECTIONS_RECIPIENT=[L]ZL_BPCEML
+			[V]ZV_COLLECTIONS_SUBJECT="Past Due Invoice Reminder "+[F:ZCOL]NUM
+			[V]ZV_COLLECTIONS_MESSAGE+="Dear "+[F:ZCOL]BPRNAM+" Team,"+chr$(10)+chr$(10)
+			[V]ZV_COLLECTIONS_MESSAGE+="Please find attached your past-due invoice. Please review and provide reasoning for non-payment. "
+&			+"If no reason is applicable, please arrange payment for the past due balances."+chr$(10)+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="We accept payment in many different forms depending on what is most convenient for you:"+chr$(10)+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="1. EFT (Electronic Fund Transfer) – if requested we will provide you our direct deposit authorization."+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to ar@monk.ca, include your account number in the comments."+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="3. Credit Card (pay online, call in payment, or authorize an automated monthly charge for statement balance)"
+&			+" – Credit Card details required, ask for our secure authorization form if interested."+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 800 Viewfield Road, Victoria BC V9A 4V1"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="5. Online Banking (available to Credit Unions, TD, BMO, CIBC and Scotiabank users) Payee: Monk Office Supply Ltd."+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="6. PAD (Pre-Authorized Debit) – Banking details required – ask for authorization form."+chr$(10)+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Past due balances will accrue interest fees at a rate of 2% monthly, extended periods of non-payment "
+&			+"will result in account holds and service disruptions."+chr$(10)+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Regards,"+chr$(10)+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Accounts Receivable"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Monk Office Supply"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="800 Viewfield Road"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Victoria, BC V9A 4V1"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="P: 250-414-3359 E: ar@monk.ca"+chr$(10)
+
+    		[V]ZV_COLLECTIONS_FICHIER="Invoice "+[F:ZCOL]NUM
+            TBPAR(1) = "vcrnum"		: TBVAL(1) = [F:ZCOL]NUM
+            Call ETAT("MONK-INVOICE-CL","EMAILX3","", 0,"",TBPAR,TBVAL) From AIMP3
+            Gosub RAZ_VARS
+            Gosub WAIT_TIMER
+		Endif
+	Endif
+	Read [ZSIH]
+Next
+End
+$RAZ_VARS
+Raz [V]ZV_COLLECTIONS_RECIPIENT,[V]ZV_COLLECTIONS_SUBJECT,[V]ZV_COLLECTIONS_MESSAGE,[L]TBPAR,[L]TBVAL,[L]ZL_BPCEML,[V]ZV_COLLECTIONS_FICHIER
+Return
+
+$WAIT_TIMER
+Sleep(1)
+Return

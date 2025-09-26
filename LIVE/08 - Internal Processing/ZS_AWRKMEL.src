@@ -1,0 +1,82 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+  When "EMAIL" : Gosub EMAIL
+  When "SENDMES" : Gosub SENDMES
+Endcase
+Return
+
+$EMAIL
+If [V]ZG_EXP_MAIL = ""
+  EXP_MAIL = "noreply@monk.ca"
+Else
+  EXP_MAIL = [V]ZG_EXP_MAIL
+Endif
+Return
+
+$SENDMES
+Local Integer XSTAT
+Local Char XCMD(255)
+Local Integer I
+Local Char MSGTYP : MSGTYP = "text/plain"
+Local Integer IMSGTYP
+Local Char ADDFIC(255)
+Local Char BATFIC(255)
+Local Char PRIMRECIP(255)
+Local Char YWRK(15)
+YWRK = func AFNC.INTFLD("AWRKHISSUI","CODWRK",CHRONO+"~"+USR_CODE)
+IMSGTYP = val(func AFNC.INTFLD("AWRKPAR", "YCONTYP", YWRK))
+If IMSGTYP = 1
+    MSGTYP = "text/html"
+
+    ADDFIC = FIC_MAIL+".ADD"
+    BATFIC = FIC_MAIL+".bat"
+
+    Openo ADDFIC, 0 Using [ZADD]
+    Iomode adxirs chr$(13)+chr$(10) Using [ZADD]
+    Iomode adxium 50 Using [ZADD]
+
+    For I = 1 To 100
+        If USR_EMAIL(I) <> ""
+            Wrseq USR_EMAIL(I) Using [ZADD]
+            if PRIMRECIP = ""
+                PRIMRECIP=USR_EMAIL(I)
+            endif
+        Else
+            Break
+        Endif
+    Next
+    Openo Using [ZADD]
+    Openo BATFIC, 0 Using [ZBAT]
+    Iomode adxirs chr$(13)+chr$(10) Using [ZBAT]
+    Iomode adxium 50 Using [ZBAT]
+
+    XCMD = func AFNC.INTFLD("ADOVAL", "VALEUR", "~~SERMES")
+    Wrseq "REM "+YAWRK+"="+num$(IMSGTYP) Using [ZBAT]
+    Wrseq "SET SUBJECT="+chr$(34)+TEXOBJ+chr$(34) Using [ZBAT]
+    Wrseq "SET RECIPENT="+ADDFIC Using [ZBAT]
+    Wrseq "SET PRECIP="+PRIMRECIP Using [ZBAT]
+    Wrseq "SET MSG="+FIC_MAIL+".mail" Using [ZBAT]
+    Wrseq "SET SMTP="+XCMD Using [ZBAT]
+    Wrseq "SET FROM="+EXP_MAIL Using [ZBAT]
+    Wrseq "SET MSGTYPE="+MSGTYP Using [ZBAT]
+
+    Wrseq "SET BCCREC="+chr$(34)+"Kelly.McGuire@monk.ca"+chr$(34) Using [ZBAT]
+
+    Wrseq "more +4 "+FIC_MAIL-"> %MSG%" Using [ZBAT]
+    Wrseq "MAILSEND -smtp %SMTP% -t %PRECIP% -f %From% -list_address %RECIPENT% -bc %BCCREC% -cs utf-8 -mime-type %MSGTYPE% -sub %SUBJECT% -msg-body %MSG%" Using [ZBAT]
+
+    Openo Using [ZBAT]
+
+    XCMD = BATFIC
+
+    Call SYSTEME(adxmac(0),XCMD ,"",XSTAT) From ORDSYS
+    GPE=1
+Endif
+Raz [V]ZG_EXP_MAIL
+Return
+
+
+
+
+

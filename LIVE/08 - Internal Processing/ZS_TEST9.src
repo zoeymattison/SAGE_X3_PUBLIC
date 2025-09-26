@@ -1,0 +1,12 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Local Char TBVAL_BP(150)(1..),TBPAR_BP(150)(1..)
+Local Char ETAT : ETAT="YMOS_PL_PICS"
+TBPAR_BP(1) = "sitedeb" : TBVAL_BP(1) = "DC30"
+TBPAR_BP(2) = "sitefin" : TBVAL_BP(2) = "DC30"
+TBPAR_BP(3) = "trialloc" : TBVAL_BP(3) = "3"
+TBPAR_BP(4) = "impselection" : TBVAL_BP(4) = "1"
+TBPAR_BP(5) = "bonprepdeb" : TBVAL_BP(5) = "PIC000014247"
+TBPAR_BP(6) = "bonprepfin" : TBVAL_BP(6) = "PIC000014247"
+Call ETAT(ETAT,"PREVIEW","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+
+

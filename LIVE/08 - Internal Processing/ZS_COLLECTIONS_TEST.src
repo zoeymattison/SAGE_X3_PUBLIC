@@ -1,0 +1,20 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Local Char FONCTION(30)
+Local Char TBPAR(150)(150)
+Local Char TBVAL(150)(150)
+
+TBPAR(0) = "vcrdeb"		: TBVAL(0) = "0"
+TBPAR(1) = "vcrfin"		: TBVAL(1) = "ZZZZZZZZZZZZZZZZZZZZ"
+TBPAR(2) = "bpdeb"		: TBVAL(2) = "11240"
+TBPAR(3) = "bpfin"		: TBVAL(3) = "11240"
+TBPAR(4) = "balance"		: TBVAL(4) = "2"
+TBPAR(5) = "edd"		: TBVAL(5) = "1"
+TBPAR(6) = "duddeb"		: TBVAL(6) = format$("MM[/]DD[/]YYYY",date$-89)
+TBPAR(7) = "dudfin"		: TBVAL(7) = format$("MM[/]DD[/]YYYY",date$-60)
+
+Call ETAT("MONK-INVTEST", "PREVIEW", "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+
+
+
+
+

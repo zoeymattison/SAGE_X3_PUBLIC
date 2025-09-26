@@ -1,0 +1,12 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+    If !clalev([F:SOH]) : Local File SORDER [F:SOH] : Endif
+    Read [F:SOH]SOH0="WEB153785"
+    Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+    TBPAR_BP(1) = "commandedeb" : TBVAL_BP(1) = [F:SOH]SOHNUM
+    TBPAR_BP(2) = "commandefin" : TBVAL_BP(2) = [F:SOH]SOHNUM
+    TBPAR_BP(3) = "etat" : TBVAL_BP(3) = "ARCCLIENT"
+    TBPAR_BP(4) = "usr" : TBVAL_BP(4) = GUSER
+    TBPAR_BP(5) = "codimp" : TBVAL_BP(5) = "1"
+    Call ETAT("ARCCLIENT","PREVIEW","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+
+

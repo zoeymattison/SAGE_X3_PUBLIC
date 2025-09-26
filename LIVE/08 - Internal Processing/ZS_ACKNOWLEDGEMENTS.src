@@ -1,3 +1,4 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 Global Char ZG_ZW_ACKNOW_RECIPIENT(240)
 Global Char ZG_ZW_ACKNOW_SUBJECT(240)
 Global Char ZG_ZW_ACKNOW_CODE(240) : [V]ZG_ZW_ACKNOW_CODE="ACKNOWLEDGEMENTS"
@@ -37,29 +38,31 @@ For [ZBPC]
 				For [ZSOQ]
 					Read [ZSOP]SOP0=[F:ZSOQ]SOHNUM;[F:ZSOQ]SOPLIN;[F:ZSOQ]SOQSEQ
 					If ![S]fstat
-    					Filter [ZSTO] Where STOFCY=[F:ZSOQ]STOFCY and ITMREF=[F:ZSOQ]ITMREF
+    					Filter [ZSTO] Where STOFCY=[F:ZSOQ]STOFCY and ITMREF=[F:ZSOQ]ITMREF and STA="A"
     					For [ZSTO]
     						[L]ZL_AVAILABLE+=([F:ZSTO]QTYSTU*[F:ZSOP]SAUSTUCOE)-([F:ZSTO]CUMALLQTY*[F:ZSOP]SAUSTUCOE)
     					Next
     					Read [ZITM]ITM0=[F:ZSOQ]ITMREF
     					If ![S]fstat
-        					[V]ZG_ZW_ACKNOW_MESSAGE+=num$([F:ZSOQ]SOPLIN/1000)+". "+[F:ZSOQ]ITMREF+" - "+[F:ZITM]ITMDES1+chr$(10)
-        					[V]ZG_ZW_ACKNOW_MESSAGE+="Ordered: "+num$([F:ZSOQ]QTY)+chr$(10)
-        					[V]ZG_ZW_ACKNOW_MESSAGE+="Available: "+num$([L]ZL_AVAILABLE+[F:ZSOQ]ALLQTY)+chr$(10)
-        					If ([L]ZL_AVAILABLE+[F:ZSOQ]ALLQTY)-[F:ZSOQ]QTY<[F:ZSOQ]QTY
-        						[V]ZG_ZW_ACKNOW_MESSAGE+="Backordered: "+num$([F:ZSOQ]QTY-([L]ZL_AVAILABLE+[F:ZSOQ]ALLQTY))+chr$(10)
+        					[V]ZG_ZW_ACKNOW_MESSAGE+=num$([F:ZSOQ]SOPLIN/1000)+". "+[F:ZSOQ]ITMREF+" - "+[F:ZITM]ITMDES1
+        					[V]ZG_ZW_ACKNOW_MESSAGE+=" | Ordered: "+num$([F:ZSOQ]QTY)
+        					[V]ZG_ZW_ACKNOW_MESSAGE+=" | Allocated: "+num$([F:ZSOQ]ALLQTY)
+        					If [F:ZSOQ]ALLQTY<>[F:ZSOQ]QTY and [F:ZSOQ]ALLQTY+[L]ZL_AVAILABLE<[F:ZSOQ]QTY
+        						[V]ZG_ZW_ACKNOW_MESSAGE+=" | Backordered: "+num$([F:ZSOQ]QTY-[F:ZSOQ]ALLQTY)
     							Filter [ZPOQ] Where ITMREF=[F:ZSOQ]ITMREF and LINCLEFLG=1
     							Read [ZPOQ] Last
     							If ![S]fstat
-    								[V]ZG_ZW_ACKNOW_MESSAGE+="ETA: "+format$("YYYY[-]MM[-]DD",[F:ZPOQ]EXTRCPDAT)+chr$(10)+chr$(10)
-    							Endif
+    								[V]ZG_ZW_ACKNOW_MESSAGE+=" | ETA: "+format$("YYYY[-]MM[-]DD",[F:ZPOQ]EXTRCPDAT)+chr$(10)+chr$(10)
+    							Else
+    								[V]ZG_ZW_ACKNOW_MESSAGE+=" | ETA: Unavailable"+chr$(10)+chr$(10)
+								Endif
 							Else
-								[V]ZG_ZW_ACKNOW_MESSAGE+="Backordered: 0"+chr$(10)+chr$(10)
+								[V]ZG_ZW_ACKNOW_MESSAGE+=" | Backordered: 0"+chr$(10)+chr$(10)
 							Endif
 
     					Endif
     				Endif
-				Raz [L]ZL_AVAILABLE
+    			Raz [L]ZL_AVAILABLE
 				Next
 				TBPAR(1)="sohnum"	: TBVAL(1)=[F:ZSOH]SOHNUM
             	Call ETAT("ZRPT-ACKNOW", "EMAILX3", "eng", 0, "", TBPAR, TBVAL) From AIMP3
@@ -68,3 +71,6 @@ For [ZBPC]
 		Endif
 	Next
 Next
+
+
+

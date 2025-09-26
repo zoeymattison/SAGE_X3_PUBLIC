@@ -1,3 +1,4 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 Subprog BPTOTAL
 
 Local Decimal RETVAL
@@ -269,4 +270,24 @@ Call ETAT("ZRECEIPT","EMAILX3","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
 Raz GBPEM2
 Else Infbox 'Please open or create a credit card receiept first!'
 Endif
+End
+
+Subprog ZSUB_POHEML(ZL_PTHNUM)
+Variable Char ZL_PTHNUM
+Local Char ZL_LASTPO(30) : [L]ZL_LASTPO=""
+
+If !clalev([ZPTD]): Local File PRECEIPTD [ZPTD] : Endif
+If !clalev([ZPOH]): Local File PORDER [ZPOH] : Endif
+Filter [ZPTD] Where PTHNUM=[L]ZL_PTHNUM
+For [ZPTD]
+	If [F:ZPTD]POHNUM<>[L]ZL_LASTPO
+    	Read [ZPOH]POH0=[F:ZPTD]POHNUM
+    	If ![S]fstat
+    		If [F:ZPOH]ZWRKFLG=2
+        		[L]ZL_LASTPO=[F:ZPTD]POHNUM
+        		Gosub $POH_WRKEML From ZS_PRINT
+        	Endif
+        Endif
+    Endif
+Next
 End

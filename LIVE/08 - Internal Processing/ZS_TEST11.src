@@ -1,0 +1,7 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Local Char TIMEOUT(30) : TIMEOUT="14:22:00"
+While time$<TIMEOUT
+Sleep 1
+Wend
+
+

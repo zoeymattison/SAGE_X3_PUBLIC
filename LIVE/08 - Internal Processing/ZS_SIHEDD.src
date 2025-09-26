@@ -1,0 +1,57 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Global Char ZG_FICHIER_ZW_SIHEDD(240)
+Local Char FONCTION(30)
+Local Char TBPAR(150)(150)
+Local Char TBVAL(150)(150)
+Global Char ZV_IDENTI(30) : [V]ZV_IDENTI="EDD"
+Local Integer COUNTER : COUNTER=0
+
+If !clalev([ZSIH]) : Local File SINVOICE [ZSIH] : Endif
+If !clalev([ZBPC]) : Local File BPCUSTOMER [ZBPC] : Endif
+If !clalev([ZSIV]) : Local File SINVOICEV [ZSIV] : Endif
+If !clalev([ZALK]) : Local File APLLCK [ZALK] : Endif
+
+Call OUVRE_TRACE("Invoice EDD Emailing "+format$("YYYY[-]MM[-]DD[-]hhmmss",datetime$)) From LECFIC
+Call ECR_TRACE("Begin file export...............",-1) From GESECRAN
+Call ECR_TRACE("",-1) From GESECRAN
+Filter [ZBPC] Where YSENDEMAIL=2
+For [ZBPC]
+	Filter [ZSIH] Where ZEDDPRT<>2 and BPRPAY=[F:ZBPC]BPCNUM and UPDDAT>=date$-2 and AMTATI>0
+	For [ZSIH]
+		Look [ZALK]LCKCLE="SIV"+[F:ZSIH]NUM;0
+		If [S]fstat
+    		Read [ZSIV]SIV0=[F:ZSIH]NUM
+    		If ![S]fstat
+    			If [F:ZSIV]INVSTA=3
+            		[F:ZSIH]ZEDDPRT=2 : Rewrite [ZSIH]
+            		If ![S]fstat
+                        TBPAR(0) = "vcrdeb"		: TBVAL(0) = [F:ZSIH]NUM
+                        TBPAR(1) = "vcrfin"		: TBVAL(1) = [F:ZSIH]NUM
+                        TBPAR(2) = "datedeb"	: TBVAL(2) = format$("MM[/]DD[/]YYYY",date$-360*10)
+                        TBPAR(3) = "datefin"	: TBVAL(3) = format$("MM[/]DD[/]YYYY",date$+365*10)
+                        TBPAR(4) = "bpdeb"		: TBVAL(4) = [F:ZBPC]BPCNUM
+                        TBPAR(5) = "bpfin"		: TBVAL(5) = [F:ZBPC]BPCNUM
+                        TBPAR(6) = "balance"	: TBVAL(6) = "3"
+                        TBPAR(7) = "edd"		: TBVAL(7) = "2"
+                        TBPAR(8) = "duddeb"		: TBVAL(8) = format$("MM[/]DD[/]YYYY",date$-360*10)
+                        TBPAR(9) = "dudfin"		: TBVAL(9) = format$("MM[/]DD[/]YYYY",date$+365*10)
+                        Case [F:ZSIH]SNS
+                        	When 1 : [V]ZG_FICHIER_ZW_SIHEDD="\\10.10.0.55\eddoutboundmanagement\!AUTO\Monk_Office_Invoice_"+[F:ZSIH]NUM+"_.pdf" : Call ECR_TRACE("File written: "+"Monk_Office_Invoice_"+[
+& F:ZSIH]NUM+"_.pdf",-2) From GESECRAN
+                        	When -1 : [V]ZG_FICHIER_ZW_SIHEDD="\\10.10.0.55\eddoutboundmanagement\!AUTO\Monk_Office_Credit_Memo_"+[F:ZSIH]NUM+"_.pdf" : Call ECR_TRACE("File written: "+
+& "Monk_Office_Credit_Memo_"+[F:ZSIH]NUM+"_.pdf",-2) From GESECRAN
+                        Endcase
+                        Call ETAT("MONK-INVOICE", "EMAILX3", "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+                        COUNTER +=1
+                        Raz [V]ZG_FICHIER_ZW_SIHEDD
+                    Endif
+    			Endif
+    		Endif
+    	Else
+    		Call ECR_TRACE("Invoice locked: "+[F:ZSIH]NUM,1) From GESECRAN
+		Endif
+	Next
+Next
+Call ECR_TRACE("Files written: "+num$(COUNTER),-1) From GESECRAN
+Call FERME_TRACE From LECFIC
+End

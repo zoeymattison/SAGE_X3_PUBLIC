@@ -1,3 +1,4 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 If !clalev([ZIR]) : Local File ZVINTREC [ZIR] : Endif
 If !clalev([ZRD]) : Local File ZINTRD [ZRD] : Endif
 
@@ -12,15 +13,6 @@ For [ZIR]
 
 		If [L]CUR_SDHNUM<>[F:ZRD]SDHNUM
         	[L]CUR_SDHNUM=[F:ZRD]SDHNUM
-#        	If [F:ZIR]POHNUM<>""
-#        		WNOMFIC=filpath("","ZATTACH\INTPOH_"+[F:ZIR]POHNUM,"")
-#        		[L]DOCUMENT=[F:ZIR]POHNUM
-#        		[L]LINE=[F:ZIR]POPLIN
-#        	Else
-#        		WNOMFIC=filpath("","ZATTACH\INTSDH_"+[F:ZIR]DELIVERY,"")
-#        		[L]DOCUMENT=[F:ZIR]DELIVERY
-#        		[L]LINE=[F:ZIR]LINE
-#			Endif
 			WNOMFIC=filpath("","ZATTACH\INTREC_"+[F:ZIR]DELIVERY,"")
 			Openo WNOMFIC Using [ZZZ]
             adxifs=chr$(9)
@@ -29,23 +21,14 @@ For [ZIR]
             Call ECR_TRACE("",0) From GESECRAN
         	Call ECR_TRACE("File opened for writing: "+"INTREC_"+[F:ZIR]DELIVERY,-2) From GESECRAN
 
-#        	Wrseq "E",[F:ZIR]SITE_REC,[F:ZIR]DATE_ACC,[F:ZIR]SITE_STO,"CAD" Using [ZZZ]
-#        	Wrseq "L",[L]DOCUMENT,[L]LINE,[F:ZIR]PRODUCT,[F:ZIR]STU,[F:ZIR]UNIT,[F:ZIR]UNIT,[F:ZIR]QUANTITY/[F:ZIR]COE,[F:ZIR]QUANTITY Using [ZZZ]
-#    		Wrseq "S","A",[F:ZIR]STU,[F:ZIR]UNIT,[F:ZIR]QUANTITY/[F:ZIR]COE,[F:ZIR]QUANTITY,"","",[F:ZIR]DELIVERY,[F:ZIR]LINE,"","","" Using [ZZZ]
-			Wrseq "E",[F:ZIR]SITE_REC,[F:ZIR]SITE_STO Using [ZZZ]
-			Wrseq "L",[L]DOCUMENT,[L]LINE,[F:ZIR]PRODUCT Using [ZZZ]
+			Wrseq "E",[F:ZIR]SITE_REC,[F:ZIR]SITE_STO,[F:ZIR]DATE_ACC Using [ZZZ]
+			Wrseq "L",[F:ZIR]DELIVERY,[F:ZIR]LINE,[F:ZIR]PRODUCT,[F:ZIR]DESCRIPTION,[F:ZIR]UNIT,[F:ZIR]QUANTITY Using [ZZZ]
+			Wrseq "S","A",[F:ZIR]UNIT,[F:ZIR]QUANTITY,"",[F:ZIR]LOT,"","","" Using [ZZZ]
     		Call ECR_TRACE([F:ZIR]DELIVERY+"   "+num$([F:ZIR]LINE)+"   "+[F:ZIR]PRODUCT+"   "+num$([F:ZIR]QUANTITY)+"   "+[F:ZIR]UNIT,0) From GESECRAN
     		[L]ZL_COUNT+=1
         Else
-        	If [F:ZIR]POHNUM<>""
-        		[L]LINE=[F:ZIR]POPLIN
-        	Else
-        		[L]LINE=[F:ZIR]LINE
-			Endif
-#        	Wrseq "L",[L]DOCUMENT,[L]LINE,[F:ZIR]PRODUCT,[F:ZIR]STU,[F:ZIR]UNIT,[F:ZIR]UNIT,[F:ZIR]QUANTITY/[F:ZIR]COE,[F:ZIR]QUANTITY Using [ZZZ]
-#    		Wrseq "S","A",[F:ZIR]STU,[F:ZIR]UNIT,[F:ZIR]QUANTITY/[F:ZIR]COE,[F:ZIR]QUANTITY,"","",[F:ZIR]DELIVERY,[F:ZIR]LINE,"","","" Using [ZZZ]
-			Wrseq "E",[F:ZIR]SITE_REC,[F:ZIR]SITE_STO Using [ZZZ]
-			Wrseq "L",[L]DOCUMENT,[L]LINE,[F:ZIR]PRODUCT Using [ZZZ]
+			Wrseq "L",[F:ZIR]DELIVERY,[F:ZIR]LINE,[F:ZIR]PRODUCT,[F:ZIR]DESCRIPTION,[F:ZIR]UNIT,[F:ZIR]QUANTITY Using [ZZZ]
+			Wrseq "S","A",[F:ZIR]UNIT,[F:ZIR]QUANTITY,"",[F:ZIR]LOT,"","","" Using [ZZZ]
     		Call ECR_TRACE([F:ZIR]DELIVERY+"   "+num$([F:ZIR]LINE)+"   "+[F:ZIR]PRODUCT+"   "+num$([F:ZIR]QUANTITY)+"   "+[F:ZIR]UNIT,0) From GESECRAN
     		[L]ZL_COUNT+=1
     	Endif

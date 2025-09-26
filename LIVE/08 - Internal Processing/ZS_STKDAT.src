@@ -1,0 +1,43 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Call OUVRE_TRACE("Stock date updates "+format$("YYYY[-]MM[-]DD[-]hhmmss",datetime$)) From LECFIC
+Call ECR_TRACE("Begin in-stock updates...............",-1) From GESECRAN
+Call ECR_TRACE("",0) From GESECRAN
+
+If !clalev([ZSTKD]) : Local File ZSTOCKDATES [ZSTKD] : Endif
+If !clalev([ZITV]) : Local File ITMMVT [ZITV] : Endif
+Filter [ZSTKD] Where TYPSTOCK="IN" Order By STOFCY Asc;TYPSTOCK Asc;ITMREF Asc
+For [ZSTKD]
+	Read [ZITV]ITV0=[F:ZSTKD]ITMREF;[F:ZSTKD]STOFCY
+    If ![S]fstat
+    	Call ECR_TRACE(num$([F:ZITV]ZINSTOCKDAT)+" -> "+[F:ZSTKD]NEWIN,-2) From GESECRAN
+		[F:ZITV]ZINSTOCKDAT=gdatetime$([F:ZSTKD]NEWIN)
+		Rewrite [ZITV]
+    Endif
+    Read [ZITV]
+Next
+Filter [ZSTKD]
+Call ECR_TRACE("",0) From GESECRAN
+Call ECR_TRACE("Begin stock-out updates...............",-1) From GESECRAN
+
+If time>66600
+    Filter [ZSTKD] Where TYPSTOCK="OUT" Order By STOFCY Asc;TYPSTOCK Asc;ITMREF Asc
+    For [ZSTKD]
+    	Read [ZITV]ITV0=[F:ZSTKD]ITMREF;[F:ZSTKD]STOFCY
+        If ![S]fstat
+        	Call ECR_TRACE(num$([F:ZITV]ZSTOCKOUTDAT)+" -> "+[F:ZSTKD]NEWOUT,-2) From GESECRAN
+        	[F:ZITV]ZSTOCKOUTDAT=gdatetime$([F:ZSTKD]NEWOUT)
+        	Rewrite [ZITV]
+    	Endif
+        Read [ZITV]
+    Next
+    Filter [ZSTKD]
+Endif
+Call FERME_TRACE From LECFIC
+#Call LEC_TRACE From LECFIC
+
+#If [F:ZSTKD]TYPSTOCK="OUT"
+
+#Endif
+
+
+

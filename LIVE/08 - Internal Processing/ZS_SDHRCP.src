@@ -1,0 +1,17 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([ZSDH]) : Local File ZVDELIVERY [ZSDH] : Endif
+
+Local Integer ZL_COUNT : [L]ZL_COUNT=0
+
+For [ZSDH]
+	[L]ZL_COUNT+=1
+Next
+
+If [L]ZL_COUNT>0
+	Gosub UNRECEIVED_DELIVERIES From ZS_PRINT
+Endif
+
+End
+
+
+

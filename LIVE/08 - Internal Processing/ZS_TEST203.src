@@ -1,0 +1,93 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog AM_ZSCNLN(VALEUR)
+Variable Char    VALEUR()
+
+# First, we must determine whether the product to be entered already exists in the grid,
+# and if not, we select the maximum position and create a new line.
+# Determine if there is text in the field. If so, we will run the code. If not, we'll allow
+# the user to break out of the sequence and move on to the next field.
+
+If VALEUR <> ""
+    Local Shortint NOL                                                        # Set up a variable to use as the grid index
+    If find(VALEUR,[M:POH2]ITMREF)                                            # Determine if the entered product is already in the grid
+        [L]NOL = find(VALEUR,[M:POH2]ITMREF)-1                                # Set the pointer to the existing line
+        Goto APPEND_LINE                                                      # Go to the APPEND_LINE function - only adjusting quantity
+    Else                                                                      # Else, the entered product is not in the grid
+        [L]NOL = max([M:POH2]NBLIG)                                           # Find the line value at the end of the grid and append it to the NOL pointer
+        Goto ENTER_NEWLINE                                                    # Go to the ENTER_NEWLINE function - creating and filling in an entire new line
+    Endif
+Endif
+End
+
+$ENTER_NEWLINE                                                                # ENTER_NEWLINE function. Takes the context of the PO and fills the new line data accordingly
+[M:POH2]ITMREF(NOL) = VALEUR                                                  # Product code
+[M:POH2]ITMDES(NOL) = func AFNC.INTFLD("ITMMASTER","ITMDES1",VALEUR)          # Product description
+[M:POH2]ITMDES1(NOL) = func AFNC.INTFLD("ITMMASTER","ITMDES1",VALEUR)         # Standard description
+[M:POH2]PRHFCY(NOL) = [M:POH0]POHFCY                                          # Receiving site
+[M:POH2]FCYADD(NOL) = func AFNC.INTFLD("FACILITY","BPAADD",[M:POH0]POHFCY)    # Receiving site default address code
+[M:POH2]LINSTOFCY(NOL) = [M:POH0]BPSNUM                                       # If the order is an intersite, assign the ship site value to the line
+[M:POH2]UOM(NOL) = func AFNC.INTFLD("ITMMASTER","STU",VALEUR)                 # Get default stock unit
+[M:POH2]QTYUOM(NOL) = 1                                                       # Set order quantity to 1
+[M:POH2]UOMPUUCOE(NOL) = 1                                                    # PAC-STK conversion
+[M:POH2]QTYSTU(NOL) = 1                                                       # Stock quantity (same as purchase quantity)
+[M:POH2]EXTRCPDAT(NOL) = date$                                                # Expected date - set as current day
+[M:POH2]GROPRI = 0                                                            # Gross Price
+[M:POH2]LINPURTYP = 1                                                         # Purchase type
+[M:POH2]VAT1(NOL) = "NT"                                                      # Tax 1
+[M:POH2]VAT2(NOL) = "NTX"                                                     # Tax 2
+[M:POH2]VAT3(NOL) = ""                                                        # Tax 3.
+[M:POH2]QTYPUU(NOL) = 1                                                       # Purchase quantity
+[M:POH2]PUU(NOL) = func AFNC.INTFLD("ITMMASTER","STU",VALEUR)
+Goto GET_POSITION                                                             # Go to the GET_POSITION Function - determine the position of the pointer
+End
+
+$APPEND_LINE                                                                  # APPEND_NEWLINE function adjusts the quantity of an existing line
+[M:POH2]QTYUOM(NOL) += 1                                                      # Add 1 to the order quantity
+[M:POH2]QTYSTU(NOL) += 1                                                      # Add 1 to the stock quantity
+[M:POH2]QTYPUU(NOL) += 1                                                      # Add 1 to the purchase quantity
+Goto GET_POSITION                                                             # Go to the GET_POSITION function - determine the position of the pointer
+End
+
+$GET_POSITION                                                                 # We need to determine the position of the point to correctly update the Mask
+If max([M:POH2]NBLIG) = 0                                                     # If we are on the first line
+    [M:POH2]NBLIG = 1                                                         # Set the mask to 1 (next highest)
+    Goto AFFZO_MASK                                                           # Go to the AFFZO_MASK function - Refresh the POH2 grid mask
+Else
+    If max([M:POH2]NBLIG) > [L]NOL                                            # If the last line number is higher than the current line number (we're updating an existing line)
+        Goto AFFZO_MASK                                                       # Go to the AFFZO_MASK function - Update the mask without adding new lines to the grid
+    Else
+        [M:POH2]NBLIG = max([M:POH2]NBLIG)+1                                  # Else, change the pointer to the maximum value of the grid +1 (add a new line)
+        Goto AFFZO_MASK                                                       # Go to the AFFZO_MASK function - Refresh the POH2 grid mask
+    Endif
+Endif
+End
+
+$AFFZO_MASK                                                                   # AFFZO_MASK function refreshes the POH2 grid with the added lines
+Affzo [POH2]1-900                                                             # Refresh the grid
+Raz [M:ZPOH]ZSCNLN                                                            # Remove the entered value in ZSCNLN field (entry field)
+Affzo [M:ZPOH]ZSCNLN                                                          # Refresh the ZSCNLN field (now it's blank for more entry)
+mkstat = 2                                                                    # Set MKSTAT to 2 - keep the cursor in the ZSCNLN field for entry
+End
+
+$SETBOUT                                                                      # Lets run some functions during the window refresh to handle the scan to enter function
+Diszo [M:ZPOH]ZSCNLN                                                          # Always start by disabling the scan to enter field ZSCNLN
+If func AFNC.INTFLD("BPARTNER","BETFCY",[M:POH0]BPSNUM) = "2"                 # If the window is refreshed and the intersite field is checked, activate the "enable scan to enter" button
+    CHMEN += "Za"                                                             # Enable the scan to enter button
+Endif
+If BOUT = "a"                                                                 # If the scan to enter button is clicked
+    Actzo [M:ZPOH]ZSCNLN                                                      # Activate the scan to enter field
+    REP = "M"                                                                 # Change the transaction to modification
+Endif
+If func AFNC.INTFLD("BPARTNER","BETFCY",[M:POH0]BPSNUM) = "2" & REP = "M"     # If the transaction enters M mode via any method and the intersite box is ticked
+    Actzo [M:ZPOH]ZSCNLN                                                      # Activate the scan to enter field
+Endif
+Return
+
+Subprog AM_BPSNUM(VALEUR)                                                     # Checking of the supplier field to see if it's an intersite
+Variable Char    VALEUR()
+If func AFNC.INTFLD("BPARTNER","BETFCY",VALEUR) = "2"                         # If the field is an intersite after modification
+    Actzo [M:ZPOH]ZSCNLN                                                      # Activate the scan to enter field
+Else                                                                          # Else (it's not an intersite)
+    Diszo [M:ZPOH]ZSCNLN                                                      # Disable the scan to enter field
+Endif
+End

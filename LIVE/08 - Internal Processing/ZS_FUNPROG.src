@@ -1,3 +1,4 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
 Funprog ZFUNC_ORDPIC(ZNUM)
 Value Char ZNUM
 Local Char RETVAL(200)
@@ -147,4 +148,79 @@ Next
 Raz [V]ZV_SDHLIST
 Kill [V]ZV_SDHLIST
 
+End RETVAL
+
+Funprog ZFUNC_CUNLISDET(CUNLISNUM)
+Value Char CUNLISNUM
+Local Clbfile RETVAL(6)
+If !clalev([ZCVR]) : Local File ZVCUNVAR [ZCVR] : Endif
+Filter [ZCVR] Where CUNLIS=CUNLISNUM
+For [ZCVR]
+	RETVAL += [F:ZCVR]ITMREF+chr$(9)+[F:ZCVR]ITMDES+chr$(9)+[F:ZCVR]TSICOD+chr$(9)+"Expected: "+num$([F:ZCVR]QTYEXP)+chr$(9)+"Variance: "+num$([F:ZCVR]QTYVAR)+" - $"+num$([F:ZCVR]CSTVAR)
+Next
+End RETVAL
+
+Funprog ZFUNC_BPCHANGES(ZL_BPCNUM,ZL_BPAADD,ZL_INDICATOR)
+Value Char ZL_BPCNUM,ZL_BPAADD,ZL_INDICATOR
+Local Clbfile RETVAL (6)
+Local Integer CHANGE_COUNT : [L]CHANGE_COUNT=0
+If [M:BPC0]BPCSTA<>[F:BPC]BPCSTA
+	If [M:BPC0]BPCSTA=1 : If ZL_INDICATOR="A" : RETVAL="Y" : Endif : If ZL_INDICATOR="B" : RETVAL+="Status: Became inactive"+chr$(10)+chr$(10)+chr$(13) : Endif : Endif
+	If [M:BPC0]BPCSTA=2 : If ZL_INDICATOR="A" : RETVAL="Y" : Endif : If ZL_INDICATOR="B" : RETVAL+="Status: Became active"+chr$(10)+chr$(10)+chr$(13) : Endif : Endif
+Endif
+If [M:BPAC]XADDLIG1<>[F:BPA]BPAADDLIG(0)
+	If ZL_INDICATOR="A" : RETVAL="Y" : Endif
+	If ZL_INDICATOR="B" : If [M:BPAC]XADDLIG1="" : RETVAL+="Address line 1 removed"+chr$(10)+chr$(10)+chr$(13) : Else : RETVAL+="New Address Line 1: "+[M:BPAC]XADDLIG1+chr$(10)+chr$(10)+chr$(13) : Endif
+& : Endif
+Endif
+If [M:BPAC]XADDLIG2<>[F:BPA]BPAADDLIG(1)
+	If ZL_INDICATOR="A" : RETVAL="Y" : Endif
+	If ZL_INDICATOR="B" : If [M:BPAC]XADDLIG2="" : RETVAL+="Address line 2 removed"+chr$(10)+chr$(10)+chr$(13) : Else : RETVAL+="New Address Line 2: "+[M:BPAC]XADDLIG2+chr$(10)+chr$(10)+chr$(13) : Endif
+& : Endif
+Endif
+If [M:BPAC]XADDLIG3<>[F:BPA]BPAADDLIG(2)
+	If ZL_INDICATOR="A" : RETVAL="Y" : Endif
+	If ZL_INDICATOR="B" : If [M:BPAC]XADDLIG3="" : RETVAL+="Address line 3 removed"+chr$(10)+chr$(10)+chr$(13) : Else : RETVAL+="New Address Line 3: "+[M:BPAC]XADDLIG3+chr$(10)+chr$(10)+chr$(13) : Endif
+& : Endif
+Endif
+If [M:BPAC]XPOSCOD<>[F:BPA]POSCOD
+	If ZL_INDICATOR="A" : RETVAL="Y" : Endif
+	If ZL_INDICATOR="B" : RETVAL+="New Postal Code: "+[M:BPAC]XPOSCOD+chr$(10)+chr$(10)+chr$(13) : Endif
+Endif
+If [M:BPAC]XCTY<>[F:BPA]CTY
+	If ZL_INDICATOR="A" : RETVAL="Y" : Endif
+	If ZL_INDICATOR="B" : RETVAL+="New City: "+[M:BPAC]XCTY+chr$(10)+chr$(10)+chr$(13) : Endif
+Endif
+If [M:BPAC]XTEL1<>[F:BPA]TEL(0)
+	If ZL_INDICATOR="A" : RETVAL="Y" : Endif
+	If ZL_INDICATOR="B" : RETVAL+="New Phone: "+[M:BPAC]XTEL1+chr$(10)+chr$(10)+chr$(13) : Endif
+Endif
+If [M:BPAC]XWEB1<>[F:BPA]WEB(0)
+	If ZL_INDICATOR="A" : RETVAL="Y" : Endif
+	If ZL_INDICATOR="B" : RETVAL+="New Email: "+[M:BPAC]XWEB1+chr$(10)+chr$(10)+chr$(13) : Endif
+Endif
+End RETVAL
+
+Funprog ZFUNC_BACKORDER(ZL_SOHNUM)
+Value Char ZL_SOHNUM
+Local Clbfile RETVAL(6)
+If !clalev([ZOKBO]) : Local File ZOKBKO [ZOKBO] : Endif
+Filter [ZOKBO] Where SOHNUM=ZL_SOHNUM
+
+For [ZOKBO]
+	RETVAL += [F:ZOKBO]SOHNUM+" - "+num$([F:ZOKBO]SOPLIN)+" - "+[F:ZOKBO]ITMREF+" - "+[F:ZOKBO]ITMDES1+" - "+num$([F:ZOKBO]QTY)+" - "+num$([F:ZOKBO]QTYALL)+" - "+num$([F:ZOKBO]QTYBKO)+" - "+[F:ZOKBO]
+& PRIVEN+" - "+[F:ZOKBO]SECVEN+" - "+[F:ZOKBO]EARLIESTPO+" - "+[F:ZOKBO]EARLIESTVEN+" - "+num$([F:ZOKBO]QTYPOH)+" - "+num$([F:ZOKBO]ETA)+" - "+GNOMUSER+chr$(10)+chr$(13)
+Next
+End RETVAL
+
+Funprog ZFUNC_BACKORDERLN(ZL_SOHNUM,ZL_SOPLIN)
+Value Char ZL_SOHNUM
+Value Integer ZL_SOPLIN
+Local Clbfile RETVAL(6)
+If !clalev([ZOKBO]) : Local File ZOKBKO [ZOKBO] : Endif
+Filter [ZOKBO] Where SOHNUM=ZL_SOHNUM and SOPLIN=ZL_SOPLIN
+Read [ZOKBO] First
+If ![S]fstat
+	RETVAL = num$([F:ZOKBO]QTYBKO)
+Endif
 End RETVAL

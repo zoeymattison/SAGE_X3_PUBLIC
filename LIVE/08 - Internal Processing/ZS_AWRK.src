@@ -1,0 +1,35 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+    When "MESSAGE" : Gosub MESSAGE
+    When Default
+Endcase
+Return
+
+$MESSAGE
+Local Char FICHIER(240)
+Local Integer STAT
+Case [F:AWA]CODE
+When "ZW_POHRPTM" : Gosub POHNUMBER
+When "ZW_GESSIH" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Monk Office Invoice - "+[F:SIV]NUM+".pdf" : Gosub RENAME
+When "ZW_GESSIHR" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Monk Office Invoice - "+[F:ZBIE]NUM+".pdf" : Gosub RENAME
+When "ZW_COLLECT" : [L]FICHIER=filpath("","","")+"\YARCHIVE\"+[V]ZV_COLLECTIONS_FICHIER+".pdf" : Gosub RENAME
+When "ZW_SIHEDD" : [L]FICHIER=[V]ZG_FICHIER_ZW_SIHEDD : Gosub RENAME : GPE=1
+When Default
+Endcase
+Return
+
+#filpath("","","")+"\ZATTACH\+
+#[L]FICHIER="\\10.10.0.55\eddoutboundmanagement\!AUTO\"+[V]ZG_FICHIER Gosub RENAME GPE=1
+
+$POHNUMBER
+Local Char ZL_POHNUM(50)
+[L]ZL_POHNUM = func AFNC.INTFLD("BPSUPPLIER","YPOPREFIX",[M:POH0]BPSNUM)+[M:POH0]POHNUM
+[L]FICHIER=filpath("","","")+"\YARCHIVE\"+[L]ZL_POHNUM+".pdf"
+Gosub RENAME
+Return
+
+$RENAME
+Call MOVE (PCEJOI(NBJOI),FICHIER,STAT) From ORDSYS
+PCEJOI(NBJOI)=FICHIER
+Return

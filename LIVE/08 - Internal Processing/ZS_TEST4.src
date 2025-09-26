@@ -1,0 +1,15 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Local Char ZL_OK
+Local Char ZL_ABC
+Local File PORDERQ[ZPQ]
+Local File ZPODATA[ZPD]
+Columns [ZPQ] (POHNUM, LINCLEFLG)
+Filter [ZPQ] Where LINCLEFLG = 1
+For [ZPQ]
+    If func AFNC.INTFLD("ITMMASTER","TSICOD(0)",[F:ZPQ]ITMREF) = "OK" or func AFNC.INTFLD("ITMMASTER","TSICOD(0)",[F:ZPQ]ITMREF) = "AOK"
+        [L]ZL_OK += 1
+    Endif
+    If func AFNC.INTFLD("ITMFACILIT","ABCCLS",[F:ZPQ]ITMREF+'~'+[F:ZPQ]PRHFCY) = num$(1)
+        [L]ZL_ABC += 1
+    Endif
+Next

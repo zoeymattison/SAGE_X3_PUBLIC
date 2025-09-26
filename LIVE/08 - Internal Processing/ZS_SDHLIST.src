@@ -1,3 +1,4 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 If !clalev([ZSDH2]) : Local File SDELIVERY [ZSDH2] : Endif
 Local Integer ZL_CURTIM : [L]ZL_CURTIM = val(format$("hhmm",func TIMEZONE_CSTD.TO_LOCAL("Pacific Standard Time",gdatetime$(datetime$))))-100
 Local Shortint I : [L]I = 0

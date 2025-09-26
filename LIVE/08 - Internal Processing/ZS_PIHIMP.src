@@ -1,0 +1,142 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([PTH]) : Local File PRECEIPT [PTH] : Endif
+If !clalev([PTD]) : Local File PRECEIPTD [PTD] : Endif
+If !clalev([POQ]) : Local File PORDERQ [POQ] : Endif
+If !clalev([POP]) : Local File PORDERP [POP] : Endif
+If !clalev([BPS]) : Local File BPSUPPLIER [BPS] : Endif
+If !clalev([ZALK]) : Local File APLLCK [ZALK] : Endif
+
+Local Char ZL_PTHNUM(50) : [L]ZL_PTHNUM="PIHGEN_"+format$("YYMMDD[-]hhmmss",date$)
+# Open the file for writing
+Local Char WNOMFIC(250) : WNOMFIC=filpath("","YIMPORT\"+[L]ZL_PTHNUM,"")	# File path and name
+Openo WNOMFIC Using [ZZZ]
+adxifs=chr$(9)
+adxirs=chr$(13)+chr$(10)
+
+Local Char ZL_BPSNUM(30)(1..)
+Local Shortint NOL : [L]NOL=1
+Filter [BPS] Where ZAUTINV=2
+For [BPS]
+    [L]ZL_BPSNUM([L]NOL)=[F:BPS]BPSNUM
+    [L]NOL+=1
+Next
+
+# Step 1 - Gather all the necessary purchase receipt headers
+Filter [PTH] Where CREDAT>=gdat$('20250617') and BPSNDE<>"" and BETFCY=1 and left$(PRHFCY,2)="DC" and left$(BPSNUM,1)="V" and ZPTHFLG=2 and ZPOHNUM<>"" and find(BPSNUM,[L]ZL_BPSNUM)
+
+# Step 2 - For each purchase receipt header, write a new file with the import details as necessary
+For [PTH]
+	Look [ZALK]LCKCLE="PTH"+[F:PTH]PTHNUM
+	If [S]fstat
+    	# A. Write the import file header information. Requirements:
+    	#	- Indicator [Text]:					"E"
+    	#	- BP (Pay-to) [Text]:				func AFNC.INTFLD("BPSUPPLIER","BPRPAY",[F:PTH]BPSNUM)
+    	#	- BPRSAC (Control) [Text]: 			"AP"
+    	#	- BPRVCR (Source Doc) [Text]:		[F:PTH]BPSNDE
+    	#	- BPRDAT (Inv. Date) [Date]:		[F:PTH]NDEDAT
+    	#	- Line amt (Lines no tax) [MD8]:	LINAMT sum
+    	#	- Tax amt [MD8]:					LINATI-LINAMT sum
+    	#	- ACCDAT (Accounting date) [Date]:	[F:PTH]CREDAT
+    	#	- ZPOHNUM (Purchase Number):		[F:PTH]ZPOHNUM
+
+    	# Capture the LINAMT and TAXAMT sums
+    	Local Decimal ZL_LINAMT : [L]ZL_LINAMT=0
+    	Local Decimal ZL_TAXAMT : [L]ZL_TAXAMT=0
+    	Filter [PTD] Where PTHNUM=[F:PTH]PTHNUM and LININVFLG=1
+            Local Shortint ZL_COUNT : [L]ZL_COUNT=0
+            For [PTD]
+          		Read [POQ]POQ0=[F:PTD]POHNUM;[F:PTD]POPLIN;[F:PTD]POQSEQ
+          		If ![S]fstat
+          			If [F:POQ]LININVFLG=1
+                		[L]ZL_COUNT+=1
+                	Endif
+                Endif
+            Next
+
+
+    	For [PTD]
+    		Read [F:POQ]POQ0=[F:PTD]POHNUM;[F:PTD]POPLIN;1
+    		Read [F:POP]POP0=[F:PTD]POHNUM;[F:PTD]POPLIN;1
+    		If [F:PTD]ZERRQTY=[F:PTD]QTYPUU
+            	[L]ZL_LINAMT+=([F:PTD]QTYPUU*[F:POP]GROPRI)
+            Else
+            	[L]ZL_LINAMT+=([F:PTD]QTYPUU*[F:POP]GROPRI)+([F:PTD]ZERRQTY*[F:POP]GROPRI)
+            Endif
+    		If [F:POP]VAT(0)="GST"
+    			[L]ZL_TAXAMT+=[F:POQ]LINAMT*0.05
+    		Endif
+    		If [F:POP]VAT(1)="PST"
+    			[L]ZL_TAXAMT+=[F:POQ]LINAMT*0.07
+    		Endif
+    	Next
+
+    	If [L]ZL_COUNT>0 and [L]ZL_LINAMT>0
+    	# Write the header to the file
+    	Wrseq "E"
+&		,"INV"
+&		,func AFNC.INTFLD("PRECEIPTD","BPSINV",[F:PTH]PTHNUM+"~"+"1000")
+&		,"AP"
+&		,[F:PTH]BPSNDE
+&		,format$("YYYYMMDD",[F:PTH]NDEDAT)
+&		,[L]ZL_LINAMT
+&		,[L]ZL_TAXAMT
+&		,format$("YYYYMMDD",[F:PTH]CREDAT)
+&		,[F:PTH]ZPOHNUM
+&		Using [ZZZ]
+
+    	# B. Write the import file detail information. Requirements:
+    	#	- Indicator [Text]					"L"
+    	#	- Line type [Integer]				1=PO,2=Receipt (Use IF statement for Quantitity check
+    	#	- Line doc [Text]					[F:PTD]PTHNUM,[F:PTH]POHNUM (Use IF statement for Quantity check)
+    	#	- Line number [Integer]				[F:PTD]PTDLIN,[F:PTD]POPLIN (Use IF Statement for Quantity check)
+    	#	- Product [Text]					[F:PTD]ITMREF
+    	#	- Quantity [Integer]				[F:PTD]QTYPUU (Use IF statement for quantity check)
+    	#	- Net Price [MD8]					[F:PTD]NETPRI
+    	#	- Line Amount-tax					[F:PTD]LINAMT
+    	#	- Tax 1								func AFNC.INTFLD("PORDERP","VAT(0)",[F:PTD]POHNUM+"~"+[F:PTD]POPLIN+"~1")
+    	#	- Tax 2								func AFNC.INTFLD("PORDERP","VAT(1)",[F:PTD]POHNUM+"~"+[F:PTD]POPLIN+"~1")
+    	#	- Tax 3								""
+
+    	# Write the details to the file
+    	For [PTD]
+    		Read [POP]POP0=[F:PTD]POHNUM;[F:PTD]POPLIN;1
+    		If ![S]fstat
+
+    			# 1. Write the standard receipt line
+    			Wrseq "L"
+&			,2
+&			,[F:PTD]PTHNUM
+&			,[F:PTD]PTDLIN
+&			,[F:PTD]BPSNUM
+&			,[F:PTD]ITMREF
+&			,[F:PTD]QTYPUU
+&			,[F:POP]GROPRI
+&			,[F:PTD]QTYPUU*[F:POP]GROPRI
+&			,[F:POP]VAT(0)
+&			,[F:POP]VAT(1)
+&			,""
+&			Using [ZZZ]
+
+    		# 2. If there is an error quantity, write the equivalent PO line with the error quantity.
+    			If [F:PTD]ZERRQTY>0
+        			Wrseq "L"
+&				,1
+&				,[F:PTD]POHNUM
+&				,[F:PTD]POPLIN
+&				,[F:PTD]BPSNUM
+&				,[F:PTD]ITMREF
+&				,[F:PTD]ZERRQTY
+&				,[F:POP]GROPRI
+&				,[F:PTD]ZERRQTY*[F:POP]GROPRI
+&				,[F:POP]VAT(0)
+&				,[F:POP]VAT(1)
+&				,""
+&				Using [ZZZ]
+    			Endif
+    		Endif
+    	Next
+    	Endif
+    Endif
+Next
+Openo Using [ZZZ]
+# [YIMPORT]/PIHGEN_#

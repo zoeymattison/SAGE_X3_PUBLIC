@@ -1,0 +1,51 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Local Char ZL_MONTH(15)
+Local Char ZL_YEAR(15)
+
+# Calculate the current month and append a “0” if necessary.
+If month(date$)+1<=9
+    [L]ZL_MONTH="0"+num$(month(date$)+1)
+Else
+    [L]ZL_MONTH=num$(month(date$)+1)
+Endif
+
+# Calculate the year (next year if it’s December)
+If month(date$)=12
+    [L]ZL_YEAR=num$(year(date$)+1)
+Else
+    [L]ZL_YEAR=num$(year(date$))
+Endif
+
+# Build the date string and pull the name of the first day of the month out of it
+# Initialize 2 integer variables for first and second business day run dates
+Local Char ZL_FIRST(50) : [L]ZL_FIRST=day$([L]ZL_YEAR+[L]ZL_MONTH+"01")
+Local Integer ZL_RUNDAT
+Local Integer ZL_RUNDAT2
+
+# Check if the first day of the month is Friday, Saturday or Sunday, and assign the run dates for the first and second business days accordingly.
+If !find([L]ZL_FIRST,"Friday","Sunday","Saturday")
+    [L]ZL_RUNDAT=1
+    [L]ZL_RUNDAT2=2
+Else
+    If [L]ZL_FIRST="Friday"
+        [L]ZL_RUNDAT=1
+        [L]ZL_RUNDAT2=4
+    Endif
+    If [L]ZL_FIRST="Sunday"
+        [L]ZL_RUNDAT=2
+        [L]ZL_RUNDAT2=3
+    Endif
+    If [L]ZL_FIRST="Saturday"
+        [L]ZL_RUNDAT=3
+        [L]ZL_RUNDAT2=4
+    Endif
+Endif
+
+If !clalev([ZABA]) : Local File ABATABT [ZABA] : Endif
+
+Update [ZABA] Where CODABT="ZR_ZNACUS" With QUANT(0)=[L]ZL_RUNDAT
+Update [ZABA] Where CODABT="ZR_FINCHG" With QUANT(0)=[L]ZL_RUNDAT
+Update [ZABA] Where CODABT="ZPAYPROPAL" With QUANT(0)=[L]ZL_RUNDAT2
+
+
+

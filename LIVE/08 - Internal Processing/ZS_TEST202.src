@@ -1,0 +1,54 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog AM_ZSCNLN(VALEUR)
+Variable Char    VALEUR()
+If VALEUR <> ""
+    Local Shortint NOL
+    If find(VALEUR,[M:POH2]ITMREF)
+        [L]NOL = find(VALEUR,[M:POH2]ITMREF)-1
+        Goto APPEND_LINE
+    Else
+        [L]NOL = max([M:POH2]NBLIG)
+        Goto ENTER_NEWLINE
+    Endif
+Endif
+End
+
+$ENTER_NEWLINE
+[M:POH2]ITMREF(NOL) = VALEUR
+[M:POH2]QTYUOM(NOL) += 1
+Goto GET_POSITION
+End
+
+$APPEND_LINE
+[M:POH2]QTYUOM(NOL) += 1
+Goto GET_POSITION
+End
+
+$GET_POSITION
+If max([M:POH2]NBLIG) = 0
+    [M:POH2]NBLIG = 1
+    Goto AFFZO_MASK
+Else
+    If max([M:POH2]NBLIG) > [L]NOL
+        Goto AFFZO_MASK
+    Else
+        [M:POH2]NBLIG = max([M:POH2]NBLIG)+1
+        Goto AFFZO_MASK
+    Endif
+Endif
+End
+
+$AFFZO_MASK
+Affzo [POH2]1-900
+Raz [M:POH1]ZSCNLN
+Affzo [M:POH1]ZSCNLN
+mkstat = 2
+End
+
+$SETBOUT
+If REP="" & [M:POH0]POHNUM <> "" : CHMEN+="Za" : Endif
+If find(REP, "M","C") : Actzo [M:POH1]ZSCNLN
+Else Diszo [M:POH1]ZSCNLN
+If BOUT = "a" : REP="M" : Actzo [M:POH1]ZSCNLN : Endif
+Endif
+Return

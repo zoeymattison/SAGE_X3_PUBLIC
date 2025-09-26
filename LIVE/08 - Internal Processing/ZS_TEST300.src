@@ -1,0 +1,69 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Funprog ZFUNC_SDHLIST
+# 1. Filter the delivery table for any unvalidated OR uninvoiced invocies.
+# -> CFMFLG = 1 OR (CFMFLG = 2 & BETFCY = 1 & INVFLG = 1)
+# 2. Loop through the tables and create a list of items in a global array
+# -> Creation date time, Sales Site, Sold-to, Sold-to name, Delivery number, Sales order, validation status, invoice status
+# -> format$([F:ZSDH]CREDATTIM), [F:ZSDH]SALFCY, [F:ZSDH]BPCORD, [F:ZBPC]BPCNAM, [F:ZSDH]SDHNUM, [F:ZSDH]SOHNUM, If YN [F:ZSDH]CFMFLG, If YN [F:ZSDH]INVFLG
+# 3. Call a workflow to print the global array
+
+If !clalev([ZSDH]) : Local File SDELIVERY [ZSDH] : Endif
+If !clalev([ZBPC]) : Local File BPCUSTOMER [ZBPC] : Endif
+
+Local Integer ZL_CURTIM : [L]ZL_CURTIM = val(format$("hhmm",func TIMEZONE_CSTD.TO_LOCAL("Pacific Standard Time",gdatetime$(datetime$))))-100 # 1 hour ago
+Local Char ZL_CFMFLG(50)
+Local Char ZL_INVFLG(50)
+Local Char ZL_SOHNUM(50)
+Local Clbfile RETVAL (6)
+Local Shortint I : [L]I = 0
+
+Columns [ZSDH] (CREDATTIM, SALFCY, BPCORD, SDHNUM, SOHNUM, CFMFLG, INVFLG, BETFCY)
+Columns [ZBPC] (BPCNUM, BPCNAM)
+Filter [ZSDH] Where CFMFLG = 1 or (CFMFLG = 2 & BETFCY = 1 & INVFLG = 1)
+
+For [ZSDH]
+[L]I+=1
+Raz [L]ZL_INVFLG, [L]ZL_CFMFLG, [L]ZL_SOHNUM
+Case num$([F:ZSDH]CFMFLG)
+    When "1" : [L]ZL_CFMFLG = "NOT VALIDATED"
+    When "2" : [L]ZL_CFMFLG = "VALIDATED"
+Endcase
+If [F:ZSDH]BETFCY = 2
+    [L]ZL_INVFLG = "INVOICE NOT REQ. (INTERSITE)"
+Else
+    Case num$([F:ZSDH]INVFLG)
+        When "1" : [L]ZL_INVFLG = "NOT INVOICED"
+        When "2" : [L]ZL_INVFLG = "INVOICED"
+    Endcase
+Endif
+
+If [F:ZSDH]SOHNUM = ""
+    [L]ZL_SOHNUM = "NO SALES ORDER"
+Else
+    [L]ZL_SOHNUM = [F:ZSDH]SOHNUM
+Endif
+
+Read [ZBPC]BPC0=[F:ZSDH]BPCORD
+
+If val(format$("hhmm",func TIMEZONE_CSTD.TO_LOCAL("Pacific Standard Time",gdatetime$([F:ZSDH]CREDATTIM)))) <= [L]ZL_CURTIM
+    Retval += format$("D:MM[/]DD[/]YYYY[ ]hh[:]mm",
+&   func TIMEZONE_CSTD.TO_LOCAL("Pacific Standard Time",
+&   gdatetime$([F:ZSDH]CREDATTIM)))
+&   +" - "+[F:ZSDH]SALFCY
+&   +" - "+[F:ZSDH]BPCORD
+&   +" - "+[F:ZBPC]BPCNAM
+&   +" - "+[F:ZSDH]SDHNUM
+&   +" - "+[L]ZL_SOHNUM
+&   +" - "+[L]ZL_CFMFLG
+&   +" - "+[L]ZL_INVFLG+chr$(10)+chr$(13)
+Endif
+Next
+
+If [L]I = 0
+Retval = "END"
+Endif
+
+End RETVAL
+
+
+
