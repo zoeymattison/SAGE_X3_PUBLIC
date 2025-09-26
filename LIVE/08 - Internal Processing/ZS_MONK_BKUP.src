@@ -19,7 +19,7 @@ If ([M:ITM1]TSICOD(0) = "DM" | [M:ITM1]TSICOD(0) = "DS")
     Filter [ZIF] Where ITMREF = [M:ITM0]ITMREF and SAFSTO > 0 and !pat(STOFCY, "CR*")
   For [ZIF]
     If pat([F:ZIF]STOFCY, "DC*")
-      [V]ZG_DISREC = "james.zabarauckas@monk.ca"
+      [V]ZG_DISREC = "email@example.com"
     Else
       [V]ZG_DISREC = "store"+left$([F:ZIF]STOFCY,2)+"@monk.ca"
     Endif

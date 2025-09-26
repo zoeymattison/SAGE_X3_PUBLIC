@@ -263,7 +263,7 @@ End
 Subprog ZSUB_RECMAIL_W
 If pat([M:PAY0]NUM, 'RECC*')
 Global Char GBPEM2(100) : GBPEM2 = func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[M:PAY1]BPR+'~ADDR')
-If GBPEM2 = "" : GBPEM2 = "noemailonfile@monk.ca" : Endif
+If GBPEM2 = "" : GBPEM2 = "email@example.com" : Endif
 Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
 TBPAR_BP(1) = "regdeb" : TBVAL_BP(1) = [M:PAY0]NUM
 Call ETAT("ZRECEIPT","EMAILX3","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3

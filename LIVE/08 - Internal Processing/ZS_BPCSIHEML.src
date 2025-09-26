@@ -32,10 +32,10 @@ For [ZBIE]
             TBPAR(7) = "edd"	: TBVAL(7) = "1"
             TBPAR(8) = "duddeb"	: TBVAL(8) = format$("MM[/]DD[/]YYYY",date$-365*10)
             TBPAR(9) = "dudfin"	: TBVAL(9) = format$("MM[/]DD[/]YYYY",date$+365*10)
-			If [F:ZBIE]SIHEML="" : [L]BPC_EML="ar@monk.ca" : Else [L]BPC_EML=[F:ZBIE]SIHEML : Endif
-            [V]ZG_SIHSND="ar@monk.ca"
+			If [F:ZBIE]SIHEML="" : [L]BPC_EML="email@example.com" : Else [L]BPC_EML=[F:ZBIE]SIHEML : Endif
+            [V]ZG_SIHSND="email@example.com"
             [V]ZG_SIHEML=[L]BPC_EML
-            [V]ZG_SIHECC="ar@monk.ca"
+            [V]ZG_SIHECC="email@example.com"
             [V]ZG_SIHSBJ="Monk Office "+tolower(mess(val(func AFNC.INTFLD("SINVOICE","INVTYP",[F:ZBIE]NUM)),645,1))+' - '+[F:ZBIE]NUM
             [V]ZG_SIHMES+="Hello, this is an automated message intended for "+func AFNC.INTFLD('BPCUSTOMER','BPCNAM',[F:ZBIE]SHIPTO)+"."+chr$(10)+chr$(10)
             [V]ZG_SIHMES+="Please find attached your "+tolower(mess(val(func AFNC.INTFLD('SINVOICE','INVTYP',[F:ZBIE]NUM)),645,1))+" from Monk Office."+chr$(10)+chr$(10)

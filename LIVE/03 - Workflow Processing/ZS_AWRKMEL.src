@@ -7,7 +7,7 @@ Return
 
 $EMAIL
 If [V]ZG_EXP_MAIL = ""
-  EXP_MAIL = "noreply@monk.ca"
+  EXP_MAIL = "email@example.com"
 Else
   EXP_MAIL = [V]ZG_EXP_MAIL
 Endif
@@ -60,7 +60,7 @@ If IMSGTYP = 1
     Wrseq "SET FROM="+EXP_MAIL Using [ZBAT]
     Wrseq "SET MSGTYPE="+MSGTYP Using [ZBAT]
 
-    Wrseq "SET BCCREC="+chr$(34)+"Kelly.McGuire@monk.ca"+chr$(34) Using [ZBAT]
+    Wrseq "SET BCCREC="+chr$(34)+"email@example.com"+chr$(34) Using [ZBAT]
 
     Wrseq "more +4 "+FIC_MAIL-"> %MSG%" Using [ZBAT]
     Wrseq "MAILSEND -smtp %SMTP% -t %PRECIP% -f %From% -list_address %RECIPENT% -bc %BCCREC% -cs utf-8 -mime-type %MSGTYPE% -sub %SUBJECT% -msg-body %MSG%" Using [ZBAT]

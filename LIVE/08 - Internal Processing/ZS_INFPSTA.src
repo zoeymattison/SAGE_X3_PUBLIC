@@ -255,9 +255,9 @@ Else
 ZS26SIH = '[INVOICE] NO UPDATE IN LAST 24 HOURS'+chr$(10)
 Endif
 
-A_USER(1)="service@monk.ca"
+A_USER(1)="email@example.com"
 HEADER='InfoPOS Document Delay Report'
-ISSUERMAIL='noreply@monk.ca'
+ISSUERMAIL='email@example.com'
 TRACE = 2
 
 Append BODY , 'This is an automated message.'+chr$(10)

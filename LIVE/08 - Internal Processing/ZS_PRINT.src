@@ -20,7 +20,7 @@ Return
 
 $GET_PRIO_COUNT
 Gosub ACTIVATE_GLOBALS
-[V]ZG_DEST = "ross.fowlie@monk.ca;kirsten.luker@monk.ca;suzanne.hamilton@monk.ca"
+[V]ZG_DEST = "email@example.com;email@example.com;email@example.com"
 [V]ZG_CCUSR = ""
 [V]ZG_SUBJECT = [M:ITM0]ITMREF-"has more than one priority 0 vendor"
 [V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
@@ -36,8 +36,8 @@ Return
 
 $UNIQUE_REF
 Gosub ACTIVATE_GLOBALS
-[V]ZG_DEST = "ar@monk.ca"
-[V]ZG_CCUSR = "service@monk.ca;kaitlin.vandervlugt@monk.ca"
+[V]ZG_DEST = "email@example.com"
+[V]ZG_CCUSR = "email@example.com;email@example.com"
 [V]ZG_SUBJECT = "NOTICE - Duplicate InfoPOS Payment Created! - "+[M:PAY1]REF
 [V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
 &+"A payment with an already-existing CB reference was created - "+[M:PAY1]REF+chr$(10)+chr$(10)
@@ -48,8 +48,8 @@ Return
 
 $SOH_BPCCHECK
 Gosub ACTIVATE_GLOBALS
-[V]ZG_DEST = "ar@monk.ca"
-[V]ZG_CCUSR = "service@monk.ca"
+[V]ZG_DEST = "email@example.com"
+[V]ZG_CCUSR = "email@example.com"
 [V]ZG_SUBJECT = "WARNING - Incorrect Bill-to On "+[M:SOH0]SOHNUM
 [V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
 &+"A sales order was created with an incorrect bill-to."+chr$(10)+chr$(10)
@@ -65,8 +65,8 @@ Return
 
 $SOH_SIGNATURE
 Gosub ACTIVATE_GLOBALS
-[V]ZG_DEST = "hello@monk.ca"
-[V]ZG_CCUSR = "service@monk.ca"
+[V]ZG_DEST = "email@example.com"
+[V]ZG_CCUSR = "email@example.com"
 [V]ZG_SUBJECT = "NOTICE - Monk Office Order for your Approval "+[F:SOH]SOHNUM
 [V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
 &+"A sales order was created that needs approval!"+chr$(10)+chr$(10)
@@ -104,7 +104,7 @@ Return
 $POH_APPROVAL
 Gosub ACTIVATE_GLOBALS
 If [F:ZPO]CREUSR="YSIA" or func AFNC.INTFLD("AUTILIS","ADDEML",[F:ZPO]CREUSR)=""
-	[V]ZG_DEST = "opteam@monk.ca"
+	[V]ZG_DEST = "email@example.com"
 Else
 	[V]ZG_DEST = func AFNC.INTFLD("AUTILIS","ADDEML",[F:ZPO]CREUSR)
 Endif
@@ -143,11 +143,11 @@ Case [F:ZCUL]STOFCY
 Endcase
 
 If [V]ZG_DEST=""
-	[V]ZG_DEST="zoey.mattison@monk.ca"
-	[V]ZG_CCUSR="service@monk.ca"
+	[V]ZG_DEST="email@example.com"
+	[V]ZG_CCUSR="email@example.com"
 Else
-	[V]ZG_CCUSR = "joanne.boyer@monk.ca;scott.matheson@monk.ca"
-	[V]ZG_CCUSR2="service@monk.ca;adam.taft@monk.ca"
+	[V]ZG_CCUSR = "email@example.com;email@example.com"
+	[V]ZG_CCUSR2="email@example.com;email@example.com"
 Endif
 [V]ZG_ATTACH=WNOMFIC
 [V]ZG_SUBJECT = "[REPORT] Cycle Count Variance for "+[F:ZCUL]STOFCY+" - "+[F:ZCUL]CUNSSSNUM+" - "+format$("YYYY[-]MM[-]DD",date$)
@@ -160,7 +160,7 @@ Return
 
 $UNRECEIVED_DELIVERIES
 Gosub ACTIVATE_GLOBALS
-	[V]ZG_DEST="service@monk.ca"
+	[V]ZG_DEST="email@example.com"
 	[V]ZG_SUBJECT = "[NOTICE] Unreceived Intersite Deliveries"
 	[V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
     [V]ZG_MESSAGE +="Please review the following deliveries that are 14 or more days old, and have not been received!"+chr$(10)+chr$(10)
@@ -175,8 +175,8 @@ Return
 $TRANSFER_CLAIM
 Gosub ACTIVATE_GLOBALS
 
-[V]ZG_DEST="returns@monk.ca"
-[V]ZG_CCUSER="service@monk.ca"
+[V]ZG_DEST="email@example.com"
+[V]ZG_CCUSER="email@example.com"
 [V]ZG_ATTACH=WNOMFIC
 [V]ZG_SUBJECT = "[REPORT] Transfer Claim for "+func AFNC.INTFLD("SDELIVERY","BPCORD",[M:ZRR1]SDHNUM(0))+" - "+format$("YYYY[-]MM[-]DD",date$)
 [V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)

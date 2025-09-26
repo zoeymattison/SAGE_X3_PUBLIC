@@ -56,8 +56,8 @@ For I=0 To [M:SIH4]NBLIG-1
     If left$([M:SIH4]ITMREF(I),12)="/PROGRESSPAY" : [L]ZL_PROPAY+=1 : Endif
 Next
 If [L]ZL_PROPAY>0
-    [V]ZG_SIHSND="noreply@monk.ca"
-    [V]ZG_SIHEML="adam.taft@monk.ca;ar@monk.ca"
+    [V]ZG_SIHSND="email@example.com"
+    [V]ZG_SIHEML="email@example.com;email@example.com"
     [V]ZG_SIHECC=""
     [V]ZG_SIHSBJ="NOTICE - PROGRESS PAYMENT MADE - "+[F:SIH]NUM
     [V]ZG_SIHMES+="Hello,"+chr$(10)+chr$(10)
@@ -73,9 +73,9 @@ If [L]ZL_PROPAY>0
 Endif
 If [M:SIH0]BPCINV=func AFNC.INTFLD("BPCUSTOMER","BPCINV",[M:SIH1]BPCORD) and
 & func AFNC.INTFLD("BPCUSTOMER","ZSIHEML",[F:SIV]BPCORD) = num$(2) and [F:SIH]AMTATI > 0
-    [V]ZG_SIHSND="ar@monk.ca"
+    [V]ZG_SIHSND="email@example.com"
     [V]ZG_SIHEML=func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[F:SIV]BPCORD+'~ADDR')
-    [V]ZG_SIHECC="ar@monk.ca"
+    [V]ZG_SIHECC="email@example.com"
     [V]ZG_SIHSBJ="Monk Office "+tolower(mess(val(func AFNC.INTFLD("SINVOICE","INVTYP",[F:SIV]NUM)),645,1))+' - '+[F:SIV]NUM
     [V]ZG_SIHMES+="Hello, this is an automated message intended for "+func AFNC.INTFLD('BPCUSTOMER','BPCNAM',[F:SIV]BPCORD)+"."+chr$(10)+chr$(10)
     [V]ZG_SIHMES+="Please find attached your "+tolower(mess(val(func AFNC.INTFLD('SINVOICE','INVTYP',[F:SIV]NUM)),645,1))+" from Monk Office."+chr$(10)+chr$(10)

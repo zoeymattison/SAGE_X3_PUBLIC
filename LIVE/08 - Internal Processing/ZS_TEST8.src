@@ -10,9 +10,9 @@
  Local Clbfile   BODY(0)
  Local Char      ATTACHMENTS(250)(1..)
 
-    A_USER(1)="zoey.mattison@monk.ca"
+    A_USER(1)="email@example.com"
     HEADER="Excel Test"
-    ISSUERMAIL="noreply@monk.ca"
+    ISSUERMAIL="email@example.com"
     ATTACHMENTS(1) = "D:\Sage\X3\folders\LIVE\ZATTACH\ZARCHIVE\BackOrderReport_20240709.xlsx"
     ATTACHMENTS(2) = "D:\Sage\X3\folders\LIVE\ZATTACH\ZARCHIVE\BackOrderReport_20240710.xlsx"
     ATTACHMENTS(3) = "D:\Sage\X3\folders\LIVE\ZATTACH\ZARCHIVE\BackOrderReport_20240711.xlsx"

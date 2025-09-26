@@ -28,7 +28,7 @@ For [ZBPC]
 			If ![S]fstat
 				[V]ZG_ZW_ACKNOW_SUBJECT="[Notice] Carstock Order Created"
 				[V]ZG_ZW_ACKNOW_RECIPIENT=func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[F:ZSOH]BPCORD+'~MAIN')
-				[V]ZG_ZW_ACKNOW_CCUSER="techparts@monk.ca"
+				[V]ZG_ZW_ACKNOW_CCUSER="email@example.com"
 				If [F:ZSOH]CUSORDREF<>"" : [V]ZG_ZW_ACKNOW_SUBJECT+=" for "+[F:ZSOH]CUSORDREF : Endif
 				If [F:ZSOH]YCONTNAME<>"" : [V]ZG_ZW_ACKNOW_SUBJECT+=" - "+[F:ZSOH]YCONTNAME : Endif
 				[V]ZG_ZW_ACKNOW_MESSAGE+="This is an automated message."+chr$(10)+chr$(10)

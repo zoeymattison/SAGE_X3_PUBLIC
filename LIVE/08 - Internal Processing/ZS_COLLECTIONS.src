@@ -83,7 +83,7 @@ For I=1 To [L]ZL_BPR_I-1
 	Read [ZBPC]BPC0=[L]ZL_BPR(I)
 	If ![S]fstat
 		If func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[L]ZL_BPR(I)+"~ADDR")=""
-			[L]ZL_BPCEML="ar@monk.ca"
+			[L]ZL_BPCEML="email@example.com"
 		Else
 			[L]ZL_BPCEML=func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[L]ZL_BPR(I)+"~ADDR")
 		Endif
@@ -95,7 +95,7 @@ For I=1 To [L]ZL_BPR_I-1
 &		+"and provide reasoning for non-payment. If no reason is applicable, please arrange payment for the past due balances to re-establish service."+chr$(10)+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="We accept payment in many different forms depending on what is most convenient for you:"+chr$(10)+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="1. EFT (Electronic Fund Transfer) – if requested we will provide you our direct deposit authorization."+chr$(10)
-		[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to ar@monk.ca, include your account number in the comments."+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to email@example.com, include your account number in the comments."+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="3. Credit Card (pay online, call in payment, or authorize an automated monthly charge for statement balance)"
 &		+" – Credit Card details required, ask for our secure authorization form if interested."+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 800 Viewfield Road, Victoria BC V9A 4V1"+chr$(10)
@@ -134,7 +134,7 @@ For [ZCOL]
 		Rewrite [ZSIH]
 		If ![S]fstat
 			If func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:ZCOL]BPR+"~ADDR")=""
-    			[L]ZL_BPCEML="ar@monk.ca"
+    			[L]ZL_BPCEML="email@example.com"
     		Else
     			[L]ZL_BPCEML=func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:ZCOL]BPR+"~ADDR")
     		Endif
@@ -147,7 +147,7 @@ For [ZCOL]
 			[V]ZV_COLLECTIONS_MESSAGE+="This account will be placed on a service/ supply hold if not paid within the following 2 weeks."+chr$(10)+chr$(10)
         	[V]ZV_COLLECTIONS_MESSAGE+="We accept payment in many different forms depending on what is most convenient for you:"+chr$(10)+chr$(10)
         	[V]ZV_COLLECTIONS_MESSAGE+="1. EFT (Electronic Fund Transfer) – if requested we will provide you our direct deposit authorization."+chr$(10)
-        	[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to ar@monk.ca, include your account number in the comments."+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to email@example.com, include your account number in the comments."+chr$(10)
         	[V]ZV_COLLECTIONS_MESSAGE+="3. Credit Card (pay online, call in payment, or authorize an automated monthly charge for statement balance)"
 &			+" – Credit Card details required, ask for our secure authorization form if interested."+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 800 Viewfield Road, Victoria BC V9A 4V1"+chr$(10)
@@ -181,7 +181,7 @@ For [ZCOL]
 		Rewrite [ZSIH]
 		If ![S]fstat
     		If func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:ZCOL]BPR+"~ADDR")=""
-    			[L]ZL_BPCEML="ar@monk.ca"
+    			[L]ZL_BPCEML="email@example.com"
     		Else
     			[L]ZL_BPCEML=func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:ZCOL]BPR+"~ADDR")
     		Endif
@@ -192,7 +192,7 @@ For [ZCOL]
 &			+"If no reason is applicable, please arrange payment for the past due balances."+chr$(10)+chr$(10)
         	[V]ZV_COLLECTIONS_MESSAGE+="We accept payment in many different forms depending on what is most convenient for you:"+chr$(10)+chr$(10)
         	[V]ZV_COLLECTIONS_MESSAGE+="1. EFT (Electronic Fund Transfer) – if requested we will provide you our direct deposit authorization."+chr$(10)
-        	[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to ar@monk.ca, include your account number in the comments."+chr$(10)
+        	[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to email@example.com, include your account number in the comments."+chr$(10)
         	[V]ZV_COLLECTIONS_MESSAGE+="3. Credit Card (pay online, call in payment, or authorize an automated monthly charge for statement balance)"
 &			+" – Credit Card details required, ask for our secure authorization form if interested."+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 800 Viewfield Road, Victoria BC V9A 4V1"+chr$(10)

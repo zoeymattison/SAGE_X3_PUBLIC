@@ -16,7 +16,7 @@ Return
 
 $OUVRE
 #If GUSER<>"MOZM"
-#    Infbox "Under construction! Check back later or email service@monk.ca"
+#    Infbox "Under construction! Check back later or email email@example.com"
 #    FIN=1
 #    Return
 #Endif

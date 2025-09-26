@@ -16,9 +16,9 @@ $INFP
 If GUSER = 'INFP'
 
     Local Char MESSAGE(250)
-    Local Char DEST(250) : [L]DEST = "service@monk.ca;james.zabarauckas@monk.ca"
+    Local Char DEST(250) : [L]DEST = "email@example.com;email@example.com"
     Local Char SUBJECT(250) : [L]SUBJECT = "InfoPOS Misc Issue created - "+[M:SMO0]VCRNUM
-    Local Char SENDER : [L]SENDER = "noreply@monk.ca"
+    Local Char SENDER : [L]SENDER = "email@example.com"
 
     [L]MESSAGE = "This is an automated message"+chr$(10)+chr$(10)+
 &    "InfoPOS created a misc issue! Please click here to go to it."+chr$(10)+chr$(10)+

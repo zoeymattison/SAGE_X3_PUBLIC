@@ -21,10 +21,10 @@ Endcase
 End
 
 $BPCINV
-    A_USER(1)="service@monk.ca"
-    A_USER(2)="ar@monk.ca"
+    A_USER(1)="email@example.com"
+    A_USER(2)="email@example.com"
     HEADER='WARNING - INCORRECT BILL-TO ON '+[M:SIH0]NUM
-    ISSUERMAIL='noreply@monk.ca'
+    ISSUERMAIL='email@example.com'
     TRACE = 2
  
     Append BODY , 'This is an automated message.'+chr$(10)
@@ -46,10 +46,10 @@ $BPCINV
 End
 
 $BPCINVS
-    A_USER(1)="service@monk.ca"
-    A_USER(2)="ar@monk.ca"
+    A_USER(1)="email@example.com"
+    A_USER(2)="email@example.com"
     HEADER='WARNING - INCORRECT BILL-TO ON '+[M:SOH0]SOHNUM
-    ISSUERMAIL='noreply@monk.ca'
+    ISSUERMAIL='email@example.com'
     TRACE = 2
  
     Append BODY , 'This is an automated message.'+chr$(10)
@@ -71,14 +71,14 @@ $BPCINVS
 End
 
 $SOHSIG
-    #A_USER(1)="zoey.mattison@monk.ca"
-    A_USER(1)="hello@monk.ca"
-    #CC_USER(1)="jennifer.subasic@monk.ca"
-    #CC_USER(2)="kelly.mcguire@monk.ca"
-    CC_USER(1)="zoey.mattison@monk.ca"
+    #A_USER(1)="email@example.com"
+    A_USER(1)="email@example.com"
+    #CC_USER(1)="email@example.com"
+    #CC_USER(2)="email@example.com"
+    CC_USER(1)="email@example.com"
 
     HEADER='Monk Office Order for your Approval'-[F:SOH]SOHNUM
-    ISSUERMAIL='noreply@monk.ca'
+    ISSUERMAIL='email@example.com'
     TRACE = 2
  
     Append BODY , 'This is an automated message.'+chr$(10)
