@@ -41,10 +41,10 @@ For [ZBIE]
             [V]ZG_SIHMES+="Please find attached your "+tolower(mess(val(func AFNC.INTFLD('SINVOICE','INVTYP',[F:ZBIE]NUM)),645,1))+" from Monk Office."+chr$(10)+chr$(10)
             [V]ZG_SIHMES+="Thank you,"+chr$(10)+chr$(10)
             [V]ZG_SIHMES+="Accounts Receivable"+chr$(10)
-            [V]ZG_SIHMES+="Monk Office"+chr$(10)
-            [V]ZG_SIHMES+="800 Viewfield Road"+chr$(10)
-            [V]ZG_SIHMES+="Victoria, BC V9A4V1"+chr$(10)
-            [V]ZG_SIHMES+="P: 250-414-3359 E: ar@monk.ca"
+            [V]ZG_SIHMES+="Company"+chr$(10)
+            [V]ZG_SIHMES+="Address"+chr$(10)
+            [V]ZG_SIHMES+="City, Postal Code"+chr$(10)
+            [V]ZG_SIHMES+="P: ###-####-#### E: email@example.com"
             Call ETAT("MONK-INVOICE", "EMAILX3" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
             Raz [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND,TBPAR,TBVAL,[L]BPC_EML
 		Endif

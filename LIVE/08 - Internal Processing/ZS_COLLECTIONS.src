@@ -104,10 +104,6 @@ For I=1 To [L]ZL_BPR_I-1
 		[V]ZV_COLLECTIONS_MESSAGE+="Past due balances will accrue interest fees at a rate of 2% monthly. "+chr$(10)+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="Regards,"+chr$(10)+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="Accounts Receivable"+chr$(10)
-		[V]ZV_COLLECTIONS_MESSAGE+="Monk Office Supply"+chr$(10)
-		[V]ZV_COLLECTIONS_MESSAGE+="800 Viewfield Road"+chr$(10)
-		[V]ZV_COLLECTIONS_MESSAGE+="Victoria, BC V9A 4V1"+chr$(10)
-		[V]ZV_COLLECTIONS_MESSAGE+="P: 250-414-3359 E: ar@monk.ca"+chr$(10)
 
 		#[V]ZV_COLLECTIONS_MESSAGE+=[L]ZL_BPCEML
 		[V]ZV_COLLECTIONS_FICHIER="Account Statement "+[L]ZL_BPR(I)
@@ -161,10 +157,6 @@ For [ZCOL]
 &			+"will result in account holds and service disruptions."+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Regards,"+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Accounts Receivable"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="Monk Office Supply"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="800 Viewfield Road"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="Victoria, BC V9A 4V1"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="P: 250-414-3359 E: ar@monk.ca"+chr$(10)
 
     		[V]ZV_COLLECTIONS_FICHIER="Invoice "+[F:ZCOL]NUM+" and Account Statement"
             TBPAR(1) = "vcrnum" : TBVAL(1) = [F:ZCOL]NUM
@@ -210,10 +202,6 @@ For [ZCOL]
 &			+"will result in account holds and service disruptions."+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Regards,"+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Accounts Receivable"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="Monk Office Supply"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="800 Viewfield Road"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="Victoria, BC V9A 4V1"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="P: 250-414-3359 E: ar@monk.ca"+chr$(10)
 
     		[V]ZV_COLLECTIONS_FICHIER="Invoice "+[F:ZCOL]NUM
             TBPAR(1) = "vcrnum"		: TBVAL(1) = [F:ZCOL]NUM

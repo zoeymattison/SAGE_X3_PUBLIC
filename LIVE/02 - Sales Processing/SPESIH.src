@@ -81,10 +81,6 @@ If [M:SIH0]BPCINV=func AFNC.INTFLD("BPCUSTOMER","BPCINV",[M:SIH1]BPCORD) and
     [V]ZG_SIHMES+="Please find attached your "+tolower(mess(val(func AFNC.INTFLD('SINVOICE','INVTYP',[F:SIV]NUM)),645,1))+" from Monk Office."+chr$(10)+chr$(10)
     [V]ZG_SIHMES+="Thank you,"+chr$(10)+chr$(10)
     [V]ZG_SIHMES+="Accounts Receivable"+chr$(10)
-    [V]ZG_SIHMES+="Monk Office"+chr$(10)
-    [V]ZG_SIHMES+="800 Viewfield Road"+chr$(10)
-    [V]ZG_SIHMES+="Victoria, BC V9A4V1"+chr$(10)
-    [V]ZG_SIHMES+="P: 250-414-3359 E: ar@monk.ca"
     Call ETAT("ZRPT-GESSIH", "EMAILX3" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
     Raz [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND
 Endif
