@@ -32,6 +32,7 @@ BPADDRESS as (
 		LIVE.BPADDRESS bpa
 	left join
 		LIVE.BPCUSTOMER bpc on bpa.BPANUM_0=bpc.BPCNUM_0
+	where BPATYP_0=1
 ),
 SORDERLINE as (
 	select

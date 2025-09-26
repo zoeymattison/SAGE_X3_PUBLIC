@@ -281,7 +281,8 @@ SELECT
 	sio.[2600 Stock holding],
 	sio.[3200 Stock holding],
 	sio.[DC30 Stock holding],
-	sio.[DC33 Stock holding]
+	sio.[DC33 Stock holding],
+	ITM.ACCCOD_0 as [Accounting Code]
 
 FROM LIVE.ITMMASTER ITM
 LEFT JOIN LIVE.ATEXTRA ATX ON ATX.CODFIC_0 = 'ATABDIV'

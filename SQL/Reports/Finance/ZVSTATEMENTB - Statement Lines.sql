@@ -1,16 +1,16 @@
 with gaccdudate as (
 	select
 		BPR_0 as [Pay-by],
-		sum(case when CREDAT_0 >= dateadd(day,-30,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Current],
-		sum(case when CREDAT_0 between dateadd(day,-60,GETDATE()) and dateadd(day,-31,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 30],
-		sum(case when CREDAT_0 between dateadd(day,-90,GETDATE()) and dateadd(day,-61,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 60],
-		sum(case when CREDAT_0 between dateadd(day,-120,GETDATE()) and dateadd(day,-91,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 90],
-		sum(case when CREDAT_0 <= dateadd(day,-121,GETDATE()) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 120],
+		sum(case when CREDAT_0 >= dateadd(day,-30,cast(GETDATE() as date)) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Current],
+		sum(case when CREDAT_0 between dateadd(day,-60,cast(GETDATE() as date)) and dateadd(day,-31,cast(GETDATE() as date)) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 30],
+		sum(case when CREDAT_0 between dateadd(day,-90,cast(GETDATE() as date)) and dateadd(day,-61,cast(GETDATE() as date)) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 60],
+		sum(case when CREDAT_0 between dateadd(day,-120,cast(GETDATE() as date)) and dateadd(day,-91,cast(GETDATE() as date)) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 90],
+		sum(case when CREDAT_0 <= dateadd(day,-121,cast(GETDATE() as date)) then (AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0 else 0 end) as [Owing Over 120],
 		sum((AMTCUR_0-(TMPCUR_0+PAYCUR_0))*SNS_0) as [Owing Total]
 	from
 		LIVE.GACCDUDATE
 	where
-		TYP_0 not in ('*PO','*SO','NEWPR','SPINV','SPMEM','PAYMT')
+		TYP_0 not in ('*PO','*SO','NEWPR','SPINV','SPMEM','PAYMT','INT') and left(NUM_0,3)<>'INT'
 	group by
 		BPR_0
 	having 
@@ -23,7 +23,7 @@ invoices as (
 		sum(INVDISCTOT_0) as [Discount Total],
 		sum(INV_ELM_FRT_0) as [Freight],
 		sum(INV_ELM_FSC_0) as [Fuel Surcharge],
-		sum(INV_SUBTOTAL_0) as [Subtotal],
+		sum(INV_SUBTOTAL_0+INV_ELM_FRT_0+INV_ELM_FSC_0+TAX_EHF_0) as [Subtotal],
 		sum(TAX_EHF_0) as [EHF Fee],
 		sum(TAX_GST_0) as [GST],
 		sum(TAX_PST_0) as [PST],
@@ -42,7 +42,7 @@ invoices as (
 	inner join
 		LIVE.BPADDRESS a on b.BPCNUM_0=a.BPANUM_0 and b.BPAADD_0=a.BPAADD_0
 	where
-		INV_OWINGBAL_0=2
+		INV_OWINGBAL_0=2 and left(NUM_0,3)<>'INT'
 	group by
 		BILLTO_0,
 		b.BPCNAM_0,

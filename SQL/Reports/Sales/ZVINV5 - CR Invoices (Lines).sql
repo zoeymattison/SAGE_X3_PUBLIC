@@ -68,6 +68,26 @@ interestlines as (
 		LIVE.BPCINVLIG
 	where
 		left(NUM_0,3)='INT'
+),
+invoice_reference_return as (
+	select
+		d.NUM_0 as [Number],
+		dl.SIHNUM_0 as [Invoice]
+	from
+		LIVE.SINVOICED d
+	inner join
+		LIVE.SRETURND r on d.SRHNUM_0=r.SRHNUM_0 and d.SIDORILIN_0=r.SRDLIN_0
+	Inner join
+		LIVE.SDELIVERYD s on r.SDHNUM_0=s.SDHNUM_0 and r.SDDLIN_0=s.SDDLIN_0
+	inner join
+		LIVE.SDELIVERY dl on s.SDHNUM_0=dl.SDHNUM_0
+),
+invoice_reference_direct as (
+	select
+		NUM_0 as [Number],
+		SIHORINUM_0 as [Invoice Reference]
+	from
+		LIVE.SINVOICEV
 )
 
 SELECT DISTINCT
@@ -136,10 +156,12 @@ SELECT DISTINCT
 				else 0
 			end
 	end as [Total],
+	isnull(isnull(ret.[Invoice],dir.[Invoice Reference]),'Direct credit') as [Invoice Reference],
 	isnull(case son.SOHNUM_0
 		when '' then ivl.[Invoice Line Text]
 		else sol.[Sales Order Line Text]
 	end,'') as [Line Text]
+
 
 from
 	LIVE.SINVOICE sih
@@ -152,3 +174,7 @@ left join
 	invoicelines ivl on sih.NUM_0=ivl.NUM_0
 left join
 	interestlines interest on sih.NUM_0=interest.NUM_0
+left join
+	invoice_reference_return ret on sih.NUM_0=ret.Number
+left join
+	invoice_reference_direct dir on sih.NUM_0=dir.Number

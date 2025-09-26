@@ -278,8 +278,8 @@ isnull((zsih.AMTNOT_0-zsiv.[Freight Charge]-zsiv.[Fuel Surharge])*zsih.SNS_0,0) 
 isnull(zsid.[Line EHF],0) as [Line EHF],
 
 /* Taxes */
-isnull(svt.[GST]+svt.[Fuel Tax GST],0) as [GST],
-isnull(svt.[PST]+svt.[Fuel Tax PST],0) as [PST],
+isnull(svt.[GST]+svt.[Fuel Tax GST],0)*zsih.SNS_0 as [GST],
+isnull(svt.[PST]+svt.[Fuel Tax PST],0)*zsih.SNS_0 as [PST],
 
 zsih.AMTATI_0*zsih.SNS_0 as [Total+Tax],
 
@@ -307,4 +307,4 @@ inner join BPADDRESS zbpa3 on zsih.BPAPAY_0=zbpa3.[Address Code] and zsih.BPRPAY
 inner join GACCDUDATE zdud on zsih.NUM_0=zdud.NUM_0 and zsih.GTE_0=zdud.TYP_0
 left join BPDLVCUST zbpd on zsiv.[Address Code]=zbpd.[Address Code] and zsiv.[Ship-to]=zbpd.[Customer Number]
 inner join EDD edd on ISNULL(zsiv.[Bill-to], zsih.BPRPAY_0)=edd.[Customer]
-left join SVCRVAT svt on zsih.NUM_0=svt.VCRNUM_0 and svt.VCRTYP_0 = case zsih.SNS_0 when 1 then 4 when -1 then 5 end
+left join SVCRVAT svt on zsih.NUM_0=svt.VCRNUM_0 and svt.VCRTYP_0=4
