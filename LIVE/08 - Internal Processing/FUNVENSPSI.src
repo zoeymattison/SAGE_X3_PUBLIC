@@ -1,0 +1,985 @@
+########################################################################
+# FUNVENSPSI                                      JL - Septembre 2000  #
+#                                                                      #
+#    RECHERCHE TARIFS                                                  #
+#                                                                      #
+#    - Traitement        : FUNVENSPSI                                  #
+#    - Action e_commerce : SAISPSI  (Saisie fenêtre)                   #
+#                                    Fenêtre : FSPSI                   #
+#                        : SAISPSIM (Saisie fenêtre)  : Détail tarif   #
+#                                    Fenêtre : FSPSIM                  #
+#----------------------------------------------------------------------#
+# Attention : Ce traitement contient aussi les actions sur champ       #
+#             des écrans SPSIMUL0 [M:SPM0]                             #
+#                        SPSIMUL1 [M:SPM1]                             #
+########################################################################
+# Issue 114671 - 20160222 by LD : Price list search and prohibited product
+
+########################################################################
+# Etiquettes ACTION
+########################################################################
+$ACTION
+
+#--- Actions liées à la fenêtre de Recherche du tarif
+Case ACTION
+  When "OUVRE"        : Case GACTION
+                          When "SAISPSI"
+                            Gosub OUVRE_SAISPSI
+                        Endcase
+  When "DEBUT"        : Case GACTION
+                          When "SAISPSI"
+                            Gosub DEBUT_SAISPSI
+                        Endcase
+  When "SETBOUT"      : Case GACTION
+                          When "SAISPSI"
+                            Gosub SETBOUT_SAISPSI
+                        Endcase
+  When "BOUTON"       : Case GACTION
+                          When "SAISPSI"
+                            Gosub BOUTON_SAISPSI
+                        Endcase
+  When "FIN"          : Case GACTION
+                          When "SAISPSI"
+                            Gosub FIN_SAISPSI
+                        Endcase
+Endcase
+
+#-----------------------------------------------------------------------
+
+#--- Actions liées à la fenêtre de Visu des motifs
+Case ACTION
+  When "OUVRE"        : Case GACTION
+                          When "SAISPSIM"     : Gosub OUVRE_SAISPSIM
+                        Endcase
+  When "DEBUT"        : Case GACTION
+                          When "SAISPSIM"     : Gosub DEBUT_SAISPSIM
+                        Endcase
+Endcase
+
+Return
+
+########################################################################
+# Détail des actions liées à la saisie fenêtre des variables
+########################################################################
+$OUVRE_SAISPSI
+#----- Sauvegarde variables globales -----#
+Gosub SAUV_GLOB From TRTX3GLOB
+#-----
+Global Integer MGEFFAC
+
+If clalev([M:SPM0])=0 : Local Mask SPSIMUL0  [SPM0] : Raz [M:SPM0] : Endif
+If clalev([M:SPM1])=0 : Local Mask SPSIMUL1  [SPM1] : Raz [M:SPM1] : Endif
+
+# Bug 83098 : Pb perte adresse en navigation : Sauvegarde des écrans adresse
+If clalev([M:ADB1])=0
+    Local Mask ADRBPC [ADB1]
+Else
+  If !clalev([M:ADBO])
+    Local Mask ADRBPC [ADBO] : [M:ADBO]=[M:ADB1]
+  Endif
+Endif
+If clalev([M:ADB2])=0
+    Local Mask ADRBPC [ADB2]
+Else
+  If !clalev([M:ADBP])
+    Local Mask ADRBPC [ADBP] : [M:ADBP]=[M:ADB2]
+  Endif
+Endif
+If clalev([M:ADB3])=0
+    Local Mask ADRBPC [ADB3]
+Else
+  If !clalev([M:ADBQ])
+    Local Mask ADRBPC [ADBQ] : [M:ADBQ]=[M:ADB3]
+  Endif
+Endif
+Raz [M:ADB1], [M:ADB2], [M:ADB3]
+# Bug 83098
+
+# Bug 61437/61052 : Sauvegarde des écrans commandes suite à une navigation
+If clalev([M:SOH0])
+    If clalev([M:SOW0])=0 : Local Mask SOH0 [SOW0] : Endif
+    [M:SOW0]=[M:SOH0]
+Else
+    Local Mask SOH0 [SOH0]
+Endif
+If clalev([M:SOH1])
+    If clalev([M:SOW1])=0 : Local Mask SOH1 [SOW1] : Endif
+    [M:SOW1]=[M:SOH1]
+Else
+    Local Mask SOH1 [SOH1]
+Endif
+If clalev([M:SOH2])
+    If clalev([M:SOW2])=0 : Local Mask SOH2 [SOW2] : Endif
+    [M:SOW2]=[M:SOH2]
+Else
+    Local Mask SOH2 [SOH2]
+Endif
+If clalev([M:SOH3])
+    If clalev([M:SOW3])=0 : Local Mask SOH3 [SOW3] : Endif
+    [M:SOW3]=[M:SOH3]
+Else
+    Local Mask SOH3 [SOH3]
+Endif
+If clalev([M:SOH4])
+    If clalev([M:SOW4])=0 : Local Mask SOH4 [SOW4] : Endif
+    [M:SOW4]=[M:SOH4]
+Else
+    Local Mask SOH4 [SOH4]
+Endif
+Raz [M:SOH0] : Raz [M:SOH1] : Raz [M:SOH2] : Raz [M:SOH3] : Raz [M:SOH4]
+
+Default Mask [SOH4]
+Default Mask [SOH3]
+Default Mask [SOH2]
+Default Mask [SOH1]
+Default Mask [SOH0]
+Default Mask [SPM0]
+
+#---
+Gosub OPEN_SFI From TRTX3CPY : #If clalev([F:SFI])=0 : Local File SFOOTINV [SFI] : Endif
+If clalev([F:SPC])=0 : Local File SPRICCONF [SPC] : Endif
+If clalev([F:ITU])=0 : Local File ITMBPC    [ITU] : Endif
+
+#Call GETDEV(GFCYDEF(5)) From DEVSUB
+# --> Chargement globales référenciels, comptes et sections de la société
+Call GETCPY(GFCYDEF(5),"",0,"") From TRTX3CPT
+Return
+
+########################################################################
+$DEBUT_SAISPSI
+Local Integer I
+
+Raz [M:SPM0]
+Diszo [M:SPM0]FOCITMREF
+
+#---
+Gosub SIM_SPC_FILE From TRTPRICE : # ouverture des fichiers
+Gosub SIM_SPC_GLOB From TRTPRICE : # variables globales pour la recherche
+
+#--- Valeur défaut ecran
+[M:SPM0]ORDDAT = date$
+[M:SPM0]XMOIS  = 1
+[M:SPM0]SALFCY = GFCYDEF(5)
+[M:SPM0]STOFCY = GFCYDEF(7)
+[M:SPM0]PRITYP = 1
+[M:SPM0]XQTY   = 1
+
+For I=0 To dim([M:SPM0]VPRIDIV)-1
+  [M:SPM0]VPRIDIV(I)=1
+Next I
+
+[M:SPM0]NBPRIX=2
+
+#Call TARIFCHGT(5)  From TRTPRICE
+
+# ????????
+
+#--- Récupération de la structure des frais/remises
+Raz GLIBDES
+Read [F:PRS]PRS0=1;""
+If fstat : Return : Endif
+For I=0 To dim([F:PRS]INCDCR)-1
+  If [F:PRS]INCDCR(I)=0 : Break : Endif
+  Call LECTEXTRA (GLIBDES(I),"PRICSTRUCT","DESAXX("+num$(I)+")","1",[F:PRS]PLISTC) From ATEXTRA
+Next I
+
+# ????????
+
+Call COLREM("C",1,"")     From TRTPRICE
+
+Raz GPLISTC
+#If func AFNC.ACTIV("MUL")
+# Réhabilité pour le multi-société 07/12/05
+GORITITCOL=1 :# Si GORITITCOL=1 l'étiquette TIT_COL n'est pas exécutée, GORITITCOL doit rester à 0 : 26/06/03
+GPLISTC="néant" :# Pour forcer l'affichage des entêtes de colonne si structure=""
+# Alimentation concernant les colonnes frais/remise en fonction de la structure tarif de la société
+If GSOCIETE<>"" Call ALICOLREM (1,2,"","SPM0","",1,[M:SPM0]PLISTC) From TRTPRICE Endif
+#Endif
+
+# Alim. désignation colonnes tarif
+Gosub ALICOLDES
+
+#Modif CRM 17/11/2003
+If GPILNAV>1
+    If GNAVIG(GPILNAV-1) = "GESCLL"
+        If [M:CLL0]CLLCMP <> ""
+            Read [BPC] BPC0 = [M:CLL0]CLLCMP
+            If !fstat
+                [M:SPM0]BPCORD = [M:CLL0]CLLCMP
+                Call AM_BPCORD([M:CLL0]CLLCMP)                           :
+                [M:SPM0]LIBBPC = [F:BPC]BPCNAM
+                [M:SPM0]CUR    = [F:BPC]CUR
+            Endif
+            Read [BPR] BPR0 = [M:CLL0]CLLCMP
+        Endif
+    Endif
+Endif
+
+# GRNA 16/05/2011
+Gosub DEBUT_SAISPSI From CUSSEALIB
+
+# Issue 114671
+#Affzo [SPM0]
+Affzo [SPM0]1-99
+# End issue 114671
+Return
+
+###################################################################################
+# Récupération de la désignation des colonnes tarif pour le tableau Frais/remises #
+# Alimentation [M]COLDES (I) avec GCOLREM (I)                                     #
+# Alimentation GNBREM : Nombre de remises                                         #
+###################################################################################
+$ALICOLDES
+Local Integer I
+
+For I=0 To dim(GCOLREM)-1
+  If GCOLREM(I)="" : Break : Endif
+Next I
+GNBREM=I
+If I>dim([M:SPM0]COLDES) : GNBREM=dim([M:SPM0]COLDES) : Endif
+If dim([M:SPM0]NBREM)>0
+  [M:SPM0]NBREM=GNBREM
+Else GNBREM=0
+Endif
+
+If dim ([M:SPM0]NBREM)>0
+  For I=0 To [M:SPM0]NBREM-1
+    [M:SPM0]COLDES(I)=GCOLREM(I)
+  Next I
+Endif
+
+Return
+########################################################################
+$SETBOUT_SAISPSI
+If vireblc([M:SPM0]BPCORD,2)="" | vireblc([M:SPM0]XITMREF,2)=""
+  Call VIREBOUT(CHMEN, "12") From GOBJET     : # bouton appliquer et consultation tarif
+Endif
+Return
+
+########################################################################
+$BOUTON_SAISPSI
+Case BOUT
+  When "1"       : Gosub APPLIQUER
+  When "2"       : Gosub CONSULTATION
+Endcase
+FIN=0
+Return
+
+#-----------------------------------------------------------------------
+$APPLIQUER
+
+#--- Recherche du tarif
+Local Char    VAT (GLONVAT) (0..2)
+Local Integer NOL
+Local Decimal WXAUTRE
+Local Integer WSENS
+
+# --- Positionnement du flag affichage
+MGEFFAC=1
+# --- Chargement des ecrans SOH0, SOH1, SOH2, SOH3, SOH4
+[M:SOH0]=[M:SPM0] : [M:SOH1]=[M:SPM0] : [M:SOH2]=[M:SPM0] : [M:SOH3]=[M:SPM0]
+[M:SOH2]DEMDLVDAT    = [M:SOH0]ORDDAT
+[M:SOH4]DDEMDLVDAT(0)= [M:SOH0]ORDDAT
+[M:SOH4]ITMREF(0)    = [M:SPM0]XITMREF
+[M:SOH4]DSTOFCY(0)   = [M:SPM0]STOFCY
+[M:SOH4]DBPAADD(0)   = [M:SOH1]BPAADD
+[M:SOH4]VACITM1(0)   = [F:ITM]VACITM(0)
+[M:SOH4]VACITM2(0)   = [F:ITM]VACITM(1)
+[M:SOH4]VACITM3(0)   = [F:ITM]VACITM(2)
+#   Alimentation flag inter-site et inter-société
+Call ALIBETCPY(2,[M:SPM0]SALFCY,[M:SPM0]BPCORD,GBIDC1,GBIDC2,GBIDC3,[M:SOH1]BETFCY,[M:SOH1]BETCPY) From TRTVENISOC
+
+#Call ALITAXEV([M]VACBPR,[F:ITM]VACITM,VAT) From TRTX3
+Call RECHVATCOD(1,1,[M:SOH0]BPCORD,[M:SOH4]ITMREF(0),"SOH4",0,VAT) From TRTX3
+[M:SOH4]VAT1(0)=VAT(0) : [M:SOH4]VAT2(0)=VAT(1) :[M:SOH4]VAT3(0)=VAT(2) :
+[M:SOH4]SAU(0)       = [M:SPM0]XSAU
+[M:SOH4]QTY(0)       = [M:SPM0]XQTY
+# --- Recherche du tarif (utilisation de ligne 1 de ecran commande SOH4)
+NOL=nolign : nolign=1
+
+GPOINT="MSKSOH_A" : Gosub ENTREE From EXEFNC
+
+Call RECH_TARIF(1,[M]ITMREF,0,[M]QTY,"SOH",[M]GROPRI) From TRTVENTAR
+nolign=NOL
+#Call CLCNETPRI([M]QTY(0),[M:SOH0]BPCORD,[M]CHGTYP,[M]ORDDAT,[M:SOH0]CUR,0,0) From TRTVENPRI
+Call CLCNETPRI([M:SOH4]QTY(0),[M:SOH0]CUR,0) From TRTVENPRI
+
+# --- Transfert dans ecran SPM0
+
+If [F:TCU]CUR<>[M:SPM0]CUR
+  Read [TCU]TCU0=[M:SPM0]CUR
+Endif
+
+[M:SPM0]XGROPRI(0)      = arr([M:SOH4]GROPRI(0),10^-GDECPRI)
+[M:SPM0]XNETPRI(0)      = arr([M:SOH4]NETPRI(0),10^-GDECPRI)
+[M:SPM0]XNETPRI(1)      = arr([M:SOH4]NETPRI(0)*[M:SPM0]XQTY,[F:TCU]CURRND)
+Raz [M:SPM0]XAUTRE
+#--CPO 98447  Elément tarif en pourcentage, et non inclus au prix net
+#For I=0 To GNBREM-1
+#  WSENS=1
+#  If evalue("dim([M:SOH4]DISCRGVAL"+num$(I+1)+")") > 0 : # pour chaque ligne de structure tarif
+#    If [F:PRS]NPRNOTFLG(I)=1                           : # si valeur colonne hors prix net
+#      WXAUTRE=evalue("[M:SOH4]DISCRGVAL"+num$(I+1)+"(0)")
+#      If [F:PRS]INCDCR(I)=2 : WSENS=-1 : Endif
+#      If [F:PRS]INVDTA(I)<>0
+##        Read [SFI]SFI0=GSOCIETE;INVDTA(I)
+#        #Read [SFI]SFI0=INVDTA(I)        : # 88071
+#        Read [SFI]SFI0=[F:PRS]INVDTA(I)  : # 88071
+#        If !fstat
+#          If [F:SFI]AMTCOD=1 : WXAUTRE=([M:SPM0]XNETPRI(0)*WXAUTRE)/100 : Endif
+#        Endif
+#      Endif
+#      WXAUTRE=WXAUTRE*WSENS
+#      If [F:PRS]CLCRUL(I)=1                            : # si valeur colonne par unité
+#        [M:SPM0]XAUTRE(0) += arr(WXAUTRE,[F:TCU]CURRND)
+#        [M:SPM0]XAUTRE(1) += arr(WXAUTRE*[M:SPM0]XQTY,[F:TCU]CURRND)
+#      Endif
+#      If [F:PRS]CLCRUL(I)=2                            : # si valeur colonne par ligne
+#        [M:SPM0]XAUTRE(1) += WXAUTRE
+#      Endif
+#    Endif
+#  Endif
+#Next I
+Local Decimal WBASE_CASCADE_0
+WBASE_CASCADE_0 = [M:SPM0]XNETPRI(0)
+
+For I=0 To GNBREM-1
+  WSENS=1
+  If evalue("dim([M:SOH4]DISCRGVAL"+num$(I+1)+")") > 0 : # pour chaque ligne de structure tarif
+    If [F:PRS]NPRNOTFLG(I)=1                           : # si valeur colonne hors prix net
+      WXAUTRE=evalue("[M:SOH4]DISCRGVAL"+num$(I+1)+"(0)")
+      If [F:PRS]INCDCR(I)=2 : WSENS=-1 : Endif
+      If [F:PRS]INVDTA(I)<>0
+        Read [SFI]SFI0=[F:PRS]INVDTA(I)
+        If !fstat
+          If [F:SFI]AMTCOD=1     :#--Elt fact en taux
+            #--L'élément de fact est en taux, on calcule donc la valeur à prendre en compte
+            #--WXAUTRE avant calcul contient le taux à appliquer
+            WXAUTRE=([M:SPM0]XNETPRI(0)*WXAUTRE)/100
+          Elsif [F:SFI]AMTCOD=2  :#--Elt fact en montant
+            #--L'élément de fact est en montant, avant d'aller plus loin il faut savoir si
+            #--le DISCRGVAL contient un taux ou un montant (en fonction du VALTYP)
+            If [F:PRS]VALTYP(I) = 1          :#--Montant
+              #--Dans ce cas on ne fait rien car DISCRGVAL contient le montant
+            Elsif [F:PRS]VALTYP(I) = 2 :#--%cumul
+              WXAUTRE=([M:SPM0]XNETPRI(0)*WXAUTRE)/100
+            Elsif [F:PRS]VALTYP(I) = 3 :#--%cascade
+              WXAUTRE=(WBASE_CASCADE_0*WXAUTRE)/100
+            Else
+              #--Pour mémoire car VALTYP => menu local
+            Endif
+          Else
+            #--Pour mémoire car AMTCOD => menu local
+          Endif
+        Else
+          Raz [F:SFI]
+        Endif
+      Endif
+      WXAUTRE=WXAUTRE*WSENS
+      If  [F:PRS]INVDTA(I) = 0
+        #--Elt de structure tarif non intégré dans le prix net
+        #--et pas associé à un elt de fact
+        WXAUTRE = 0
+      Endif
+      If [F:PRS]CLCRUL(I)=1                            : # si valeur colonne par unité
+        [M:SPM0]XAUTRE(0) += arr(WXAUTRE,[F:TCU]CURRND)
+        [M:SPM0]XAUTRE(1) += arr(WXAUTRE*[M:SPM0]XQTY,[F:TCU]CURRND)
+      Endif
+      If [F:PRS]CLCRUL(I)=2                            : # si valeur colonne par ligne
+        [M:SPM0]XAUTRE(1) += WXAUTRE
+      Endif
+      #--La base cascade est calculée à partir du prix net, moins/plus les nouveaux
+      #--frais/remises calculés mais non intégrés dans le prix net
+      #--(afin d'être cohérents avec la logique de calcul appliquée dans le calcul du prix net)
+      #--CALNET de TRTPRICE (commun achats et ventes)
+      WBASE_CASCADE_0 += arr(WXAUTRE,[F:TCU]CURRND)
+    Endif
+  Endif
+Next I
+#--/
+[M:SPM0]XTOTAL(1)  = [M:SPM0]XNETPRI(1)+[M:SPM0]XAUTRE(1)
+Raz [M:SPM0]FOCITMREF, FOCQTY, FOCUOM
+If GFOCITMREF<>""
+  [M:SPM0]FOCITMREF=GFOCITMREF
+  [M:SPM0]FOCUOM=GFOCUOM : [M:SPM0]FOCQTY=GFOCQTY
+Endif
+
+Local Char WFORMAT(20)
+If GNBREM>0
+#    If [F:PRS]VALTYP(0)=1 [M:SPM0]AMT(0)=[M:SOH4]DISCRGVAL1 Else [M:SPM0]RAT(0)=[M:SOH4]DISCRGVAL1 Endif
+    If [F:PRS]VALTYP(0)=1
+        [M:SPM0]AMT(0)=format$(GFORREM(0), [M:SOH4]DISCRGVAL1)
+    Else
+        [M:SPM0]RAT(0)=format$(GFORREM(0), [M:SOH4]DISCRGVAL1)
+    Endif
+Endif
+
+If GNBREM>1
+#    If [F:PRS]VALTYP(1)=1 [M:SPM0]AMT(1)=[M:SOH4]DISCRGVAL2 Else [M:SPM0]RAT(1)=[M:SOH4]DISCRGVAL2 Endif
+    If [F:PRS]VALTYP(1)=1
+        [M:SPM0]AMT(1)=format$(GFORREM(1), [M:SOH4]DISCRGVAL2)
+    Else
+        [M:SPM0]RAT(1)=format$(GFORREM(1), [M:SOH4]DISCRGVAL2)
+    Endif
+Endif
+If GNBREM>2
+#    If [F:PRS]VALTYP(2)=1 [M:SPM0]AMT(2)=[M:SOH4]DISCRGVAL3 Else [M:SPM0]RAT(2)=[M:SOH4]DISCRGVAL3 Endif
+    If [F:PRS]VALTYP(2)=1
+        [M:SPM0]AMT(2)=format$(GFORREM(2), [M:SOH4]DISCRGVAL3)
+    Else
+        [M:SPM0]RAT(2)=format$(GFORREM(2), [M:SOH4]DISCRGVAL3)
+    Endif
+Endif
+If GNBREM>3
+#    If [F:PRS]VALTYP(3)=1 [M:SPM0]AMT(3)=[M:SOH4]DISCRGVAL4 Else [M:SPM0]RAT(3)=[M:SOH4]DISCRGVAL4 Endif
+    If [F:PRS]VALTYP(3)=1
+        [M:SPM0]AMT(3)=format$(GFORREM(3), [M:SOH4]DISCRGVAL4)
+    Else
+        [M:SPM0]RAT(3)=format$(GFORREM(3), [M:SOH4]DISCRGVAL4)
+    Endif
+Endif
+If GNBREM>4
+#    If [F:PRS]VALTYP(4)=1 [M:SPM0]AMT(4)=[M:SOH4]DISCRGVAL5 Else [M:SPM0]RAT(4)=[M:SOH4]DISCRGVAL5 Endif
+    If [F:PRS]VALTYP(4)=1
+        [M:SPM0]AMT(4)=format$(GFORREM(4), [M:SOH4]DISCRGVAL5)
+    Else
+        [M:SPM0]RAT(4)=format$(GFORREM(4), [M:SOH4]DISCRGVAL5)
+    Endif
+Endif
+
+If GNBREM>5
+#    If [F:PRS]VALTYP(5)=1 [M:SPM0]AMT(5)=[M:SOH4]DISCRGVAL6 Else [M:SPM0]RAT(5)=[M:SOH4]DISCRGVAL6 Endif
+    If [F:PRS]VALTYP(5)=1
+        [M:SPM0]AMT(5)=format$(GFORREM(5), [M:SOH4]DISCRGVAL6)
+    Else
+        [M:SPM0]RAT(5)=format$(GFORREM(5), [M:SOH4]DISCRGVAL6)
+    Endif
+Endif
+
+If GNBREM>6
+#    If [F:PRS]VALTYP(6)=1 [M:SPM0]AMT(6)=[M:SOH4]DISCRGVAL7 Else [M:SPM0]RAT(6)=[M:SOH4]DISCRGVAL7 Endif
+    If [F:PRS]VALTYP(6)=1
+        [M:SPM0]AMT(6)=format$(GFORREM(6), [M:SOH4]DISCRGVAL7)
+    Else
+        [M:SPM0]RAT(6)=format$(GFORREM(6), [M:SOH4]DISCRGVAL7)
+    Endif
+Endif
+If GNBREM>7
+#    If [F:PRS]VALTYP(7)=1 [M:SPM0]AMT(7)=[M:SOH4]DISCRGVAL8 Else [M:SPM0]RAT(7)=[M:SOH4]DISCRGVAL8 Endif
+    If [F:PRS]VALTYP(7)=1
+        [M:SPM0]AMT(7)=format$(GFORREM(7), [M:SOH4]DISCRGVAL8)
+    Else
+        [M:SPM0]RAT(7)=format$(GFORREM(7), [M:SOH4]DISCRGVAL8)
+    Endif
+Endif
+
+If GNBREM>8
+#      If [F:PRS]VALTYP(8)=1 [M:SPM0]AMT(8)=[M:SOH4]DISCRGVAL9 Else [M:SPM0]RAT(8)=[M:SOH4]DISCRGVAL9 Endif
+    If [F:PRS]VALTYP(8)=1
+        [M:SPM0]AMT(8)=format$(GFORREM(8), [M:SOH4]DISCRGVAL9)
+    Else
+        [M:SPM0]RAT(8)=format$(GFORREM(8), [M:SOH4]DISCRGVAL9)
+    Endif
+Endif
+
+# Issue 114671
+#Affzo [SPM0]
+Affzo [SPM0]1-99
+# End issue 114671
+
+Return
+
+#-----------------------------------------------------------------------
+$CONSULTATION
+#--- Consultation des tarifs
+Local Integer   MODULE              : # module (vente achat)
+Local Integer   PLITYP              : # type de tarif
+Local Char      TRAIT (5)           : # type de traitement
+#---- Paramètres complementaires appel recherche tarifs
+Local  Char     PARAM_T (25) (0..5) : # indice 0 = coef. multiplicateur UV --> US : # indice 1 = régime de taxe
+
+Local Date      DAT                 : # date commande ou livraison
+Local Decimal   QTY                 : # quantité
+Local Char      UOM(GLONUOM)        : # unité de vente
+Local Integer   CHGTYP              : # type de cours
+Local Char      CUR(GLONCUR)        : # devise de la commande
+Local Integer   PRITYP              : # prix ht ou ttc
+Local Char      VAT(GLONVAT)(0..2)  : # codes taxes
+Local Decimal   MONTANT(0..10)      : # (0)=prix (1..9)=fr/rem (10)=comm rep
+Local Shortint  MOTIF  (0..10)      : # motif
+Local Shortint  PRIORITE(0..10)     : # priorité
+Local Char      PLI   (6) (0..10)   : # code tarif
+Local Char      PLICRD (30) (0..10) : # code de la fiche tarif
+Local Integer   PLILIN    (0..10)   : # no de ligne de la fiche tarif
+Local Char      FOCITMREF(GLONITM)(0..1) : # article gratuit
+Local Decimal   FOCQTY      (0..1)  : # quantité gratuite
+Local Char      FOCUOM(GLONUOM)(0..1) : # unité vente gratuit
+Local Shortint  FOCMOTIF    (0..1)  : # motif gratuit
+Local Date      PLISTRDAT           : # date debut validite
+Local Date      PLIENDDAT           : # date fin   validite
+Local Libelle   INTERDIT            : # 1 si interdit
+Local Libelle   ERR                 : # 1 si erreur
+
+Local    Shortint  PIO              : # priorité courante de table globale
+Local Integer JLT
+
+#---- initialisation
+Raz MONTANT, MOTIF, PRIORITE, PLI, PLICRD, PLILIN
+Raz FOCITMREF, FOCQTY, FOCUOM, FOCMOTIF
+Raz PLISTRDAT, PLIENDDAT, INTERDIT, ERR
+
+MODULE=5
+TRAIT="SOH"
+DAT=date$     : If dim([M:SPM0]ORDDAT)>0  DAT=[M:SPM0]ORDDAT     Endif
+QTY=1         : If dim([M:SPM0]XQTY)>0    QTY=[M:SPM0]XQTY       Endif
+UOM=""        : If dim([M:SPM0]XSAU)>0    UOM=[M:SPM0]XSAU       Endif
+CHGTYP=1      : If dim([M:SOH0]CHGTYP)>0  CHGTYP=[M:SOH0]CHGTYP  Endif
+PRITYP=1      : If dim([M:SPM0]PRITYP)>0  PRITYP=[M:SPM0]PRITYP  Endif
+VAT(0)=""     : If dim([M:SOH4]VAT1)>0    VAT(0)=[M:SOH4]VAT1(0) Endif
+VAT(1)=""     : If dim([M:SOH4]VAT2)>0    VAT(1)=[M:SOH4]VAT2(0) Endif
+VAT(2)=""     : If dim([M:SOH4]VAT3)>0    VAT(2)=[M:SOH4]VAT3(0) Endif
+PARAM_T(1)="" : If dim([M:SOH1]VACBPR)>0  PARAM_T(1)=[M:SOH1]VACBPR Endif
+
+If GFONC1="FUNVSPSI"
+  MODULE=5 : PLITYP=1 : TRAIT="SOH" : DAT=[M]ORDDAT : QTY=[M]QTY : UOM=[M]XSAU
+  CHGTYP=[M]CHGTYP : CUR=[M]CUR : PRITYP=[M]PRITYP
+  VAT(0)=[M]VAT1(0) : VAT(1)=[M]VAT2(0) : VAT(2)=[M]VAT3(0)
+Endif
+
+If clalev([F:SPC])=0 : Local File SPRICCONF  [SPC] : Endif
+If [M:SPM0]TARNORACT(0)=""
+  Raz JLT
+  For [SPC]SPC1 Where PLIENAFLG=2 & PLITYP=1 & PLISTC=GPLISTC & find(PLICPY,"",GSOCIETE)
+    [M:SPM0]TARNORACT(JLT)=[F:SPC]PLI
+    [M:SPM0]TARPIO(JLT)   =[F:SPC]PIO
+    JLT += 1
+    If JLT>dim([M:SPM0]TARNORACT)-1 Break : Endif
+  Next
+Endif
+
+Filter [SPC]
+Effzo [SPM0]35
+
+For I=0 To dim([M:SPM0]TARNORACT)-1
+  If [M:SPM0]TARNORACT(I)="" : Break : Endif
+            PIO        = [M:SPM0]TARPIO(I)
+            PLI(0)     = "*SIMU*"
+            Call TARIF(TRAIT,DAT,QTY,UOM,CHGTYP,CUR,PRITYP,VAT,
+&                      PIO,PARAM_T,MONTANT,MOTIF,PRIORITE,
+&                      PLI,PLICRD,PLILIN,
+&                      FOCITMREF,FOCQTY,FOCUOM,FOCMOTIF,
+&                      PLISTRDAT,PLIENDDAT,INTERDIT)
+&                From ="WBT"+[M:SPM0]TARNORACT(I)
+Next I
+Affzo [SPM0]35
+
+Return
+
+########################################################################
+$FIN_SAISPSI
+If dim(MGEFFAC)>0 : Kill MGEFFAC : Endif
+#----- Restitution des variables globales -----#
+Gosub REST_GLOB From TRTX3GLOB
+
+# Bug 83098 : Restitution des écrans adresse suite à une navigation
+If clalev([M:ADBO]) & clalev([M:ADB1])
+  [M:ADB1]=[M:ADBO] : Close Local Mask [ADB1]
+Endif
+If clalev([M:ADBP]) & clalev([M:ADB2])
+  [M:ADB2]=[M:ADBP] : Close Local Mask [ADB2]
+Endif
+If clalev([M:ADBQ]) & clalev([M:ADB3])
+  [M:ADB3]=[M:ADBQ] : Close Local Mask [ADB3]
+Endif
+# Bug 83098
+
+# Bug 61437/61052 : Restitution des écrans commandes suite à une navigation
+If clalev([M:SOH0]) & clalev([M:SOW0])
+  [M:SOH0]=[M:SOW0] : Close Local Mask [SOW0]
+Endif
+If clalev([M:SOH1]) & clalev([M:SOW1])
+  [M:SOH1]=[M:SOW1] : Close Local Mask [SOW1]
+Endif
+If clalev([M:SOH2]) & clalev([M:SOW2])
+  [M:SOH2]=[M:SOW2] : Close Local Mask [SOW2]
+Endif
+If clalev([M:SOH3]) & clalev([M:SOW3])
+  [M:SOH3]=[M:SOW3] : Close Local Mask [SOW3]
+Endif
+If clalev([M:SOH4]) & clalev([M:SOW4])
+  [M:SOH4]=[M:SOW4] : Close Local Mask [SOW4]
+Endif
+
+Return
+
+########################################################################
+
+########################################################################
+$OUVRE_SAISPSIM
+If clalev([F:SPR])=0  : Local File SPREASON  [SPR]  : Endif
+
+Return
+
+########################################################################
+$DEBUT_SAISPSIM
+
+[M:SPM1]XMOTIFA(0)=mess(70,200,1) : [M:SPM1]NBREN=1
+For I=0 To dim(GCOLREM)-1
+  If GCOLREM(I)="" : Break : Endif
+  [M:SPM1]XMOTIFA(I+1)=GCOLREM(I)
+  [M:SPM1]NBREN += 1
+Next I
+If [M:SOH4]PRIREN(0)<>0
+  Read [F:SPR]SPR0=[M:SOH4]PRIREN(0)
+  If !fstat
+#     [M:SPM1]XMOTIFB(0)=[F:SPR]DES
+     Call GET_ATEXTRA("SPREASON","DESAXX",GLANGUE,[M:SPM1]XMOTIFB(0)) From TRTX3TEX
+  Endif
+Endif
+For I=1 To GNBREM
+  If evalue("dim([M:SOH4]DISCRGVAL"+num$(I)+")") > 0
+    If evalue("[M:SOH4]DISCRGREN"+num$(I))<>0
+      Read [F:SPR]SPR0=evalue("[M:SOH4]DISCRGREN"+num$(I))
+      If !fstat
+#         [M:SPM1]XMOTIFB(I)=[F:SPR]DES
+         Call GET_ATEXTRA("SPREASON","DESAXX",GLANGUE,[M:SPM1]XMOTIFB(I)) From TRTX3TEX
+
+      Endif
+    Endif
+  Endif
+Next I
+
+Call EXPCALPRI
+[M:SPM1]NBCAL=find("",[M:SPM1]CALLIB)
+If [M:SPM1]NBCAL>0 : [M:SPM1]NBCAL -=1 : Endif
+
+For I=0 To dim([M:SPM1]PLI)-1
+    If [M:SPM1]PLI<>""
+       Read [SPC]SPC0=[M:SPM1]PLI(I)
+       If !fstat : [M:SPM1]PLISEA=[F:SPC]PLISEA : Endif
+       Break
+    Endif
+Next I
+
+# Issue 114671
+#Affzo [SPM1]
+Affzo [SPM1]1-99
+# End issue 114671
+
+Return
+
+#-----------------------------------------------------------------------
+
+Subprog EXPCALPRI
+Local Integer PARTNER
+Local Char STRUCTURE
+Local Decimal BRUT
+Local Decimal MAJREM (0..8)
+Local Decimal QTE
+Local Decimal NET
+Local Char    CUR
+Local Integer REN (0..10)
+
+PARTNER  =1
+
+#STRUCTURE=""
+STRUCTURE=GPLISTC
+
+BRUT     =[M:SOH4]GROPRI(0)
+For I=1 To GNBREM
+  If evalue("dim([M:SOH4]DISCRGVAL"+num$(I)+")") > 0
+    MAJREM(I-1)=evalue("[M:SOH4]DISCRGVAL"+num$(I)+"(0)")
+  Endif
+Next I
+QTE      =[M:SOH4]QTY(0)
+NET      =[M:SOH4]NETPRI
+CUR      =[M:SOH0]CUR
+REN(0)   =[M:SOH4]PRIREN(0)
+For I=1 To GNBREM
+  If evalue("dim([M:SOH4]DISCRGREN"+num$(I)+")") > 0
+    REN(I)=evalue("[M:SOH4]DISCRGREN"+num$(I)+"(0)")
+  Endif
+Next I
+
+Raz [M:SPM1]CALLIB
+Call CALNETLIB (PARTNER,STRUCTURE,BRUT,MAJREM,QTE,NET,CUR,REN,[M:SPM1]PLI,[M:SPM1]CALLIB) From TRTPRICE
+
+End
+
+########################################################################
+# Les Actions Ecran                                                    #
+########################################################################
+# Ecran SPSIMUL0 [SPM0] : Recherche d'un tarif                         #
+#                         Actions sur Champs                           #
+########################################################################
+
+######################################## Client
+Subprog AM_BPCORD(VALEUR)
+Variable Char    VALEUR()
+GBPCNUM=VALEUR
+
+# --- Affichage des Informations clients
+Local Char WANCCUR(GLONCUR) : WANCCUR    = [M:SPM0]CUR
+
+Call ALICDE(1,"C",VALEUR) From TRTVENCDE
+
+Read [BPR]BPR0=VALEUR : #Call LECTURE("BPR",VALEUR,"") From CONTOBJ
+[M:SPM0]CUR   =[F:BPC]CUR
+[M:SPM0]LIBBPC=[F:BPC]BPCNAM
+
+If WANCCUR<>[M:SPM0]CUR
+    # Alimentation du format des colonnes frais/remise
+    Call ALIFORREM (2, "", "", 0, [M:SPM0]CUR) From TRTPRICE
+    # If faut arrondir les frais/remises en fonction des nouveaux formats
+Endif
+
+Affzo [SPM0]CUR, LIBBPC
+Gosub EFFACE_AM
+
+# --- affichage observations client
+If [F:BPC]BPCREM<>"" : GERR=2 : GMESSAGE=[F:BPC]BPCREM : Endif
+
+[M:SOH0]=[M:SPM0] : [M:SOH1]=[M:SPM0] : [M:SOH2]=[M:SPM0] : [M:SOH3]=[M:SPM0]
+
+[M:SPM0]BPCORD=VALEUR
+
+End
+
+######################################## Article
+Subprog AM_XITMREF(VALEUR)
+Variable Char    VALEUR()
+Local    Char    REP1
+Local    Integer NOL
+
+Read [ITS]ITS0=VALEUR : #Call LECTURE("ITS",VALEUR,"") From CONTOBJ
+If fstat : GERR=1 : GMESSAGE=mess(5,192,1) : mkstat=2 : End : Endif
+Read [ITM]ITM0=VALEUR : #Call LECTURE("ITM",VALEUR,"") From CONTOBJ
+If fstat : GERR=1 : GMESSAGE=mess(8,192,1) : mkstat=2 : End : Endif
+#--CPO 95906 Tarif paramétré sur ITMFACILIT
+If [M:SPM0]STOFCY<>""
+  If clalev([F:ITF])=0 : Local File ITMFACILIT [ITF] : Endif
+  Read [ITF]ITF0=VALEUR;[M:SPM0]STOFCY
+  If fstat : Raz [ITF] : Endif #On ne bloque pas afin de ne pas changer de comportement...
+Endif
+#--/
+#[M:SPM0]LIBITM=[F:ITM]ITMDES1
+Call CHARGE_DEFITMDES("DES1AXX",GLANGUE,[F:ITM]ITMREF,[M:SPM0]LIBITM, "[F:ITM]") From TRTX3 # FGR 30/06/2009 : X3SUIVI56189
+
+[M:SOH0]=[M:SPM0] : [M:SOH1]=[M:SPM0] : [M:SOH2]=[M:SPM0] : [M:SOH3]=[M:SPM0]
+[M:SOH4]ITMREF(0)    = VALEUR
+[M:SOH4]DSTOFCY(0)   = [M:SPM0]STOFCY
+
+If dim([M]REP)>0 : REP1=[M]REP(0) : Endif
+NOL=nolign : nolign=1
+Call RECH_INTERDIT(VALEUR,[M]BPAADD,REP1,2) From TRTVENTAR
+nolign=NOL
+If mkstat = 2 : GERR=1 : End : Endif
+[M]XSAU=[F:ITM]SAU
+Affzo [SPM0]XSAU, LIBITM
+
+Gosub EFFACE_AM
+
+[M:SPM0]XITMREF=VALEUR
+
+End
+
+######################################## Devise
+Subprog AM_CUR(VALEUR)
+Variable Char    VALEUR()
+Gosub EFFACE_AM
+
+# Alimentation concernant les colonnes frais/remise en fonction de la structure tarif de la société
+Call ALICOLREM (1,0,"","SPM0", VALEUR, 1,[M:SPM0]PLISTC) From TRTPRICE
+Gosub ALICOLDES
+# Issue 114671
+#Affzo [SPM0]
+Affzo [SPM0]1-99
+# End issue 114671
+
+End
+
+######################################## Site de vente
+Subprog AM_SALFCY(VALEUR)
+Variable Char    VALEUR()
+
+Gosub EFFACE_AM
+
+#If func AFNC.ACTIV("MUL")
+# Alimentation concernant les colonnes frais/remise en fonction de la structure tarif de la société
+Call ALICOLREM (1,0,"","SPM0", [M:SPM0]CUR, 1,[M:SPM0]PLISTC) From TRTPRICE
+Gosub ALICOLDES
+# Issue 114671
+#Affzo [SPM0]
+Affzo [SPM0]1-99
+# End issue 114671
+#Endif
+
+End
+
+######################################## Site de livraison (stockage)
+Subprog AM_STOFCY(VALEUR)
+Variable Char    VALEUR()
+Gosub EFFACE_AM
+End
+
+######################################## type de prix
+Subprog AM_PRITYP(VALEUR)
+Variable Integer VALEUR
+Gosub EFFACE_AM
+End
+
+######################################## Quantité
+Subprog AM_XQTY(VALEUR)
+Variable Decimal VALEUR
+Gosub EFFACE_AM
+End
+
+######################################## Unité de vente
+Subprog AM_XSAU(VALEUR)
+Variable Char    VALEUR()
+Local    Decimal QTYDST
+Local    Decimal COEF
+Call SCAL_QUV([M:SPM0]XQTY, [M:SPM0]XITMREF, [M:SPM0]BPCORD, [M]XSAU, VALEUR, QTYDST, COEF) From TRTVENQTE
+[M:SPM0]XQTY=QTYDST
+Affzo [SPM0]XQTY
+Gosub EFFACE_AM
+End
+
+########################################
+Subprog IB_NBPRIX
+Local Integer MOTIF, I
+# --> Déf. bouton Motifs
+MOTIF += [M:SOH4]PRIREN(0)
+For I=1 To GNBREM
+  If evalue("dim([M:SOH4]DISCRGREN"+num$(I)+")") > 0
+    MOTIF += evalue("[M:SOH4]DISCRGREN"+num$(I)+"(0)")
+  Endif
+Next I
+If MOTIF = 0 : Raz GBOUT1 : Endif
+End
+
+########################################
+Subprog IB_NBREM
+Local Integer MOTIF, I
+# --> Déf. bouton Motifs
+MOTIF += [M:SOH4]PRIREN(0)
+For I=1 To GNBREM
+  If evalue("dim([M:SOH4]DISCRGREN"+num$(I)+")") > 0
+    MOTIF += evalue("[M:SOH4]DISCRGREN"+num$(I)+"(0)")
+  Endif
+Next I
+If MOTIF = 0 : Raz GBOUT1 : Endif
+End
+
+########################################
+Subprog IB_NBTAR
+#------------------------------------------------------------#
+# Avant zone : Activation tunnels "Tarifs" et "Fiche tarifs" #
+#------------------------------------------------------------#
+GFLTPLI=[M:SPM0]VPLI(nolign-1)
+Raz GBOUT1, GBOUT2
+If [M:SPM0]VPLI(nolign-1)<>""
+  GBOUT1=mess(42,198,1)-[M:SPM0]VPLI(nolign-1)
+Endif
+If [M:SPM0]VPLICRD(nolign-1)<>""
+  GBOUT2=mess(9,432,1)-[M:SPM0]VPLICRD(nolign-1)
+Endif
+End
+
+######################################################################
+# Ecran SPSIMUL1 [SPM1] : Détail tarif                               #
+#                         Actions sur Champs                         #
+######################################################################
+
+Subprog IB_NBREN
+#------------------------------------------------------------#
+# Avant zone : Acti    ion tunnels "Tarifs" et "Fiche tarifs" #
+#------------------------------------------------------------#
+GFLTPLI=[M:SPM1]PLI(nolign-1)
+Raz GBOUT1, GBOUT2
+If [M:SPM1]PLI(nolign-1)<>""
+  GBOUT1=mess(42,198,1)-[M:SPM1]PLI(nolign-1)
+Endif
+If [M:SPM1]PLICRD(nolign-1)<>""
+  GBOUT2=mess(9,432,1)-[M:SPM1]PLICRD(nolign-1)
+Endif
+End
+Effzo
+########################################################################
+#--- Intitalisation ecran apres modif champs
+$EFFACE_AM
+If MGEFFAC=1
+  Raz MGEFFAC
+  Effzo [SPM0]XGROPRI, XNETPRI, XAUTRE, XTOTAL : # bloc tarifs
+  Effzo [SPM0]25,35                            : # blocs gratuit et lignes tarifs
+  If dim([M:SPM0]NBREM)>0
+    Effzo [M:SPM0]RAT, AMT                     : # bloc frais/remises
+  Endif
+  Raz [M:SPM1]
+
+  Raz [M:SPM0]TARNORACT, SAUORI, TARPIO
+Endif
+#  [M:SPM0]XLIBPRIX(0)=toupper(mess(269,198,1))  # essai jl
+##  [M:SPM0]XLIBPRIX(1)="* "+num$(XQTY)           # essai jl
+#  [M:SPM0]XLIBPRIX(1)=toupper(mess(270,198,1))  # essai jl
+##  [M:SPM0]NBPRIX=2
+#  Affzo [M:SPM0]XLIBPRIX
+
+Return
+
+########################################################################
+
+
+########################################
+Subprog IB_FOCITMREF
+If [M]FOCITMREF="" : Raz GBOUT1 : Endif
+End
+
+########################################
+Subprog AV_XGROPRI(VALEUR)
+Variable Decimal VALEUR
+GDEVFMT="7.4#"
+If dim(GDECPRI)>0
+   GDEVFMT=num$(11-GDECPRI)+"."+num$(GDECPRI)+"#"
+Endif
+End
+
+########################################
+Subprog AV_XNETPRI(VALEUR)
+Variable Decimal VALEUR
+End
+
+##########################################################################
+## Etiquette ajoutée par le superviseur 29/04/2003 09:30:42 (JL)
+##########################################################################
+Subprog AV_XLIBPRIX(VALEUR)
+Variable Char    VALEUR()
+
+pcolor=GCOUL(3)   : # en bleu
+
+If nolign=1 : VALEUR=tolower(mess(269,198,1)) : Endif    : # unitaire
+If nolign=2 : VALEUR="* "+num$([M:SPM0]XQTY)  : Endif    : # * qte
+
+End
+
+########################################
+
+Subprog AV_COLDES(VALEUR)
+Variable Char    VALEUR()
+pcolor=GCOUL(3)   : # en bleu
+End
+
+######################################################################################
+## Etiquette ajoutée par le superviseur (écran SPSIMUL0) 03/05/2006 10:09:15 (JL)
+######################################################################################
+Subprog C_STOFCY(VALEUR)
+Variable Char    VALEUR()
+# --- contrôle si site d'expédition ( de stockage )
+Call CONTROLE("FCY","D",VALEUR,"",mkstat) From CONTOBJ
+If mkstat End : Endif
+# --- le site doit être sur la même société juridique que site de vente
+If [F:FCY]LEGCPY<>GSOCIETE   GMESSAGE=mess(2,194,1)  : mkstat=1 : End : Endif
+End
+
+######################################################################################
+
