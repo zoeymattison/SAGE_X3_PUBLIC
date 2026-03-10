@@ -1,0 +1,44 @@
+with [invoice lines] as (
+	select
+		d.INVDAT_0 as [Invoice Date],
+		h.NUM_0 as [Invoice Number],
+		v.INVREF_0 as [Purchase Order],
+		v.BPCINV_0 as [Pay-by],
+		v.BPINAM_0 as [Pay-by Name],
+		v.BPCORD_0 as [Ship-to],
+		v.BPDNAM_0 as [Ship-to Name],
+		d.ITMREF_0 as [Product],
+		d.ITMDES1_0 as [Description],
+		d.QTY_0 as [Quantity],
+		d.SAU_0 as [Unit],
+		d.CPRPRI_0 as [Cost Price],
+		d.GROPRI_0 as [Gross Price],
+		d.AMTNOTLIN_0 as [Line Total],
+		d.PFM_0 as [Margin]
+	from
+		LIVE.SINVOICE h
+	inner join
+		LIVE.SINVOICEV v on h.NUM_0=v.NUM_0
+	inner join
+		LIVE.SINVOICED d on v.NUM_0=d.NUM_0
+	inner join
+		LIVE.ITMMASTER i on d.ITMREF_0=i.ITMREF_0
+	where
+		v.BPCINV_0 in ('303202','79066')
+	and
+		v.BPDNAM_0 like '%S%D%68%'
+	and
+		d.ITMREF_0 not in ('LABOUR','TRAVEL','TEXT')
+	and
+		d.INVDAT_0 >= dateadd(month,-6,cast(GETDATE() as date))
+	and
+		i.TCLCOD_0='TCRIT'
+)
+select
+*
+
+from
+	[invoice lines]
+
+order by
+	[Invoice Date] asc
