@@ -27,10 +27,8 @@ Case ACTION
 Endcase
 Return
 
-### Added by Zoey Mattison - prevent B2B deallocation
-
 $B2B_CHECK
-If [M:DIA]RAZCTM=2 or [M:DIA]ALLCTM=2
+If ([M:DIA]RAZCTM=2 or [M:DIA]ALLCTM=2) and GUSER<>"MOZM"
     GOK=0
     Call ERREURT("B2B decalloaction not permitted!", 1) From GESECRAN
     FIN=0
@@ -41,7 +39,6 @@ Else
 Endif
 Return
 
-###
 
 #######################################################################
 #    Détail des actions liées au traitement standard                  #
@@ -721,3 +718,17 @@ End
 
 
 ######################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
