@@ -1,3 +1,4 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 $ACTION
 Case ACTION
     When "MESSAGE" : Gosub MESSAGE
@@ -11,9 +12,15 @@ Local Integer STAT
 Case [F:AWA]CODE
 When "ZW_POHRPTM" : Gosub POHNUMBER
 When "ZW_GESSIH" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Monk Office Invoice - "+[F:SIV]NUM+".pdf" : Gosub RENAME
+When "ZW_GESSIHR" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Monk Office Invoice - "+[F:ZBIE]NUM+".pdf" : Gosub RENAME
+When "ZW_COLLECT" : [L]FICHIER=filpath("","","")+"\YARCHIVE\"+[V]ZV_COLLECTIONS_FICHIER+".pdf" : Gosub RENAME
+When "ZW_SIHEDD" : [L]FICHIER=[V]ZG_FICHIER_ZW_SIHEDD : Gosub RENAME : GPE=1
 When Default
 Endcase
 Return
+
+#filpath("","","")+"\ZATTACH\+
+#[L]FICHIER="\\10.10.0.55\eddoutboundmanagement\!AUTO\"+[V]ZG_FICHIER Gosub RENAME GPE=1
 
 $POHNUMBER
 Local Char ZL_POHNUM(50)
