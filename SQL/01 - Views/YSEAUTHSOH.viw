@@ -1,0 +1,2 @@
+ ( SOHNUM_0 , AUTAMT_0 , AUTMSG_0 , ACCL4D_0 , ACCNCK_0 ) As 
+select distinct SOHNUM_0, (select top 1 AUTAMT_0 from SEAUTH S where S.SOHNUM_0=SEAUTH.SOHNUM_0 order by VCRSEQ_0 desc),(select top 1 AUTMSG_0 from SEAUTH S where S.SOHNUM_0=SEAUTH.SOHNUM_0 order by VCRSEQ_0 desc),(select top 1 ACCL4D_0 from SEAUTH S where S.SOHNUM_0=SEAUTH.SOHNUM_0 order by VCRSEQ_0 desc),(select top 1 ACCNCKNAM_0 from SEAUTH S where S.SOHNUM_0=SEAUTH.SOHNUM_0 order by VCRSEQ_0 desc) from SEAUTH

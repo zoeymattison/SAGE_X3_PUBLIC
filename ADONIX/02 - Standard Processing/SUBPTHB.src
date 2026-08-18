@@ -1,0 +1,4226 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#########################################################################
+# SUBPTHB :    Traitement des réceptions (suite du SUBPTHA)             #
+# --------------------------------------------------------------------- #
+# Traitements complémentaires de l'objet "PTH"                          #
+# Les traitements sur champ "Call"     se trouvent dans le SUBPTH       #
+# Les actions "Gosub" de l'objet "POH" se trouvent dans le SUBPTHA      #
+#########################################################################
+
+########################################################################
+# $AVTBOUT_TEXTE                                                       #
+# Avant bouton texte entête et pied                                    #
+# -------------------------------------------------------------------- #
+# $AVTBOUT_SOLDE                                                       #
+# Avant exécution du solde de la réception                             #
+# -------------------------------------------------------------------- #
+# $MAJ_RECEIPT                                                         #
+# Mise à jour de l'entête de reception                                 #
+# apres bouton complément                                              #
+# -------------------------------------------------------------------- #
+# $CHARG_LIG_PTH : chargement d'une ligne de réception                 #
+# -------------------------------------------------------------------- #
+# $CONT_UNI_RCP                                                        #
+# Contrôle que l'unité de commande est une unité de réception          #
+# -------------------------------------------------------------------- #
+# $CHARG_PARAM                                                         #
+# Chargement des paramètres avec GFCY = Site de la réception           #
+# et paramètre utilisateur                                             #
+# -------------------------------------------------------------------- #
+# $RELEC                                                               #
+# Relecture des fichiers avec classe [M]                               #
+# -------------------------------------------------------------------- #
+# $POSITION_SOLDE                                                      #
+# Positionnement du solde en fonction du paramètre GPOHCLE             #
+# Calcul de la quantité totale réceptionnée                            #
+# -------------------------------------------------------------------- #
+# $REAJUST_WSOLDE                                                      #
+# Si le solde est changé sur une ligne                                 #
+# On recherche si d'autre ligne liée même cde                          #
+# On positionne le solde de la même façon                              #
+# -------------------------------------------------------------------- #
+# $CAL_MAXQTYRCP                                                       #
+# Calcul de la quantité maxi restant à receptionner                    #
+# nolign doit être correct                                             #
+# -------------------------------------------------------------------- #
+# $REAJUST_MAXQTY                                                      #
+# Réajustement de la quantité max sur les autres lignes                #
+# -------------------------------------------------------------------- #
+# $SUPPRESS_TEX                                                        #
+# Suppression des textes de la commande après incident                 #
+#                ou abandon en création ou duplication                 #
+# -------------------------------------------------------------------- #
+# $VERIF_ITM                                                           #
+# Vérification de l'article : acheté, sous-trait etc...                #
+# -------------------------------------------------------------------- #
+# $DIS_COEFF                                                           #
+# Alimentation du coeff dans WCOEFF                                    #
+# diszo ou actzo en fonction des possiblités de saisie                 #
+# -------------------------------------------------------------------- #
+# $CAL_QTYPUU                                                          #
+# Calcul de la quantité en UA et du coeff uompuu                       #
+# Prérequis : NOL doit exister et contenir le numéro de ligne du doc   #
+# -------------------------------------------------------------------- #
+# $CALCUL_NETPRI                                                       #
+# Calcul du prix net                                                   #
+# -------------------------------------------------------------------- #
+# $CTL_LIG_PTH                                                         #
+# Contrôle appelé avant l'enregistrement des écrans stock en           #
+# création ou modif de stock                                           #
+# -------------------------------------------------------------------- #
+# $MAJ_LIG_PTH                                                         #
+# Mise à jour de la ligne de réception au retour du moteur de stock    #
+# LLIG contient le numéro de ligne du document                         #
+# -------------------------------------------------------------------- #
+# $TRT_MAJ_DOCUMENT                                                    #
+# Mise à jour après la modification                                    #
+# -------------------------------------------------------------------- #
+# $RECH_MVT                                                            #
+# Recherche des mouvements appelé en lien                              #
+# -------------------------------------------------------------------- #
+# Issue 106506 - 2015-04-23 by SR : Landed Cost                        #
+# $MAJ_WSHDSOLDE                                                       #
+# Positionnement du flag Solde pour la ligne de Shipment               #
+########################################################################
+#                                                                      #
+# Subprog CREPOQ                                                       #
+# Creation ligne supplementaire pour cde ouverte                       #
+# -------------------------------------------------------------------- #
+# Subprog INI_TARIF                                                    #
+# Initialisation du tarif pour réception directe                       #
+# -------------------------------------------------------------------- #
+# Subprog CHARG_PARAM_STOENT                                           #
+# Chargement des paramètres stock en création                          #
+# -------------------------------------------------------------------- #
+# Subprog CHARG_PARAM_STOENTM                                          #
+# Chargement des paramètres stock en modification                      #
+#                                                                      #
+########################################################################
+#                                                                      #
+# Traitements e_commerce                                               #
+# -------------------------------------------------------------------- #
+# Fenêtres de saisie                                                   #
+# ------------------                                                   #
+# SAIPTHCOM  : SAIPTHCOM    : Fenêtre de saisie des compléments        #
+# SAICRITPTH : SAICRITPTH   : Fenêtre de saisie des critères           #
+########################################################################
+
+$ACTION
+#--- Actions liés au type fenêtre de saisie
+Case ACTION
+ When "OUVRE"         : Gosub OUVRE
+ When "TITRE"         : Gosub TITLE
+ When "DEBUT"         : Gosub DEBUT
+ When "OK"            : Gosub OK
+ When "ABA"           : Gosub ABA
+ When "APRES_MODIF"   : Gosub APRES_MODIF
+Endcase
+Return
+
+#########################################################################
+#    Actions liés au type fenêtre de saisie                             #
+#########################################################################
+$OUVRE
+Case GACTION
+ When "SAIPTHCOM"  : Gosub OUV_COMPLE
+ When "SAICRITPTH" : Gosub OUV_CRIT
+Endcase
+Return
+#-----------------------------------------------------------------------#
+$TITLE
+  Case GACTION
+   When "SAIPTHCOM"  : TIT=mess(47,195,1)
+   When "SAICRITPTH" : TIT=mess(367,198,1)
+  Endcase
+Return
+#-----------------------------------------------------------------------#
+$DEBUT
+Case GACTION
+ When "SAIPTHCOM" : Gosub DEB_COMPLE
+ When "SAICRITPTH": Gosub DEB_CRIT
+Endcase
+Return
+#-----------------------------------------------------------------------#
+$OK
+Case GACTION
+ When "SAIPTHCOM"  : Gosub OK_COMPLE
+ When "SAICRITPTH" : Gosub OK_CRIT
+Endcase
+Return
+#-----------------------------------------------------------------------#
+$ABA
+Case GACTION
+ When "SAIPTHCOM"  : Gosub ABA_COMPLE
+                     REP = ""
+ When "SAICRITPTH" : Gosub ABA_CRIT
+                     REP = ""
+Endcase
+Return
+#-----------------------------------------------------------------------#
+$APRES_MODIF
+Case GACTION
+ When "SAIPTHCOM"  : REP = "M"
+ When "SAICRITPTH" : REP = "M"
+Endcase
+Return
+
+################################################################################
+# SAICRITPTH  Saisie des critères de réceptions                    HN 27/11/00 #
+################################################################################
+$OUV_CRIT
+If clalev ([F:POH]) = 0  Local File PORDER    [POH] : Endif : #commandes
+If clalev ([F:POP]) = 0  Local File PORDERP   [POP] : Endif : #commandes achat prix
+If clalev ([F:POQ]) = 0  Local File PORDERQ   [POQ] : Endif : #commandes achat qté
+If clalev ([F:ITM]) = 0  Local File ITMMASTER [ITM] : Endif : #article
+If clalev ([F:ITP]) = 0  Local File ITMBPS    [ITP] : Endif : #article - fournisseur
+If GMODU(8)=2 : # Module GP actif
+  If clalev ([F:MFG]) = 0  Local File MFGHEAD   [MFG] : Endif : #ordre de fabrication
+Endif
+# Issue 110325 - 2016-08-29 by SR : US120
+If clalev ([F:SHH]) = 0  Local File SHIPMENT   [SHH] : Endif : #Expéditions
+If clalev ([F:SHD]) = 0  Local File SHIPMENTD  [SHD] : Endif : #lignes Expéditions
+If clalev ([F:BPT]) = 0  Local File BPCARRIER  [BPT] : Endif : #transporteur/transitaire
+# End issue 110325-120
+Return
+#------------------------------------------------------------------------------#
+$DEB_CRIT
+[M:PCO1]=[M:PCOW]
+If [M:PTH0]BPSNUM<>"" [M:PCO1]WBPSNUM=[M:PTH0]BPSNUM : Endif
+If [M:PTH0]BETFCY<>0  [M:PCO1]WBETFCY=[M:PTH0]BETFCY : Endif
+If [M:PCO1]WBPSNUM<>""
+  If [F:BPS]BPSNUM<>[M:PCO1]WBPSNUM
+    Read [BPS] BPS0=[M:PCO1]WBPSNUM : If fstat Raz [F:BPS] : Endif
+  Endif
+  [M:PCO1]WBPSNAM=[F:BPS]BPSNAM
+Endif
+Actzo [PCO1]1-99
+Affzo [PCO1]1-99
+If [M:PTH0]BETFCY = 2
+  #Effzo WPOHNUM,WITMREFBPS,WITMDESBPS,WVCRNUMORI
+  #Diszo WPOHNUM,WITMREFBPS,WITMDESBPS,WVCRNUMORI
+Endif
+If [M:PTH1]NBLIG>0 Diszo [PCO1]WBETFCY, WBPSNUM, WBPSNAM : Endif
+Return
+#------------------------------------------------------------------------------#
+$OK_CRIT
+[M:PCO1]WBPSNUM   =vireblc([M:PCO1]WBPSNUM,2)
+[M:PCO1]WITMREF   =vireblc([M:PCO1]WITMREF,2)
+[M:PCO1]WITMREFBPS=vireblc([M:PCO1]WITMREFBPS,2)
+[M:PCO1]WPOHNUM   =vireblc([M:PCO1]WPOHNUM,2)
+# Issue 110325 - 2016-08-29 by SR : US120
+[M:PCO1]WSHIPNUM  =vireblc([M:PCO1]WSHIPNUM,2)
+[M:PCO1]WBPTNUM   =vireblc([M:PCO1]WBPTNUM,2)
+# End issue 110325-120
+[M:PCOW]=[M:PCO1]
+Return
+#------------------------------------------------------------------------------#
+$ABA_CRIT
+[M:PCO1]=[M:PCOW]
+REP=""
+Affzo [PCO1]1-99
+Return
+
+################################################################################
+# SAIPTHCOM : Saisie des compléments                               HN 27/11/00 #
+################################################################################
+$OUV_COMPLE
+Local Shortint FLGSAI
+Return
+#-----
+$DEB_COMPLE
+[M:PTH9]=[M:PTHC]
+Affzo [PTH9]1-99
+If [PTH0]BETFCY=2
+  Diszo [PTH9]1-99
+Else
+  Actzo [PTH9]BPSINV
+Endif
+#----- Si modif non autorisée, désactivation de la saisie par grisage -----#
+FLGSAI=1
+If [F:PTH]INVFLG<>1  Grizo [PTH9]1-99 : Raz FLGSAI : Endif
+If GREP<>"C"
+  GBIDC2="M" : Gosub AUTORIS_OPT From CONTX3
+  If !GBIDI2 | !GPTH_VERROU  Grizo [PTH9]1-99 : Raz FLGSAI : Endif
+Endif
+Actzo [PTH9]10 # FGR 18/07/2014 : X3SUIVI91606 : Bloc transport toujours accessible
+Return
+
+#-----
+$OK_COMPLE
+#----- Lecture table des modes de livraison si nécessaire -----#
+If GACTDEB=2 & [M:PTH9]MDL<>[M:PTHC]MDL
+  If [F:TMD]MDL<>[M:PTH9]MDL
+    Read [TMD] TMD0=[M:PTH9]MDL : If fstat  Raz [F:TMD] : Endif
+  Endif
+  If GACTDEB=2
+      [M:PCEX]EECTRN=[F:TMD]EECTRN  : # Mode de transport CEE
+  Endif
+Endif
+#-----
+[M:PTHC]=[M:PTH9]
+FIN=1
+Return
+#-----
+$ABA_COMPLE
+If [M:PTH9]DEP<>[M:PTHC]DEP
+  [M:PTH9]=[M:PTHC]
+  Affzo [PTH9]1-99
+  Call AM_DEP([M:PTH9]DEP) From SUBPTH9
+Else
+  [M:PTH9]=[M:PTHC]
+  Affzo [PTH9]1-99
+Endif
+Return
+
+#--------------------------------#
+# Mise à jour de la de reception #
+#--------------------------------#
+$MAJ_RECEIPT
+Call DEBTRANS From GLOCK
+$TR_PTH
+Trbegin [PTH], [PTD]
+  Readlock [PTH] PTH0=[M:PTH0]PTHNUM
+  If fstat=1
+    GOK=-1 : GLOCK="$PRECEIPT"-[M:PTH0]PTHNUM           : Goto ROLL_PTH
+  Elsif fstat
+    GOK=0  : Call RSTA("PTH",[M:PTH0]PTHNUM) From GLOCK : Goto AB_PTH
+  Endif
+  If [F:PTH]BPSINV<>[M:PTHC]BPSINV
+    Update [PTD] Where PTHNUM=[F:PTH]PTHNUM With BPSINV=[M:PTHC]BPSINV
+    If fstat GOK=0 : Call FSTA("PTD") From GLOCK : Goto AB_PTH : Endif
+   Endif
+  [F:PTH]=[M:PTHC]
+  If GACTDEB=2
+      [F:PTH]EECTRN=[M:PCEX]EECTRN
+      # Issue X3-68064 - 2018-01-17 by MUARN : numéro de TVA intracommunautaire
+      [F:PTH]EECNUM=[M:PCEX]EECNUM
+  Endif
+  Rewrite [PTH]
+  If fstat GOK=0 : Call FSTA("PTH") From GLOCK : Goto AB_PTH : Endif
+  #----- Ecriture des éléments de facturation avec comptes et sections -----#
+  Call ENREG_ELEMENTS(6,[M:PTH0]PTHNUM,"PTH2","M") From TRTACHELT1
+  If GOK=-1  Goto ROLL_PTH : Endif
+  If GOK=0   Goto AB_PTH   : Endif
+  #----- Ecriture du tableau des taxes -----#
+  Call ENREG_TAXES   (6,[M:PTH0]PTHNUM,"PTH2","M") From TRTACHELT1
+  If GOK=-1  Goto ROLL_PTH : Endif
+  If GOK=0   Goto AB_PTH   : Endif
+  #----- Traitement des lignes modifiées -----#
+  For nolign=1 To [M:PTH1]NBLIG
+    If [M:PTH1]UPDFLG(nolign-1)<>0
+      Readlock [PTD] PTD0=[M:PTH0]PTHNUM;[M:PTH1]PTDLIN(nolign-1)
+      If fstat=1
+        GOK=-1 : GLOCK="$PRECEIPTD"-[M:PTH0]PTHNUM-num$([M:PTH1]PTDLIN(nolign-1))
+        Break
+      Elsif fstat
+        GOK=0  : Call RSTA("PTD",[M:PTH0]PTHNUM-num$([M:PTH1]PTDLIN(nolign-1))) From GLOCK
+        Break
+      Endif
+      SIGN=-1 : TRTLIG="M"
+      Gosub VALLIG From SUBPTHA : If GOK<1  Break : Endif
+      [F:PTD]=[M:PTH1]
+      [F:PTD]UPDDAT=date$
+      [F:PTD]UPDUSR=GUSER
+      [F:PTD]EXPNUM=[C]EXPORT
+      Gosub INIMOD_LIG From SUBPTHA
+      Rewrite [PTD]
+      If fstat  GOK=0 : Call FSTA("PTD") From GLOCK : Break : Endif
+      SIGN=+1 : TRTLIG="M"
+      Gosub VALLIG From SUBPTHA : If GOK<1  Break : Endif
+      [M:PTH1]UPDFLG(nolign-1)=0
+      [M:PTH1]INIQTYPUU(nolign-1)=[M:PTH1]QTYPUU(nolign-1)
+    Endif
+  Next nolign
+  If GOK=-1  Goto ROLL_PTH : Endif
+  If GOK=0   Goto AB_PTH   : Endif
+  #-----
+Commit
+Return
+
+$ROLL_PTH
+Rollback : Call ROLL From GLOCK
+If GROLL : Return  : Endif
+
+$AB_PTH
+Rollback
+Return
+
+
+#########################################################################
+# $DIVPTHLIG : Fait les contrôles sur possibilité de réception          #
+#              de la commande et appel le chargement de la ligne        #
+# --------------------------------------------------------------------- #
+# Appelé depuis le traitement SUBPTH     avec l'action standard :       #
+#   - AM_POPLIN  Après modification du no ligne de commande             #
+# Appelé depuis le traitement TRTACHSEL1 avec les actions :             #
+#   - SELLIGPOQ  Sélection de la ligne de commande a réceptionner       #
+#   - SELITMPOQ  Sélection de la ligne de commande a réceptionner (ART) #
+#########################################################################
+$DIVPTHLIG
+If dim(NOL)<0 Local Shortint NOL : Endif
+If dim(J)<0   Local Shortint   J : Endif
+If dim(K)<0   Local Shortint   K : Endif
+NOL=nolign-1
+Local Integer  SVGNOL2   : SVGNOL2=nolign
+Local Decimal  WQTE, WQTERES
+Local Char     SYMBOLE2(30)
+Local Integer  OK
+Raz WQTERES
+If [F:POH]POHNUM <> [F:POQ]POHNUM
+  Read [POH] POH0=[F:POQ]POHNUM : If fstat  Raz [F:POH] : Endif
+Endif
+If [F:ITM]ITMREF <> [F:POQ]ITMREF
+  Read [ITM] ITM0=[F:POQ]ITMREF : If fstat  Raz [F:ITM] : Endif
+Endif
+If [F:ITP]ITMREF <> [F:POQ]ITMREF | [F:ITP]BPSNUM <>[F:POQ]BPSNUM
+  Read [ITP] ITP0=[F:POQ]ITMREF;[F:POQ]BPSNUM
+  If fstat  Raz [F:ITP] : Endif
+Endif
+If [M:PTH0]BETFCY=2 & [F:POH]SALFCY<>"" & [F:POQ]LINOCNNUM<>""
+  Read [SOQ] SOQ0=[F:POQ]LINOCNNUM;[F:POQ]OCNLIN;[F:POQ]OCNSEQ
+  If fstat  GMESSAGE=mess(274,194,1) : GERR=1 : mkstat=2 : Return : Endif
+  Filter [SDD] Where SOHNUM=[F:SOQ]SOHNUM & SOPLIN=[F:SOQ]SOPLIN & SOQSEQ=[F:SOQ]SOQSEQ &
+&                    RCPQTYSTU<[F:SOQ]QTYSTU & RCPFLG<>2
+  Read [SDD] SDD1 First : If fstat  Raz [F:SDD], [F:SDH] : Endif
+  Filter [SDD]
+  If [F:SDD]SDHNUM<>""
+    Read [SDH] SDH0=[F:SDD]SDHNUM : If fstat Raz [F:SDH] : Endif
+  Endif
+Elsif GMODU(5)=2
+  Raz [F:SOQ], [F:SDH], [F:SDD] : # à cause de l'INISEC "PTD"
+Endif
+#----- Lecture PORDERP -----#
+If [F:POQ]POHTYP<>2 : # Commande classique
+  Raz [F:POC]
+  Read [POP] POP0=[F:POQ]POHNUM;[F:POQ]POPLIN;1 : If fstat  Raz [F:POP] : Endif
+Else                : # Commande ouverte
+  Read [POC] POC0=[F:POQ]POHNUM;[F:POQ]POPLIN   : If fstat  Raz [F:POC] : Endif
+  Filter [POP] Where POHNUM=[F:POQ]POHNUM & POPLIN=[F:POQ]POPLIN & POPDAT>=[F:POQ]DEMRCPDAT
+  Read [POP] POP1 First : If fstat  Raz [F:POP] : Endif
+  Filter [POP]
+Endif
+#-------------------------------#
+# test si possibilité reception #
+#-------------------------------#
+If [F:POQ]POQSEQ  = 0
+  GMESSAGE = mess (23,100,1) : GERR=1 : mkstat=2 : Return
+Endif
+If [F:POQ]PRHFCY <> [M:PTH0]PRHFCY
+  GMESSAGE = mess(103,194,1) : GERR=1 : mkstat=2 : Return
+Endif
+If [F:POQ]LINCLEFLG = 2
+  GMESSAGE = mess(104,194,1) : GERR=1 : mkstat=2 : Return
+Endif
+If [F:POQ]ORI = 2
+  GMESSAGE = mess(115,194,1) : GERR=1 : mkstat=2 : Return
+Endif
+If [F:POQ]WIPSTA > 1
+  #--------------------------------------------#
+  # remarque : on garde la valeur 0 car        #
+  # correspond aux articles non géres en stock #
+  #--------------------------------------------#
+  GMESSAGE = mess(104,194,1) : GERR=1 : mkstat=2 : Return
+Endif
+If [F:POQ]QTYPUU<=[F:POQ]RCPQTYPUU & (GRCPORD=1 | [F:ITM]SCSFLG=2 )
+  #---------------------------------------------------------------------#
+  # Cas particulier du fonctionnement v140 sans article lancé:          #
+  # si reception du service on ne peut pas receptionner plus que la cde #
+  #---------------------------------------------------------------------#
+   GMESSAGE = mess(113,194,1) : GERR=1 : mkstat=2 : Return
+Endif
+#----- Article non réceptionnable -----#
+If [F:ITM]RCPFLG<>2
+  GMESSAGE = mess(99,194,1) : GERR=1 : mkstat=2 : Return
+Endif
+If [F:ITF]ITMREF<>[F:POQ]ITMREF | [F:ITF]STOFCY<>[M:PTH0]PRHFCY
+  Read [ITF] ITF0=[F:POQ]ITMREF;[M:PTH0]PRHFCY
+  If fstat  Raz [F:ITF] : [F:ITF]STOMGTCOD=[F:ITM]STOMGTCOD : Endif
+Endif
+#----- Article géré en stock -----#
+If [F:ITF]STOMGTCOD>1
+  #----- On vérifie article n'est pas en inventaire -----#
+  #If [F:ITF]CUNFLG = 2
+  #  OK=2 : Call AVERTIR(mess(185,199,1),OK) From GESECRAN
+  #  If OK=1 mkstat=2 : Return : Endif
+  #Endif
+Endif
+If [F:POQ]SOHNUM<>"" & [M:PTH0]BETFCY<>2
+  #--------------------------------------------------------#
+  # si ligne commande de contremarque message pour info    #
+  #--------------------------------------------------------#
+  GMESSAGE=mess(173,194,1)
+  OK=2 : Call AVERTIR(GMESSAGE,OK) From GESECRAN # Unnecessary pop-up for an ALL-B2B process.
+  If OK=1 mkstat=2 : Return : Endif
+Endif
+If [M:PTH0]BETFCY=2 & [F:POH]SALFCY<>"" & [F:POQ]LINOCNNUM<>""
+  If [F:SDD]SDHNUM =""
+    If [F:POH]POHTYP=2
+      GERR = 1 : GMESSAGE=mess(216,194,1) : mkstat=2 : Return
+    Else
+      GERR =1  : GMESSAGE=mess(278,194,1) : mkstat=2 : Return
+    Endif
+  Endif
+  If [F:SDH]CFMFLG <> 2
+    GERR = 1 : GMESSAGE=mess(216,194,1) : mkstat=2 : Return
+  Endif
+  If [F:SDD]RCPFLG=2
+    GERR = 1 : GMESSAGE=mess(277,194,1) : mkstat=2 : Return
+  Endif
+Endif
+OK=2
+#-- La ligne est-elle déjà dans la réception ???
+I=sigma(0,[M:PTH1]NBLIG-1,(indcum+1)*([M:PTH1]POHNUM(indcum)=[F:POQ]POHNUM &
+&      [M:PTH1]POPLIN(indcum)=[F:POQ]POPLIN & [M:PTH1]POQSEQ(indcum)=[F:POQ]POQSEQ & (indcum<>NOL)))
+If I<>0
+  #----- Chargement dans I de la 1ère ligne contenant la commande concernée -----#
+  For I=1 To [M:PTH1]NBLIG
+    If I-1<>NOL
+      If [M:PTH1]POHNUM(I-1)=[F:POQ]POHNUM &
+&        [M:PTH1]POPLIN(I-1)=[F:POQ]POPLIN &
+&        [M:PTH1]POQSEQ(I-1)=[F:POQ]POQSEQ
+        Break
+      Endif
+    Endif
+  Next I
+  #-----
+  #----- Interdire la même ligne commande pour article sous-traitance ou sous-traité -----#
+  # Issue 97396 GA 06/2014 can not use twice the same order line for subcontract receipt
+  #If [F:ITM]SCSFLG<>2 & [M:PTH0]BETFCY<>2
+  If !find([F:POQ]VCRTYPORI,10,36) & [M:PTH0]BETFCY<>2
+    If !GVTMOD
+      Call AVERTIR(mess(134,194,1)-mess(3,40,1)-num$(I),OK) From GESECRAN
+    Endif
+  Else
+    Call ERREUR(mess(134,194,1)-mess(3,40,1)-num$(I))     From GESECRAN
+    OK=1
+  Endif
+Endif
+If OK = 1 : mkstat = 2 : Return : Endif
+#---------------------------------------#
+# il faut verrouiller symbole POH       #
+# personne ne doit modifier la commande #
+#---------------------------------------#
+SYMBOLE2 = "POH"+num$([M:PTH1]POHNUM (NOL))
+Lock = SYMBOLE2 With lockwait = 0
+If fstat
+  GMESSAGE =mess(10,100,1) : GERR = 1 : mkstat = 2 : Return
+Endif
+GPTH_SYMBOL2=SYMBOLE2
+If GMODU(5)=2 & [M:PTH0]BETFCY=2  & [F:SDD]SDHNUM<>""
+  WQTE   =[F:SDD]QTYSTU
+  WQTERES=[F:SDD]QTYSTU
+Else
+#----- Calcul de la quantité restante à réceptionner -----#
+  WQTE=[F:POQ]QTYSTU-[F:POQ]RCPQTYSTU
+  Raz WQTERES
+Endif
+If GMODU(5)=2 & [M:PTH0]BETFCY=2 & [M:PTH1]POHNUM(NOL)=""
+  For J=0 To [M:PTH1]NBLIG-1
+    If [M:PTH1]SDHNUM(J)=[F:SDD]SDHNUM &
+&      [M:PTH1]SDDLIN(J)=[F:SDD]SDDLIN &
+&      [M:PTH1]CREFLG(J)=0
+      WQTE-=[M:PTH1]QTYSTU(J)
+    Endif
+  Next J
+Else
+  For J=0 To [M:PTH1]NBLIG-1
+    If [M:PTH1]POHNUM(J)=[F:POQ]POHNUM &
+&      [M:PTH1]POPLIN(J)=[F:POQ]POPLIN &
+&      [M:PTH1]POQSEQ(J)=[F:POQ]POQSEQ &
+&      [M:PTH1]CREFLG(J)=0             &
+&      J <> NOL
+      WQTE-=[M:PTH1]QTYSTU(J)
+    Endif
+  Next J
+Endif
+If WQTE<0 Raz WQTE : Endif
+# Issue 100084 - 2014-05-16 by MUARN : ne pas afficher en VT
+If WQTE=0 & !GVTMOD          : # Quantité réceptionnée nulle
+  GMESSAGE=[F:POQ]POHNUM-[F:POQ]ITMREF+"\"+mess(201,194,1)
+  OK=2 : Call OUINON (GMESSAGE,OK) From GESECRAN : Raz GMESSAGE
+  If OK<>2
+    Gosub UNLOCK_CDE
+    OK=0 : mkstat=2 : Return
+  Endif
+Endif
+If [F:POH]POHNUM <> [F:POQ]POHNUM
+  Read [POH] POH0=[F:POQ]POHNUM : If fstat Raz [F:POH] : Endif
+Endif
+If [F:ITM]ITMREF <> [F:POQ]ITMREF
+  Read [ITM] ITM0=[F:POQ]ITMREF : If fstat Raz [F:ITM] : Endif
+Endif
+If [F:ITP]ITMREF <> [F:POQ]ITMREF | [F:ITP]BPSNUM <>[F:POQ]BPSNUM
+  Read [ITP] ITP0=[F:POQ]ITMREF;[F:POQ]BPSNUM
+  If fstat  Raz [F:ITP] : Endif
+Endif
+[F:POQ]PTHNUM=[M:PTH0]PTHNUM  : # Pour éviter un écrasement par le transclasse
+nolign=NOL+1
+[M:PTH1]ITMREF(nolign-1)=[F:POQ]ITMREF
+Gosub CHARG_LIG_PTH From SUBPTHB
+If mkstat  OK=0 : Gosub RAZ_LIGNE : Return : Endif
+[L]WUOM=[M:PTH1]UOM(NOL)
+[L]WCOEFF=[M:PTH1]UOMSTUCOE(NOL)
+Gosub DIS_COEFF From SUBPTHB
+If mkstat  OK=0 : Gosub RAZ_LIGNE : Return : Endif
+Affzo [PTH1]POHNUM(NOL), POPLIN (NOL),
+&           ITMDES(NOL), ITMDES1(NOL),   UOM(NOL),
+&           QTYUOM(NOL), UOMSTUCOE(NOL), QTYSTU(NOL), STU(NOL),    PUU(NOL),
+&           QUAFLG(NOL), WSOLDE(NOL),    PJT(NOL),    GROPRI(NOL), NETPRI(NOL),
+&           LINAMT(NOL), NETCUR(NOL),    CPRCOE(NOL), CPR(NOL),
+&           LINACC1(NOL),LINACC2(NOL), LINPURTYP(NOL), ORICRY(NOL)
+Affzo [PTH1]CPRAMT(NOL), CPRCUR(NOL), STCNUM(NOL) # Issue 70985 - 2012-09-19 by MUARN : landed cost
+Affzo [PTH1]LINAMTCPR(NOL), LINCSTPUR(NOL), CSTPUR(NOL) # Issue 70985 - 2012-11-30 by MUARN : landed cost
+If dim([M:PTH1]LOT)>0
+  Affzo [PTH1]BPSLOT(NOL), LOT(NOL)
+Endif
+If dim([M:PTH1]SLO)>0
+  Affzo [PTH1]NBSLO(NOL), SLO(NOL), SLOF(NOL)
+Endif
+If dim([M:PTH1]LOC)>0
+  Affzo [PTH1]LOCTYP(NOL), LOC(NOL)
+Endif
+If dim([M:PTH1]SERNUM)>0
+  Affzo [PTH1]SERNUM(NOL), SERNUMF(NOL)
+Endif
+If GACTDEB=2  Affzo [PTH1]EECINCRAT(NOL) : Endif
+If GCOLREM(0)<>"" Affzo [PTH1]DISCRGVAL1(NOL) : Endif
+If GCOLREM(1)<>"" Affzo [PTH1]DISCRGVAL2(NOL) : Endif
+If GCOLREM(2)<>"" Affzo [PTH1]DISCRGVAL3(NOL) : Endif
+If GCOLREM(3)<>"" Affzo [PTH1]DISCRGVAL4(NOL) : Endif
+If GCOLREM(4)<>"" Affzo [PTH1]DISCRGVAL5(NOL) : Endif
+If GCOLREM(5)<>"" Affzo [PTH1]DISCRGVAL6(NOL) : Endif
+If GCOLREM(6)<>"" Affzo [PTH1]DISCRGVAL7(NOL) : Endif
+If GCOLREM(7)<>"" Affzo [PTH1]DISCRGVAL8(NOL) : Endif
+If GCOLREM(8)<>"" Affzo [PTH1]DISCRGVAL9(NOL) : Endif
+Gosub AFFICH_CCE From SUBPTH
+nolign=SVGNOL2
+Return
+
+
+$RAZ_LIGNE
+#-----------------------------------------#
+# Il y a eu une erreur lors du chargement #
+#-----------------------------------------#
+Gosub UNLOCK_CDE
+Raz [M:PTH1]POPLIN(NOL),
+&   [M:PTH1]ITMDES(NOL),    [M:PTH1]ITMDES1(NOL),
+&   [M:PTH1]UOM(NOL),       [M:PTH1]QTYUOM(NOL),
+&   [M:PTH1]UOMSTUCOE(NOL), [M:PTH1]QTYSTU(NOL),    [M:PTH1]STU(NOL),
+&   [M:PTH1]PUU(NOL),       [M:PTH1]QUAFLG(NOL),    [M:PTH1]WSOLDE(NOL),
+&   [M:PTH1]PJT(NOL),       [M:PTH1]GROPRI(NOL),    [M:PTH1]NETPRI(NOL),
+&   [M:PTH1]LINAMT(NOL),    [M:PTH1]NETCUR(NOL),    [M:PTH1]CPRPRI(NOL),
+&   [M:PTH1]CPRCOE(NOL),    [M:PTH1]CPR(NOL),       [M:PTH1]LINACC1(NOL),
+&   [M:PTH1]LINACC2(NOL),   [M:PTH1]LINPURTYP(NOL), [M:PTH1]ORICRY(NOL),
+&   [M:PTH1]LINTYP(NOL),    [M:PTH1]LINCAT(NOL)
+Raz [M:PTH1]CPRAMT(NOL), [M:PTH1]CPRCUR(NOL), [M:PTH1]STCNUM(NOL) # Issue 70985 - 2012-09-19 by MUARN : landed cost
+If dim([M:PTH1]LOT)>0
+  Raz [M:PTH1]BPSLOT(NOL), [M:PTH1]LOT(NOL)
+Endif
+If dim([M:PTH1]SLO)>0
+  Raz [M:PTH1]NBSLO(NOL), SLO(NOL), SLOF(NOL)
+Endif
+If dim([M:PTH1]LOC)>0
+  Raz [M:PTH1]LOCTYP(NOL), LOC(NOL)
+Endif
+If dim([M:PTH1]SERNUM)>0
+  Raz [M:PTH1]SERNUM(NOL), SERNUMF(NOL)
+Endif
+If GACTDEB=2  Raz [M:PTH1]EECINCRAT(NOL) : Endif
+If GCOLREM(0)<>"" Raz [M:PTH1]DISCRGVAL1(NOL) : Endif
+If GCOLREM(1)<>"" Raz [M:PTH1]DISCRGVAL2(NOL) : Endif
+If GCOLREM(2)<>"" Raz [M:PTH1]DISCRGVAL3(NOL) : Endif
+If GCOLREM(3)<>"" Raz [M:PTH1]DISCRGVAL4(NOL) : Endif
+If GCOLREM(4)<>"" Raz [M:PTH1]DISCRGVAL5(NOL) : Endif
+If GCOLREM(5)<>"" Raz [M:PTH1]DISCRGVAL6(NOL) : Endif
+If GCOLREM(6)<>"" Raz [M:PTH1]DISCRGVAL7(NOL) : Endif
+If GCOLREM(7)<>"" Raz [M:PTH1]DISCRGVAL8(NOL) : Endif
+If GCOLREM(8)<>"" Raz [M:PTH1]DISCRGVAL9(NOL) : Endif
+Gosub RAZ_LINACC From SUBPTH
+Gosub RAZ_CCE    From SUBPTH
+# Issue 77991 - 2011-11-18 by MUARN : Erreur en réception
+#nolign=SVGNOL
+nolign=SVGNOL2
+# fin 77991
+Return
+
+$UNLOCK_CDE
+If [M:PTH1]NBLIG=0
+  SYMBOLE2="POH"+[F:POQ]POHNUM : Unlock=SYMBOLE2
+Elsif !find([F:POQ]POHNUM,[M:PTH1]POHNUM(0..[M:PTH1]NBLIG-1))
+  SYMBOLE2="POH"+[F:POQ]POHNUM : Unlock=SYMBOLE2
+Endif
+Return
+
+
+#--------------------------------------#
+# Chargement d'une ligne de réception  #
+# WQTE : quantité à receptionner en US #
+#--------------------------------------#
+$CHARG_LIG_PTH
+Local Decimal  WCPRAMT, WUOMSTUCOE # Issue 70985 - 2012-04-10 by MUARN : landed cost
+# Issue 87864 - 2013-02-11 by SR
+Local Char LSEC(GLONCCE)
+If dim([L]NOL)<0        Local Shortint NOL              : Endif
+If dim([L]J)<0          Local Shortint J                : Endif
+If dim([L]NEWMAXQTY)<0  Local Decimal  NEWMAXQTY        : Endif
+If dim([L]NEWQTY)<0     Local Decimal  NEWQTY           : Endif
+If dim([L]WRET)<0       Local Shortint WRET             : Endif
+If dim([L]WRETOUR)<0    Local Integer  WRETOUR          : Endif
+If dim([L]WCOEFF)<0     Local Decimal  WCOEFF           : Endif
+If dim([L]OLDWCOEF)<0   Local Decimal  OLDWCOEFF        : Endif
+If dim([L]WOLDQTYPUU)<0 Local Decimal  WOLDQTYPUU       : Endif
+If dim([L]WOLDQTYSTU)<0 Local Decimal  WOLDQTYSTU       : Endif
+If dim([L]WQTE1)<0      Local Decimal  WQTE1            : Endif
+If dim([L]WUOM)<0       Local Char     WUOM(GLONUOM)    : Endif
+If dim([L]LUSCAV)<0     Local Char     LUSCAV(2)        : Endif
+If dim([L]LLBEFMT)<0    Local Char     LLBEFMT(GLONARP) : Endif
+If dim([L]LDACCOE)<0    Local Integer  LDACCOE          : Endif
+If dim([L]SECTION)<0    Local Char     SECTION(GLONCCE) : Endif
+#-----
+NOL=nolign-1
+#----- Point d'entrée CHARGLIGPTH permettant de modifier WQTE qté à réceptionner -----#
+Gosub POINT_CHARGLIGPTH From SUBPTHA
+#-----
+[M:PTH1]LINFLG(NOL)=0
+[M:PTH1]LINTYP(NOL)=1 : # Sera remis à jour par le transclasse
+#----- Lecture de l'article (ITMMASTER) si nécessaire -----#
+If [F:ITM]ITMREF<>[M:PTH1]ITMREF(NOL)
+  Read [ITM] ITM0=[M:PTH1]ITMREF(NOL) : If fstat  Raz [F:ITM] : Endif
+Endif
+#----- Lecture article-fournisseur si nécessaire -----#
+If [F:ITP]ITMREF<>[M:PTH1]ITMREF(NOL) | [F:ITP]BPSNUM<>[M:PTH0]BPSNUM
+  Read [ITP] ITP0=[M:PTH1]ITMREF(NOL);[M:PTH0]BPSNUM
+  If fstat  Raz [F:ITP] : Endif
+Endif
+#----- Relecture BPARTNER si nécessaire -----#
+If [F:BPR]BPRNUM<>[M:PTH0]BPSNUM
+  Read [BPR] BPR0=[M:PTH0]BPSNUM      : If fstat  Raz [F:BPR] : Endif
+Endif
+#----- Lecture BPSUPPLIER si nécessaire -----#
+If [F:BPS]BPSNUM<>[M:PTH0]BPSNUM
+  Read [BPS] BPS0=[M:PTH0]BPSNUM      : If fstat  Raz [F:BPS] : Endif
+Endif
+#----- Lecture article-site si nécessaire -----#
+If [F:ITF]ITMREF<>[M:PTH1]ITMREF(NOL) | [F:ITF]STOFCY<>[M:PTH0]PRHFCY
+  Read [ITF] ITF0=[M:PTH1]ITMREF(NOL);[M:PTH0]PRHFCY
+  If fstat  Raz [F:ITF] : [F:ITF]STOMGTCOD=[F:ITM]STOMGTCOD : Endif
+Endif
+[M:PTH1]STOMGTCOD(NOL)=[F:ITF]STOMGTCOD : # GA à faire avant CHARG_WMOTEUR
+#----- Achat de sous-traitance -----#
+If find([F:POQ]VCRTYPORI,10,36) & [F:POQ]LINTYP<3
+  # FQ 54106 GA 09/04/2009 pas de ctrl ici pour autoriser une rcp partielle
+  #Gosub CTRL_ALLOCATIONS From SUBPTHC
+  #If GERR=1 & mkstat=2  Return : Endif
+  If dim([L]WOPENUM)<0    Local Integer  WOPENUM    : Endif   # FQ 70035 avant Shortint
+  If dim([L]WOPESPLNUM)<0 Local Shortint WOPESPLNUM : Endif
+  If dim([L]WRKMOTEUR)<0  Local Shortint WRKMOTEUR  : Endif
+  # Issue 77589 - 2011-11-18 by CCC
+  Raz GMESSAGE
+  Gosub CHARG_WMOTEUR From SUBPTHC
+  If [L]WRKMOTEUR=9
+     If GMESSAGE=""
+       # Message: Le besoin fabrication a été soldé ! \La commande doit être soldée !
+         GMESSAGE=mess(279,194,1)-"\"+mess([F:POQ]VCRTYPORI,701,1)-[F:POQ]VCRNUMORI
+     Endif
+     GERR=1 : mkstat=2 : Return
+  Elsif GMESSAGE<>""
+    # Issue 89758 GA 12/2013 pb with lock
+     GERR=1 : mkstat=2 : Return
+  Endif
+  [M:PTH1]WRKMOTEUR(NOL)=[L]WRKMOTEUR
+Else
+  [M:PTH1]WRKMOTEUR(NOL)=0
+Endif
+#----- reLecture article-site si nécessaire -----#
+If [F:ITF]ITMREF<>[M:PTH1]ITMREF(NOL) | [F:ITF]STOFCY<>[M:PTH0]PRHFCY
+  Read [ITF] ITF0=[M:PTH1]ITMREF(NOL);[M:PTH0]PRHFCY
+  If fstat  Raz [F:ITF] : [F:ITF]STOMGTCOD=[F:ITM]STOMGTCOD : Endif
+Endif
+#-----
+[M:PTH1]NETCUR(NOL)   =[M:PTH0]CUR
+If [M:PTH1]STOMGTCOD(NOL)>1
+  #----- Relecture transaction si nécessaire et si pas import -----#
+  If !GIMPORT & [F:PTR]PTRTYP<>6 | [F:PTR]PTRNUM<>GPTRNUM
+    Read [PTR] PTR0=6;GPTRNUM : If fstat  Raz [F:PTR] : Endif
+  Endif
+  #-----
+  [M:PTH1]TRSFAM(NOL)=[F:PTR]TRSFAMDEF
+Endif
+
+#----- Transclasses -----#
+If GMODU(5)=2
+  #--- Bug 72452
+  #If [F:SDD]SDHNUM<>""  [M:PTH0]=[F:SDD] : [M:PTH1]=[F:SDD] : Endif
+  #If [F:SOQ]SOHNUM<>""  [M:PTH0]=[F:SOQ] : [M:PTH1]=[F:SOQ] : Endif
+  If [F:SDD]SDHNUM<>""  [M:PTH0]=[F:SDD] : [M:PTH1]=[F:SDD] : [M:PTH1]LINTYP(NOL)=1 : Endif
+  If [F:SOQ]SOHNUM<>""  [M:PTH0]=[F:SOQ] : [M:PTH1]=[F:SOQ] : [M:PTH1]LINTYP(NOL)=1 : Endif
+  #---
+Endif
+
+# Issue 85892 - 2012-11-28 by MUARN : perte info gestion stock si différence entre site achat et site vente en intersite
+#----- Lecture article-site si nécessaire -----#
+If [F:ITF]ITMREF<>[M:PTH1]ITMREF(NOL) | [F:ITF]STOFCY<>[M:PTH0]PRHFCY
+  Read [ITF] ITF0=[M:PTH1]ITMREF(NOL);[M:PTH0]PRHFCY
+  If fstat  Raz [F:ITF] : [F:ITF]STOMGTCOD=[F:ITM]STOMGTCOD : Endif
+Endif
+[M:PTH1]STOMGTCOD(NOL)=[F:ITF]STOMGTCOD
+
+#-----
+If [F:POH]POHNUM<>""
+  [M:PTH1]NETCUR(NOL)=[F:POH]CUR
+  [M:PTH0]BETFCY     =[F:POH]BETFCY
+  [M:PTH0]BETCPY     =[F:POH]BETCPY
+  [M:PCOW]WBETFCY    =[F:POH]BETFCY
+  #----- Chargement des infos complémentaires à partir de la commande -----#
+  If [M:PTH1]NBLIG=0 | !sigma(J=0,[M:PTH1]NBLIG-1,([M:PTH1]POHNUM(J)<>"" & J<>NOL))
+    # Issue 92594 - 2013-09-13 by MUARN : en picking [M:PTH1]POHNUM non encore alimenté, et indisepensable pour ce sous-pro
+    [M:PTH1]POHNUM(NOL)=[F:POH]POHNUM
+    Gosub CHARG_INFOS_COMPL
+  Else
+    # Issue 92594 - 2013-09-13 by MUARN : deuxième commande avec régime de taxe différent ajout message info
+    If !GIMPORT & !GWEBSERV & [M:PTH0]VACBPR<>[F:POH]VACBPR
+      Call MESSAGE(mess(463,194,1)) From GESECRAN
+    Endif
+  Endif
+  #-----
+  # Issue 84130 - 2013-03-14 by MUARN : landed-cost unité poids et volume de la commande si différent et seulement sur 1ère ligne
+  If [M:PTH2]DSPVOU <> [F:POH]DSPVOU & [M:PTH1]NBLIG=0
+    [M:PTH2]DSPVOU = [F:POH]DSPVOU
+  Endif
+  If [M:PTH2]DSPWEU <> [F:POH]DSPWEU & [M:PTH1]NBLIG=0
+    [M:PTH2]DSPWEU = [F:POH]DSPWEU
+  Endif
+Endif
+#-----
+If GMODU(5)=2 & [F:SDD]SDHNUM <>""
+  [M:PTH0]BETFCY=2
+  #--- Bug 79177
+  #[M:PTH1]SDDQTY(NOL)=[F:SDD]QTYSTU
+  [M:PTH1]SDDQTY(NOL)=max([F:SDD]QTYSTU-[F:SDD]RTNQTYSTU-[F:SDD]RCPQTYSTU,0)
+  #---
+Endif
+[M:PTH1]LINCAT(NOL)=1
+If GMODU(5)=2 & [F:SDD]SDHNUM<>"" & [F:POH]POHNUM=""
+  If [F:SDH]SDHNUM<>[F:SDD]SDHNUM
+    Read [SDH] SDH0=[F:SDD]SDHNUM : If fstat  Raz [F:SDH] : Endif
+  Endif
+  #----- Chargement régime de taxe et devise si réception inter-sociétés -----#
+  If [M:PTH0]BETCPY=2
+    If [M:PTH1]NBLIG=0 | !sigma(J=0,[M:PTH1]NBLIG-1,([M:PTH1]SDHNUM(J)<>"" & J<>NOL))
+      #----- Régime de taxe -----#
+      If [M:PTH0]VACBPR<>[F:SDH]VACBPR & [F:SDH]VACBPR<>""
+        Local Char SIT(GLONFCY)   : SIT  =[M:PTH0]PRHFCY
+        Local Char TIERS(GLONBPS) : TIERS=[M:PTH0]BPSNUM
+        Gosub INIT_BPEXCEPT From CPTSUB
+        If !BPE_TROUVE
+          Call AM_VACBPR([F:SDH]VACBPR) From SUBPTH : [M:PTH0]VACBPR=[F:SDH]VACBPR
+        Endif
+      Endif
+      #----- Devise -----#
+      If [M:PTH0]CUR<>[F:SDH]CUR & [F:SDH]CUR<>""
+        Call AM_CUR([F:SDH]CUR) From SUBPTH : [M:PTH0]CUR=[F:SDH]CUR : Affzo [PTH0]CUR
+      Endif
+      #-----
+    Endif
+  Endif
+  #-----
+  If [F:SDH]CUR<>""
+    [M:PTH1]NETCUR(NOL)=[F:SDH]CUR
+  Endif
+  If [F:SDH]SCO=2
+    [M:PTH1]LINCAT(NOL)=2 : # GA 09/2006 Livraison pour sous-traitance
+  Endif
+  #-----
+  [M:PTHC] = [F:SDH] # FGR 18/07/2014 : X3SUIVI91606
+Endif
+#----- Autres transclasses -----#
+If [F:POQ]POHNUM<>""
+  If [F:POP]POHNUM=[F:POH]POHNUM
+    [M:PTH0]=[F:POP] : [M:PTH1]=[F:POP]
+    # Issue 70985 - 2012-04-23 by MUARN : landedcost ajout netcur dans [f:pop] pour gestion ancienne commandes
+    If [M:PTH1]NETCUR(NOL)=""
+      [M:PTH1]NETCUR(NOL)   =[M:PTH0]CUR
+    Endif
+    # Issue 71069 - 2016-06-10 by MUARN : PJT entête
+    # Issue 71069-52 - 2016-08-25 by SR : Import
+#    If [M:PTH1]NBLIG = 0 & GPJTSNGDOC = 1
+     If ([M:PTH1]NBLIG <1 | (GIMPORT & [M:PTH1]NBLIG=1)) & GPJTSNGDOC = 1
+      [M:PTH0]PJTH = [F:POH]PJTH
+      If !GIMPORT : Affzo [M:PTH0]PJTH : Endif
+    Endif
+
+       #----- Chargement comptes et sections analytiques -----#
+       Call CHARG_ACCCCE(NOL,"[M:PTH1]LINACC","","[M:PTH1]CCE","POP",0,
+&                        [F:POP]POHNUM,[F:POP]POPLIN,[F:POP]POPSEQ,"") From TRTX3CPT
+  Endif
+
+  [M:PTH0]=[F:POQ] : [M:PTH1]=[F:POQ]
+#                                                          # hcb 71276 deb
+  If dim([M:PTH1]ECCVALMAJORI)>0
+    [M:PTH1]ECCVALMAJORI(NOL)  = [F:POQ]ECCVALMAJ   # version majeure origine
+    [M:PTH1]ECCVALMINORI(NOL)  = [F:POQ]ECCVALMIN   # version mineure origine
+  Endif
+
+#                                                          # hcb 71276 fin
+
+
+Endif
+#---- Rechargement des zones écrasées par le transclasse -----#
+If GMODU(5)=2 & [F:SOQ]SOHNUM<>""
+  [M:PTH1]SOHNUM(NOL)=[F:SOQ]SOHNUM
+  [M:PTH1]SOPLIN(NOL)=[F:SOQ]SOPLIN
+  [M:PTH1]SOQSEQ(NOL)=[F:SOQ]SOQSEQ
+Endif
+# Issue 71069 - 2016-05-26 by MUARN : PJT en inter-site
+If GMODU(5)=2 & [F:SDD]SDHNUM <>"" & [M:PTH0]BETCPY=1 & [M:PTH0]BETFCY=2
+  [M:PTH1]PJT(NOL) = [F:SDD]PJT
+  # Issue 71069 - 2016-06-10 by MUARN : PJT entête
+  If !clalev([F:SOH])  Local File SORDER     [SOH]  : Endif
+  If [F:SOH]SOHNUM<>[M:PTH1]SOHNUM(NOL)
+    Read [SOH] SOH0=[M:PTH1]SOHNUM(NOL) : If fstat  Raz [F:SOH] : Endif
+  Endif
+  # Issue 71069-52 - 2016-08-25 by SR : Import
+#  If [M:PTH1]NBLIG = 0 & GPJTSNGDOC = 1
+    If ([M:PTH1]NBLIG <1 | (GIMPORT & [M:PTH1]NBLIG=1)) & GPJTSNGDOC = 1
+    [M:PTH0]PJTH = [F:SDH]PJT
+    If !GIMPORT : Affzo [M:PTH0]PJTH : Endif
+  Endif
+Endif
+#----- Effacement valeurs mises par le transclasse -----#
+Raz [M:PTH1]PTDLIN(NOL)
+#-----
+Raz [M:PTH1]DISCRGAMT1(NOL), [M:PTH1]DISCRGAMT2(NOL), [M:PTH1]DISCRGAMT3(NOL),
+&   [M:PTH1]DISCRGAMT4(NOL), [M:PTH1]DISCRGAMT5(NOL), [M:PTH1]DISCRGAMT6(NOL),
+&   [M:PTH1]DISCRGAMT7(NOL), [M:PTH1]DISCRGAMT8(NOL), [M:PTH1]DISCRGAMT9(NOL)
+#-----
+Raz [M:PTH1]CLCAMT1   (NOL), [M:PTH1]CLCAMT2   (NOL), [M:PTH1]CLCAMT3   (NOL),
+&   [M:PTH1]BASTAXLIN1(NOL)
+If dim([M:PTH1]CLCAMT4)>0     Raz [M:PTH1]CLCAMT4(NOL)    : Endif
+If dim([M:PTH1]CLCAMT5)>0     Raz [M:PTH1]CLCAMT5(NOL)    : Endif
+If dim([M:PTH1]CLCAMT6)>0     Raz [M:PTH1]CLCAMT6(NOL)    : Endif
+If dim([M:PTH1]CLCAMT7)>0     Raz [M:PTH1]CLCAMT7(NOL)    : Endif
+#-----
+Raz [M:PTH1]AMTTAXLIN1(NOL), [M:PTH1]DEDTAXLIN1(NOL), [M:PTH1]AMTTAXLIN2(NOL),
+&   [M:PTH1]DEDTAXLIN2(NOL), [M:PTH1]AMTTAXLIN3(NOL), [M:PTH1]DEDTAXLIN3(NOL)
+#-----
+If dim([M:PTH1]DISBASLIN1)>0  Raz [M:PTH1]DISBASLIN1(NOL) : Endif
+If dim([M:PTH1]AMTTAXRCP) >0  Raz [M:PTH1]AMTTAXRCP (NOL) : Endif
+If dim([M:PTH1]DEDTAXRCP) >0  Raz [M:PTH1]DEDTAXRCP (NOL) : Endif
+If dim([M:PTH1]AMTTAXISS) >0  Raz [M:PTH1]AMTTAXISS (NOL) : Endif
+If dim([M:PTH1]DEDTAXISS) >0  Raz [M:PTH1]DEDTAXISS (NOL) : Endif
+If dim([M:PTH1]AMTTAXOTH1)>0  Raz [M:PTH1]AMTTAXOTH1(NOL) : Endif
+If dim([M:PTH1]DEDTAXOTH1)>0  Raz [M:PTH1]DEDTAXOTH1(NOL) : Endif
+If dim([M:PTH1]AMTTAXOTH2)>0  Raz [M:PTH1]AMTTAXOTH2(NOL) : Endif
+If dim([M:PTH1]DEDTAXOTH2)>0  Raz [M:PTH1]DEDTAXOTH2(NOL) : Endif
+#----- Achat de sous-traitance -----#
+# GA 12/10/2005 seulement dans le cas d'un OF
+# si la réception porte sur l'opération de sous-traitance
+If GMODU(8)=2 & [F:ITM]SCSFLG=2 & [F:POQ]VCRTYPORI=10
+   [M:PTH1]VCRLINORI(NOL)=WOPENUM
+   [M:PTH1]VCRSEQORI(NOL)=WOPESPLNUM
+###[M:PTH1]WRKMOTEUR(NOL)=WRKMOTEUR déjà fait + haut
+Endif
+#----- Chargement des désignations article -----#
+If [F:POP]ITMDES<>""
+  [M:PTH1]ITMDES(NOL) =[F:POP]ITMDES
+  [M:PTH1]ITMDES1(NOL)=[F:POP]ITMDES1
+Elsif [F:POC]ITMDES<>""
+  [M:PTH1]ITMDES(NOL) =[F:POC]ITMDES
+  [M:PTH1]ITMDES1(NOL)=[F:POC]ITMDES1
+Else
+  #----- Relecture BPARTNER si nécessaire -----#
+  If [F:BPR]BPRNUM<>[M:PTH0]BPSNUM
+    Read [BPR] BPR0=[M:PTH0]BPSNUM : If fstat  Raz [F:BPR] : [F:BPR]LAN=GLANGUE : Endif
+  Endif
+  #-----
+  #Call CHARGE_ITMDES("DES1AXX",[F:BPR]LAN,[F:ITM]ITMREF,[M:PTH1]ITMDES(NOL)) From TRTX3
+  #If [M:PTH1]ITMDES(NOL)="" [M:PTH1]ITMDES(NOL)=[F:ITM]ITMDES1 : Endif
+  Call CHARGE_DEFITMDES("DES1AXX",[F:BPR]LAN,[F:ITM]ITMREF,[M:PTH1]ITMDES(NOL), "[F:ITM]") From TRTX3   # FGR 29/06/2009 : X3SUIVI56129
+  #[M:PTH1]ITMDES1(NOL)=[F:ITM]ITMDES1
+  Call CHARGE_DEFITMDES("DES1AXX",GLANGUE,[F:ITM]ITMREF,[M:PTH1]ITMDES1(NOL), "[F:ITM]") From TRTX3   # FGR 29/06/2009 : X3SUIVI56129
+Endif
+#-----
+Read [ITP]ITP0=[F:ITM]ITMREF;[M:PTH0]BPSNUM
+If !fstat
+  If GACTDEB=2 & ([F:POQ]POHNUM="" | [M:PTH1]EECINCRAT(NOL)=0)
+    [M:PTH1]EECINCRAT(NOL)=[F:ITP]EECINCRAT
+  Endif
+  [M:PTH1]QUAFLG(NOL)=[F:ITP]QUAFLG
+Else
+  Raz [F:ITP]
+  [M:PTH1]QUAFLG(NOL)=[F:ITF]QUAFLG                      # hcb V6CQ
+Endif
+If GACTDEB=2
+  If [M:PTH1]EECINCRAT(NOL)=0  [M:PTH1]EECINCRAT(NOL)=[F:BPS]EECINCRAT : Endif
+Endif
+If [M:PTH1]ORICRY(NOL)=""  [M:PTH1]ORICRY(NOL)=[F:BPR]CRY : Endif
+#----- Si on a une ligne POP -----#
+If [F:POP]POHNUM<>"" & [M:PTH1]QUAFLG(NOL)<>2
+  If [F:POP]QUAFLG=2  [M:PTH1]QUAFLG(NOL)=3  Else  [M:PTH1]QUAFLG(NOL)=1 : Endif
+Endif
+#----- A cause du transclasse qui écrase STA et LOC ! -----#
+If [M:PTH1]LINTYP(NOL)<3
+# FQ 60540 GA 12/2009
+  Actzo [PTH1]STA(NOL), MVTDES(NOL)
+  If dim([M:PTH1]LOCTYP)>0  Actzo [PTH1]LOCTYP(NOL), LOC(NOL)     : Endif
+  If dim([M:PTH1]BPSLOT)>0  Actzo [PTH1]BPSLOT(NOL), LOT(NOL)     : Endif
+  If dim([M:PTH1]NBSLO)>0   Actzo [PTH1]NBSLO(NOL),  SLO(NOL), SLOF(NOL) : Endif
+  If dim([M:PTH1]SERNUM)>0  Actzo [PTH1]SERNUM(NOL), SERNUMF(NOL) : Endif
+  If dim([M:PTH1]PALNUM)>0  Actzo [PTH1]PALNUM(NOL), CTRNUM(NOL)  : Endif
+  Default Mask [PTH1]
+  If [M:PTH1]LINCAT(NOL)=2 : # GA 09/2006 rcp matières pour sous-traitance
+    Call INIZONENT([F:ITM]ITMREF,"PTH1",[M:PTH0]PRHFCY,[M:PTH0]BPSNUM,1,"U",
+&                  NOL,16,[M:PTH0]TRSCOD,[M:PTH0]PTHNUM,3,0) From STKECR
+    If mkstat  Return : Endif
+  Else
+    Call INIZONENT([F:ITM]ITMREF,"PTH1",[M:PTH0]PRHFCY,[M:PTH0]BPSNUM,1,"U",
+&                  NOL,3,[M:PTH0]TRSCOD,[M:PTH0]PTHNUM,3,0) From STKECR
+    If mkstat  Return : Endif
+  Endif
+  If dim([M:PTH1]ECCSAIFLG)>0                       # Issue 107513/US10 by GA 08/2015: after INIZONENT
+    If [F:POQ]VCRTYPORI=36
+       [M:PTH1]ECCVALMAJ(NOL)  = [F:POQ]ECCVALMAJ   # version majeure
+       [M:PTH1]ECCVALMIN(NOL)  = [F:POQ]ECCVALMIN   # version mineure
+       [M:PTH1]ECCSAIFLG(NOL)  = 9
+    Endif
+  Endif
+Else
+  Raz [M:PTH1]STA(NOL), [M:PTH1]MVTDES(NOL)
+  Grizo [PTH1]STA(NOL), MVTDES(NOL)
+  If dim([M:PTH1]LOCTYP)>0
+    Raz [M:PTH1]LOCTYP(NOL), [M:PTH1]LOC(NOL)
+    Grizo [PTH1]LOCTYP(NOL), LOC(NOL)
+  Endif
+  If dim([M:PTH1]BPSLOT)>0
+    Raz [M:PTH1]BPSLOT(NOL), [M:PTH1]LOT(NOL)
+    Grizo [PTH1]BPSLOT(NOL), LOT(NOL)
+  Endif
+  If dim([M:PTH1]NBSLO)>0
+    Raz [M:PTH1]NBSLO(NOL),  [M:PTH1]SLO(NOL), [M:PTH1]SLOF(NOL)
+    Grizo [PTH1]NBSLO(NOL),  SLO(NOL),         SLOF(NOL)
+  Endif
+  If dim([M:PTH1]SERNUM)>0
+    Raz [M:PTH1]SERNUM(NOL), [M:PTH1]SERNUMF(NOL)
+    Grizo [PTH1]SERNUM(NOL), SERNUMF(NOL)
+  Endif
+  If dim([M:PTH1]PALNUM)>0
+    Raz [M:PTH1]PALNUM(NOL), [M:PTH1]CTRNUM(NOL)
+    Grizo [PTH1]PALNUM(NOL), CTRNUM(NOL)
+  Endif
+  [M:PTH1]WSTOSAI(NOL)="222222222222222" : # Service et matières fournies par sous-traitant
+Endif
+#----- Chargement pour l'inter-sites -----#
+If GMODU(5)=2 & [M:PTH0]BETFCY=2 & [F:SDD]SDHNUM<>""
+  If [M:PTH1]LINCAT(NOL)=2 : # GA 09/2006
+  # GA 09/2006 <rcp de matières pour sous-traitance>
+  # ne pas conserver la réf d'ordre de sous-traitance sinon pb de maj stock (en maj et annulation)
+  # car on considere qu'on est en rcp de sous-traitance ...
+     Raz [M:PTH1]VCRTYPORI(NOL)
+     Raz [M:PTH1]VCRNUMORI(NOL)
+     Raz [M:PTH1]VCRLINORI(NOL)
+     Raz [M:PTH1]VCRSEQORI(NOL)
+  Endif
+  [M:PTH1]SDHNUM(NOL)   =[F:SDD]SDHNUM
+  [M:PTH1]SDDLIN(NOL)   =[F:SDD]SDDLIN
+  [M:PTH1]LINSTOFCY(NOL)=[F:SDD]STOFCY
+  If [F:SDD]SOHCAT=4
+    [M:PTH1]POHTYP(NOL)=2
+  Else
+    [M:PTH1]POHTYP(NOL)=1
+  Endif
+Endif
+#----- Alimentation de la province de sortie et du pays expéditeur -----#
+If [F:POH]POHNUM<>""
+  If [F:POH]BPOCRY<>"" | [F:POH]BPOCTY<>""
+    If dim([M:PTH1]SATISS)>0  [M:PTH1]SATISS(NOL)=[F:POH]BPOSAT : Endif
+    [M:PTH1]BPOCRY(NOL)=[F:POH]BPOCRY
+  Else
+    #----- Lecture de l'adresse d'expédition si nécessaire -----#
+    If [F:BPA]BPATYP<>1 | [F:BPA]BPANUM<>[F:POH]BPSNUM | [F:BPA]BPAADD<>[F:POH]BPOADD
+      Read [BPA] BPA0=1;[F:POH]BPSNUM;[F:POH]BPOADD
+      If fstat  Raz [F:BPA] : Endif
+    Endif
+    #-----
+    If dim([M:PTH1]SATISS)>0  [M:PTH1]SATISS(NOL)=[F:BPA]SAT : Endif
+    [M:PTH1]BPOCRY(NOL)=[F:BPA]CRY
+  Endif
+Elsif GMODU(5)=2 & [M:PTH0]BETFCY=2 & [F:SDD]SDHNUM<>""
+  #----- Lecture du site d'expédition si nécessaire -----#
+  If [F:FCY]FCY<>[F:SDD]STOFCY
+    Read [FCY] FCY0=[F:SDD]STOFCY : If fstat  Raz [F:FCY] : Endif
+  Endif
+  #----- Lecture de l'adresse d'expédition si nécessaire -----#
+  If [F:BPA]BPATYP<>3 | [F:BPA]BPANUM<>[F:SDD]STOFCY | [F:BPA]BPAADD<>[F:FCY]BPAADD
+    Read [BPA] BPA0=3;[F:SDD]STOFCY;[F:FCY]BPAADD
+    If fstat  Raz [F:BPA] : Endif
+  Endif
+  #-----
+  If dim([M:PTH1]SATISS)>0  [M:PTH1]SATISS(NOL)=[F:BPA]SAT : Endif
+  [M:PTH1]BPOCRY(NOL)=[F:BPA]CRY
+Else
+  #----- Lecture de l'adresse d'expédition si nécessaire -----#
+  If [F:BPA]BPATYP<>1 | [F:BPA]BPANUM<>[M:PTH0]BPSNUM | [F:BPA]BPAADD<>[F:BPS]BPAADD
+    Read [BPA] BPA0=1;[M:PTH0]BPSNUM;[F:BPS]BPAADD
+    If fstat  Raz [F:BPA] : Endif
+  Endif
+  #-----
+  If dim([M:PTH1]SATISS)>0  [M:PTH1]SATISS(NOL)=[F:BPA]SAT : Endif
+  [M:PTH1]BPOCRY(NOL)=[F:BPA]CRY
+Endif
+
+#----- Chargement de la quantité en unité de stock -----#
+[M:PTH1]STU(NOL)   =[F:ITM]STU
+# Issue 84130 - 2013-03-15 by MUARN : landed cost
+WOLDQTYSTU = [M:PTH1]QTYSTU(NOL)
+
+# Issue 100084 - 2014-05-16 by MUARN : ne pas faire en mode VT garder, les données de la commande
+If !GVTMOD : [M:PTH1]QTYSTU(NOL)=WQTE : Endif
+#----- Ligne de réception issue d'une commande d'achat -----#
+If [F:POQ]POHNUM<>""
+  [M:PTH1]UOM(NOL)=[F:POQ]UOM
+  If [F:POQ]QTYUOM<>0
+    [M:PTH1]UOMSTUCOE(NOL)=arr([F:POQ]QTYSTU/[F:POQ]QTYUOM,0.00000001)
+  Else
+    [M:PTH1]UOMSTUCOE(NOL)=1
+  Endif
+  [M:PTH1]QTYUOM(NOL)   =WQTE/[M:PTH1]UOMSTUCOE(NOL)
+  #--- Issue 94959 by TS
+  Call QTEARR([M:PTH1]QTYUOM(NOL),[M:PTH1]UOM(NOL)) From TRTDIV
+
+  [M:PTH1]PUU(NOL)      =[F:POQ]PUU
+  [M:PTH1]UOMPUUCOE(NOL)=[F:POQ]UOMPUUCOE
+  If [M:PTH1]UOMPUUCOE(NOL)=0  [M:PTH1]UOMPUUCOE(NOL)=1 : Endif
+  #----- Chargement de la quantité en unité d'achat -----#
+  If [M:PTH1]QTYSTU(NOL)=[F:POQ]QTYSTU-[F:POQ]RCPQTYSTU
+    [M:PTH1]QTYPUU(NOL)=[F:POQ]QTYPUU-[F:POQ]RCPQTYPUU
+  Else
+    [M:PTH1]QTYPUU(NOL)=([M:PTH1]QTYSTU(NOL)*[F:POQ]QTYPUU)/[F:POQ]QTYSTU
+    Call QTEARR([M:PTH1]QTYPUU(NOL),[M:PTH1]PUU(NOL)) From TRTDIV
+  Endif
+  # Issue 88813 GA 03/2013 au moins pour la sous-traitance, garder la qté importée sur la ligne [F:PTD]
+  If GIMPORT & find([M:PTH1]VCRTYPORI(NOL),10,36)
+     If [F:PTD]POHNUM=[F:POQ]POHNUM & [F:PTD]POPLIN=[F:POQ]POPLIN & [F:PTD]QTYUOM<>0 & [F:PTD]QTYSTU=0
+        Call AM_QTYUOM([F:PTD]QTYUOM) From SUBPTH
+     Endif
+  Endif
+Else
+  If [F:ITP]PUU<>""
+    [M:PTH1]PUU(NOL)=[F:ITP]PUU
+  Else
+    [M:PTH1]PUU(NOL)=[F:ITM]PUU
+  Endif
+  #----- Ligne de réception issue d'une livraison avec UV récupérable -----#
+  If GMODU(5)=2 & [F:SDD]SDHNUM<>"" &
+&    (find([F:SDD]SAU,[F:ITM]PCU(0..dim([F:ITM]PCU)-1)) | [F:SDD]SAU=[F:ITM]PUU)
+    [M:PTH1]UOM(NOL)=[F:SDD]SAU
+    #----- Chargement coefficient de conversion UC-US -----#
+    [M:PTH1]UOMSTUCOE(NOL)=[F:SDD]SAUSTUCOE
+  #-----
+  Else
+    [M:PTH1]UOM(NOL)=[M:PTH1]PUU(NOL)
+    [M:PTH1]UOMPUUCOE(NOL)=1
+    Call CTLUOM([F:ITM]ITMREF,1,[M:PTH0]BPSNUM,[M:PTH1]UOM(NOL),[L]WCOEFF,
+&               LUSCAV,LLBEFMT,LDACCOE) From STKACT
+    [M:PTH1]UOMSTUCOE(NOL)=[L]WCOEFF
+  Endif
+  #----- Chargement coefficient de conversion UC-UA -----#
+  Call PCAL_QTY([M:PTH1]QTYUOM(NOL),[M:PTH1]UOM(NOL),GBIDD1,[M:PTH1]PUU(NOL),
+&         [M:PTH1]ITMREF(NOL),[M:PTH0]BPSNUM,1,[M:PTH1]UOMPUUCOE(NOL)) From TRTACHQTE1
+  #-----
+  If [M:PTH1]UOMSTUCOE(NOL)=0  [M:PTH1]UOMSTUCOE(NOL)=1 : Endif
+  [M:PTH1]QTYUOM(NOL)=WQTE/[M:PTH1]UOMSTUCOE(NOL)
+  Call PCAL_QTY([M:PTH1]QTYSTU(NOL),[M:PTH1]STU(NOL),[M:PTH1]QTYPUU(NOL),[M:PTH1]PUU(NOL),
+&         [M:PTH1]ITMREF(NOL),[M:PTH0]BPSNUM,1,GBIDD1) From TRTACHQTE1
+  If [M:PTH1]UOMPUUCOE(NOL)=0  [M:PTH1]UOMPUUCOE(NOL)=1 : Endif
+Endif
+#----- Ligne de réception issue d'une commande -----#
+If [F:POP]POHNUM<>""
+  [M:PTH1]GROPRI(NOL)=arr([F:POP]GROPRI,10^-GDECPRI)
+  [M:PTH1]NETPRI(NOL)=arr([F:POP]NETPRI,10^-GDECPRI)
+
+  # Issue 96912 - 2014-02-17 by MUARN : gestion des tarifs en commande ouverte
+  If [F:POQ]POHTYP=2
+    Local  Decimal  DISCRGVAL(0..8), NETPRI
+    For I=1 To 9
+      If evalue("DIM([M:PTH1]DISCRGVAL"+num$(I)+"(NOL))")>0
+        DISCRGVAL(I-1)=evalue("[M:PTH1]DISCRGVAL"+num$(I)+"(NOL)")
+      Endif
+    Next I
+    Call CALNET(2,[F:BPS]PLISTC,[M:PTH1]GROPRI(NOL),DISCRGVAL,[M:PTH1]QTYUOM(NOL),[M:PTH1]NETPRI(NOL),[M:PTH0]CUR) From TRTPRICE
+  Endif
+
+  If [F:POH]VACBPR=[M:PTH0]VACBPR
+    [M:PTH1]VAT1(NOL)=[F:POP]VAT(0)
+    [M:PTH1]VAT2(NOL)=[F:POP]VAT(1)
+    [M:PTH1]VAT3(NOL)=[F:POP]VAT(2)
+  Elsif [M:PTH1]LINTYP(NOL)<>2
+    Call ALIVATCOD(2,[M:PTH0]BPSNUM,[M:PTH1]ITMREF(NOL),"PTH1",NOL) From TRTX3
+  Endif
+
+  # Issue 84130 - 2012-02-17 by MUARN : Landed Cost
+  #----- Initialisation des landed cost -----#
+  If [M:PTH1]CPRCOE(NOL)=0 [M:PTH1]CPRCOE(NOL)=1 Endif
+  # landed cost - poids et volume
+  If [F:POP]POHTYP = 2
+    [M:PTH1]LINWEU(NOL)=[M:PTH2]DSPWEU
+    [M:PTH1]LINVOU(NOL)=[M:PTH2]DSPVOU
+    If [M:PTH1]LINTYP(NOL)<3
+      If [F:ITM]ITMREF<>[M:PTH1]ITMREF(NOL)
+        Read [ITM] ITM0=[M:PTH1]ITMREF(NOL) : If fstat  Raz [F:ITM] : Endif
+      Endif
+      Call CONVERT_VOUWEU("PTH1",NOL,[M:PTH1]LINWEU(NOL),[M:PTH1]LINVOU(NOL),[M:PTH1]QTYSTU(NOL),0) From STCLIB
+    Endif
+  Else
+    If WOLDQTYSTU <> [M:PTH1]QTYSTU(NOL)
+      If !clalev([F:TUN])  Local File TABUNIT [TUN] : Endif
+      If [F:TUN]UOM<>[M:PTH1]LINWEU(NOL)
+        Read [TUN] TUN0=[M:PTH1]LINWEU(NOL) : If fstat Raz [F:TUN] : Endif
+      Endif
+      [M:PTH1]QTYWEU(NOL) = arr([M:PTH1]QTYWEU(NOL)*[M:PTH1]QTYSTU(NOL)/WOLDQTYSTU,10^-[F:TUN]UOMDEC)
+      If [F:TUN]UOM<>[M:PTH1]LINVOU(NOL)
+        Read [TUN] TUN0=[M:PTH1]LINVOU(NOL) : If fstat Raz [F:TUN] : Endif
+      Endif
+      [M:PTH1]QTYVOU(NOL) = arr([M:PTH1]QTYVOU(NOL)*[M:PTH1]QTYSTU(NOL)/WOLDQTYSTU,10^-[F:TUN]UOMDEC)
+    Endif
+    If [M:PTH2]DSPWEU <> [M:PTH1]LINWEU(NOL)
+      Local Char ORI_WEU : ORI_WEU = [M:PTH1]LINWEU(NOL)
+      [M:PTH1]LINWEU(NOL) = [M:PTH2]DSPWEU
+      Call PCAL_QTY([M:PTH1]QTYWEU(NOL), ORI_WEU, [M:PTH1]QTYWEU(NOL), [M:PTH1]LINWEU(NOL),
+&                   [M:PTH1]ITMREF(NOL), [M:PTH0]BPSNUM, 1,GBIDD2) From TRTACHQTE1
+    Endif
+    If [M:PTH2]DSPVOU <> [M:PTH1]LINVOU(NOL)
+      Local Char ORI_VOU : ORI_VOU = [M:PTH1]LINVOU(NOL)
+      [M:PTH1]LINVOU(NOL) = [M:PTH2]DSPVOU
+      Call PCAL_QTY([M:PTH1]QTYVOU(NOL), ORI_VOU, [M:PTH1]QTYVOU(NOL), [M:PTH1]LINVOU(NOL),
+&                   [M:PTH1]ITMREF(NOL), [M:PTH0]BPSNUM, 1,GBIDD2) From TRTACHQTE1
+    Endif
+  Endif
+  # Landed cost coeff/cout modifiable si pas de SDC
+  If [M:PTH1]STCNUM(NOL)<> ""
+    Diszo [PTH1]CPRAMT(NOL), CPRCOE(NOL), CPR(NOL)
+  Else
+    Actzo [PTH1]CPRAMT(NOL), CPRCOE(NOL), CPR(NOL)
+  Endif
+  [M:PTH1]CPRCLC(NOL)=[M:PTH1]CPR(NOL)
+  [M:PTH1]WSTCUPD(NOL)=2
+
+  If dim([M:PTH1]TSICOD1(NOL))>0 [M:PTH1]TSICOD1(NOL)=[F:POP]TSICOD(0) : Endif
+  If dim([M:PTH1]TSICOD2(NOL))>0 [M:PTH1]TSICOD2(NOL)=[F:POP]TSICOD(1) : Endif
+  If dim([M:PTH1]TSICOD3(NOL))>0 [M:PTH1]TSICOD3(NOL)=[F:POP]TSICOD(2) : Endif
+  If dim([M:PTH1]TSICOD4(NOL))>0 [M:PTH1]TSICOD4(NOL)=[F:POP]TSICOD(3) : Endif
+  If dim([M:PTH1]TSICOD5(NOL))>0 [M:PTH1]TSICOD5(NOL)=[F:POP]TSICOD(4) : Endif
+  ###########################################################################
+  ##INICIO: MODIFICACIONES PARA PERCEPCIONES COMPRAS ARGENTINA             ##
+  ##ARGENTINA: 02.11.2005 - Juan Pablo Mansilla                            ##
+  ##Funcionalidad agregada para trasladar los impuestos desde el Pedido a  ##
+  ##la recepcion                                                           ##
+  ###########################################################################
+  GPOINT="XALIPTHPOH" : Gosub ENTREE From EXEFNC
+  ###########################################################################
+  ##FIN: MODIFICACIONES PARA PERCEPCIONES VENTAS ARGENTINA                 ##
+  ##ARGENTINA: 01.11.2005                                                  ##
+  ###########################################################################
+#----- Ligne de réception issue d'une livraison inter-sites -----#
+Elsif GMODU(5)=2 & [F:SDD]SDHNUM<>""
+  Raz [M:PTH1]GROPRI(NOL), [M:PTH1]NETPRI(NOL), [M:PTH1]PRIREN(NOL)
+  Gosub RAZ_LINACC  From SUBPTH
+  If [M:PTH1]LINTYP(NOL)<>2
+    Call ALIVATCOD(2,[M:PTH0]BPSNUM,[M:PTH1]ITMREF(NOL),"PTH1",NOL) From TRTX3
+  Endif
+  Gosub INIT_COMPTES_LIGNE : Raz [F:POP] : # [F:POP] chargé par Gosub INIT_COMPTES_LIGNE
+  Gosub RAZ_CCE     From SUBPTH
+  #VPO 08/11/10 59876 si livraison en TTC
+  #[M:PTH1]GROPRI(NOL)=arr([F:SDD]GROPRI,10^-GDECPRI)
+  #[M:PTH1]NETPRI(NOL)=arr([F:SDD]NETPRI,10^-GDECPRI)
+  [M:PTH1]NETPRI(NOL)=arr([F:SDD]NETPRINOT,10^-GDECPRI)
+  If [F:SDD]NETPRI=0
+    [M:PTH1]GROPRI(NOL)=0
+  Else : #on prend prorata ht/ttc pour calculer GROPRI
+    [M:PTH1]GROPRI(NOL)=arr([F:SDD]NETPRINOT*[F:SDD]GROPRI/[F:SDD]NETPRI,10^-GDECPRI)
+  Endif
+  If [M:PTH1]UOM(NOL)<>[F:SDD]SAU
+    Call REAJUST_TARIF("PTH1",NOL,[F:SDD]SAU,[M:PTH1]UOM(NOL),
+&                       [F:SDD]SAUSTUCOE,[M:PTH1]UOMSTUCOE(NOL)) From TRTACHPRI1
+  Endif
+  If dim([M:PTH1]TSICOD1(NOL))>0 [M:PTH1]TSICOD1(NOL)=[F:SDD]TSICOD(0) : Endif
+  If dim([M:PTH1]TSICOD2(NOL))>0 [M:PTH1]TSICOD2(NOL)=[F:SDD]TSICOD(1) : Endif
+  If dim([M:PTH1]TSICOD3(NOL))>0 [M:PTH1]TSICOD3(NOL)=[F:SDD]TSICOD(2) : Endif
+  If dim([M:PTH1]TSICOD4(NOL))>0 [M:PTH1]TSICOD4(NOL)=[F:SDD]TSICOD(3) : Endif
+  If dim([M:PTH1]TSICOD5(NOL))>0 [M:PTH1]TSICOD5(NOL)=[F:SDD]TSICOD(4) : Endif
+
+  #----- Initialisation des landed cost -----#
+  # Issue 84130 - 2012-02-17 by MUARN : landed cost
+  # landed cost - alimentation coefficient frais d'approche et coût achat forfaitaire
+  # Issue 94186 - 2013-11-06 by MUARN : landed cost et sous traitance
+  # Issue 90991 - 2013-10-23 by MUARN : maj données site
+  # Issue 95686 - 2014-01-08 by MUARN : landed cost désactivés en sous traitance
+  If [M:PTH1]LINTYP(NOL)<2
+    Call RECH_COST([M:PTH0]PRHFCY,[M:PTH0]BPSNUM,[M:PTH1]ITMREF(NOL),[M:PTH1]CPRCOE(NOL),[M:PTH1]CPRAMT(NOL),[M:PTH1]STCNUM(NOL)) From STCLIB
+  Endif
+  If [M:PTH1]CPRCOE(NOL)=0 [M:PTH1]CPRCOE(NOL)=1 Endif
+  # landed cost alimentation poids et volume selon données de base
+  [M:PTH1]LINWEU(NOL)=[M:PTH2]DSPWEU
+  [M:PTH1]LINVOU(NOL)=[M:PTH2]DSPVOU
+  If [F:ITM]ITMREF<>[M:PTH1]ITMREF(NOL)
+    Read [ITM] ITM0=[M:PTH1]ITMREF(NOL) : If fstat  Raz [F:ITM] : Endif
+  Endif
+  Call CONVERT_VOUWEU("PTH1",NOL,[M:PTH1]LINWEU(NOL),[M:PTH1]LINVOU(NOL),[M:PTH1]QTYSTU(NOL),WOLDQTYSTU) From STCLIB
+
+  # landed cost - coeff/cout modifiable si pas de SDC
+  If [M:PTH1]STCNUM(NOL)<> ""
+    Diszo [PTH1]CPRAMT(NOL), CPRCOE(NOL), CPR(NOL)
+  Else
+    Actzo [PTH1]CPRAMT(NOL), CPRCOE(NOL), CPR(NOL)
+  Endif
+  [M:PTH1]CPRCLC(NOL)=[M:PTH1]CPR(NOL)
+  [M:PTH1]WSTCUPD(NOL)=2
+
+Endif
+#----- Vérification si unité réception convient, autrement modif et recalcul prix -----#
+If [M:PTH1]LINTYP(NOL)<3
+  WQTE1=[M:PTH1]QTYUOM(NOL)
+  Call QTEARR(WQTE1,[M:PTH1]UOM(NOL)) From TRTDIV
+  Gosub CONT_UNI_RCP
+
+  #----- L'unité de réception peut être modifiée par le contrôle ! -----#
+  If [M:PTH1]UOM(NOL)<>[L]WUOM
+    [M:PTH1]UOMSTUCOE(NOL)=[L]WCOEFF
+    Call PCAL_QTY([M:PTH1]QTYUOM(NOL),[M:PTH1]UOM(NOL),GBIDD1,[M:PTH1]PUU(NOL),
+&             [M:PTH1]ITMREF(NOL),[M:PTH0]BPSNUM,1,[M:PTH1]UOMPUUCOE(NOL)) From TRTACHQTE1
+  Endif
+  #-----
+  If WQTE1<>[M:PTH1]QTYUOM(NOL) | WRET=1
+    [L]OLDWCOEFF=[M:PTH1]UOMSTUCOE(NOL)
+    [M:PTH1]UOM(NOL)      =[M:PTH1]STU(NOL)
+    [M:PTH1]UOMSTUCOE(NOL)=1
+    Call PCAL_QTY([M:PTH1]QTYUOM(NOL),[M:PTH1]UOM(NOL),GBIDD1,[M:PTH1]PUU(NOL),
+&             [M:PTH1]ITMREF(NOL),[M:PTH0]BPSNUM,1,[M:PTH1]UOMPUUCOE(NOL)) From TRTACHQTE1
+    [M:PTH1]QTYUOM(NOL)=[M:PTH1]QTYSTU(NOL)
+    Call REAJUST_TARIF("PTH1",NOL,WUOM,[M:PTH1]UOM(NOL),
+&                       OLDWCOEFF,[M:PTH1]UOMSTUCOE(NOL)) From TRTACHPRI1
+  Endif
+Endif
+#----- Conversion si nécessaire des montants ligne dans la devise de réception -----#
+If [M:PTH1]NETCUR(NOL)<>[M:PTH0]CUR
+  Call CONVERSION ([M:PTH1]NETCUR(NOL),NOL) : [M:PTH1]NETCUR(NOL)=[M:PTH0]CUR
+Endif
+#----- Calcul du montant ligne -----#
+[M:PTH1]LINAMT(NOL)=[M:PTH1]NETPRI(NOL)*[M:PTH1]QTYUOM(NOL)
+Call ARRDEV([M:PTH1]LINAMT(NOL),[M:PTH1]NETCUR(NOL)) From TRTDIV
+#-----
+
+[M:PTH1]LININVFLG(NOL)=1
+[M:PTH1]INVQTYSTU(NOL)=0
+
+#----- Récupération prix de revient si facture validée avant réception -----#
+# Issue 77436 - 2011-11-14 by VPO : modif calcul prix réception
+##################################################################
+#Calcul du prix dans le cas de la surfacturation
+################
+# Si CAS_WPRIPUR=1 , on alimente [M:PTH1]CPR(NOL)
+# Si CAS_WPRIPUR=2 , on alimente WPRIPUR
+##################################################################
+CAS_WPRIPUR=1
+Gosub CALCUL_SUR_PRIPUR
+#If [M:PTH1]POHNUM(NOL)<>"" & [F:POQ]POHNUM=[M:PTH1]POHNUM(NOL)
+#&                          & [F:POQ]INVQTYSTU-[F:POQ]RCPQTYSTU>0
+#&                          & [M:PTH1]LINTYP(NOL)<3
+#  If dim(WSTAT)<0  Local Integer WSTAT : Endif
+#  Call LOATCM([M:PTH1]ITMREF(NOL),[M:PTH0]PRHFCY,3,[M:PTH0]TRSCOD,WSTAT) From STKVAL
+#  If !WSTAT & [F:TCM]PRIREG=2
+#    #----------------------------------------------------------#
+#    # Point d'entrée CHXPRIORD pour choisir le prix de l'ordre #
+#    # -------------------------------------------------------- #
+#    # Variables utilisables par le point d'entrée :            #
+#    # La classe [M:PTH1], [F:POQ]                              #
+#    # NOL      : indice de la ligne en cours de traitement     #
+#    # -------------------------------------------------------- #
+#    # Variables modifiables par le point d'entrée :            #
+#    # WPRIFLG : Indicateur pour alimentation prix ordre        #
+#    #           1 = prix de la commande                        #
+#    #           2 = prix de la 1ère facture                    #
+#    #           3 = prix de la 1ère facture + fact.complément. #
+#    #           4 = prix de la dernière facture                #
+#    #           5 = prix de la dernière facture + fact.compl.  #
+#    #           6 = prix spécifique indiqué dans WPRIORD       #
+#    # WPRIORD : Prix ordre spécifique par US en devise société #
+#    #----------------------------------------------------------#
+#    Local Integer WPRIFLG : WPRIFLG=3
+#    Local Decimal WPRIORD
+#    #-----
+#    Gosub POINT_CHXPRIORD From SUBPTHA
+#    #-----
+#    If WPRIFLG=6
+#      [M:PTH1]CPR(NOL)=WPRIORD
+#    Elsif WPRIFLG>1 & WPRIFLG<6
+#      #----- Recherche facture sur la ligne de commande -----#
+#      If WPRIFLG=4 | WPRIFLG=5
+#        Filter [PID] Where TYPORI=1
+#&                        & NUMORI=[M:PTH1]POHNUM(NOL)
+#&                        & LINORI=[M:PTH1]POPLIN(NOL)
+#&                        & SEQORI=[M:PTH1]POQSEQ(NOL)
+#&                    Order By Key PID1 Desc
+#      Else
+#        Filter [PID] Where TYPORI=1
+#&                        & NUMORI=[M:PTH1]POHNUM(NOL)
+#&                        & LINORI=[M:PTH1]POPLIN(NOL)
+#&                        & SEQORI=[M:PTH1]POQSEQ(NOL)
+#&                    Order By Key PID1 Asc
+#      Endif
+#      For [PID]
+#        Read [PIH] PIH0=[F:PID]NUM : If fstat  Raz [F:PIH] : Endif
+#        If [F:PIH]STA=3
+#          # Issue 77436 - 2011-11-14 by VPO : modif calcul prix réception
+#          #[M:PTH1]INVQTYSTU(NOL)=[F:POQ]INVQTYSTU-[F:POQ]RCPQTYPUU
+#          [M:PTH1]INVQTYSTU(NOL)=[F:POQ]INVQTYSTU-[F:POQ]RCPQTYSTU
+#          [M:PTH1]CPR(NOL)=[F:PID]CPR
+#          If WPRIFLG=3 | WPRIFLG=5  Gosub FAC_COMPLEMENT : Endif
+#          Break
+#        Endif
+#      Next
+#      Filter [PID]
+#      #----- Recherche facture sur autres réceptions de la ligne de commande -----#
+#      If [M:PTH1]CPR(NOL)=0
+#        For [PTDB] PTD2 Where POHNUM=[M:PTH1]POHNUM(NOL)
+#&                           & POPLIN=[M:PTH1]POPLIN(NOL)
+#&                           & POQSEQ=[M:PTH1]POQSEQ(NOL)
+#          #-----
+#          If WPRIFLG=4 | WPRIFLG=5
+#            Filter [PID] Where TYPORI=2
+#&                            & NUMORI=[F:PTDB]PTHNUM
+#&                            & LINORI=[F:PTDB]PTDLIN
+#&                        Order By Key PID1 Desc
+#          Else
+#            Filter [PID] Where TYPORI=2
+#&                            & NUMORI=[F:PTDB]PTHNUM
+#&                            & LINORI=[F:PTDB]PTDLIN
+#&                        Order By Key PID1 Asc
+#          Endif
+#          #-----
+#          For [PID]
+#            Read [PIH] PIH0=[F:PID]NUM : If fstat  Raz [F:PIH] : Endif
+#            If [F:PIH]STA=3
+#              [M:PTH1]INVQTYSTU(NOL)=[F:POQ]INVQTYSTU-[F:POQ]RCPQTYPUU
+#              [M:PTH1]CPR(NOL)=[F:PID]CPR
+#              If WPRIFLG=3 | WPRIFLG=5  Gosub FAC_COMPLEMENT : Endif
+#              Break 2
+#            Endif
+#          Next
+#        Next
+#        Filter [PID]
+#      Endif
+#      #-----
+#    Endif
+#  Endif
+#Endif
+#-----
+
+If [M:PTH1]LINTYP(NOL)<3
+  If [M:PTH1]INVQTYSTU(NOL)=0
+    If [M:PTH1]NETCUR(NOL)<>GLOCALDEV
+      If GPTHCURDAT<>2 & [M:PTH1]POHNUM(NOL)<>""
+        If [F:POH]POHNUM<>[M:PTH1]POHNUM(NOL)
+          Read [POH] POH0=[M:PTH1]POHNUM(NOL)
+          If fstat
+            Raz [F:POH] : [F:POH]ORDDAT=[M:PTH0]RCPDAT : [F:POH]CHGTYP=[M:PTH0]CHGTYP
+          Endif
+        Endif
+        Call CONVERT2([M:PTH0]CUR,GLOCALDEV,GLOCALDEV,[F:POH]CHGTYP,[F:POH]ORDDAT,
+&                     [M:PTH1]NETPRI(NOL),[M:PTH1]CPRPRI(NOL),GBIDI1) From TRTDEV
+      Else
+        If [M:PTH0]CHGCOE=0
+          Call CONVERT2([M:PTH0]CUR,GLOCALDEV,GLOCALDEV,[M:PTH0]CHGTYP,[M:PTH0]RCPDAT,
+&                       [M:PTH1]NETPRI(NOL),[M:PTH1]CPRPRI(NOL),GBIDI1) From TRTDEV
+        Else
+          [M:PTH1]CPRPRI(NOL)=[M:PTH1]NETPRI(NOL)*[M:PTH0]CHGCOE
+        Endif
+      Endif
+    Else
+      [M:PTH1]CPRPRI(NOL)=[M:PTH1]NETPRI(NOL)
+    Endif
+    [M:PTH1]CPRPRI(NOL)=arr([M:PTH1]CPRPRI(NOL)/[M:PTH1]UOMSTUCOE(NOL),10^-GDECPRI)
+    #--------------------------------------------------------------#
+    # Point d'entrée CPRCOE pour changer le coefficient d'approche #
+    # ------------------------------------------------------------ #
+    # Variables utilisables par le point d'entrée :                #
+    # La classe [M:PTH1]                                           #
+    # Les classes [F:POP], [F:POQ] et [F:ITP]                      #
+    # NOL         : indice de la ligne en cours de traitement      #
+    # WCPRPRI     : Prix unitaire de revient avant coefficient     #
+    # WCPRCOE     : Coefficient d'approche trouvé                  #
+    # ------------------------------------------------------------ #
+    # Variable modifiable par le point d'entrée :                  #
+    # WCPRPRI contient le prix unitaire modifié                    #
+    # WCPRCOE contient le coefficient d'approche modifié           #
+    #--------------------------------------------------------------#
+    Local Decimal WCPRPRI : WCPRPRI=[M:PTH1]CPRPRI(NOL)
+    Local Decimal WCPRCOE : WCPRCOE=[M:PTH1]CPRCOE(NOL)
+    Gosub POINT_CPRCOE From SUBPTHA : # A cause de la version 120 (assurer la pérennité)
+    [M:PTH1]CPRPRI(NOL)=WCPRPRI
+    If WCPRCOE<>0  [M:PTH1]CPRCOE(NOL)=WCPRCOE : Endif
+    #################################
+    # Quand on vient de la commande, on n'a pas encore des éléments de facturation dans l'écran
+    #################################
+    # Issue 70985 - 2012-02-20 by MUARN : landed cost ajout coût achat forfaitaire
+    #--- Issue 93527 by TS
+    #Call PCAL_QTY([M:PTH1]QTYPUU(NOL),[M:PTH1]PUU(NOL),[M:PTH1]QTYSTU(NOL),[M:PTH1]STU(NOL),
+#&             [M:PTH1]ITMREF(NOL),[M:PTH0]BPSNUM,1,WUOMSTUCOE) From TRTACHQTE1
+    #WCPRAMT = arr([M:PTH1]CPRAMT(NOL)/WUOMSTUCOE,10^-GDECPRI)
+    # Issue 93835 - 2013-10-24 by MUARN : utilisation GBIDD1 ne pas écraser QTYSTU
+    Call PCAL_QTY([M:PTH1]QTYPUU(NOL),[M:PTH1]PUU(NOL),GBIDD1,[M:PTH1]STU(NOL),
+&             [M:PTH1]ITMREF(NOL),[M:PTH0]BPSNUM,1,WUOMSTUCOE) From TRTACHQTE1
+    WCPRAMT = arr([M:PTH1]CPRAMT(NOL)/WUOMSTUCOE,10^-GDECPRI)
+    #---
+    [M:PTH1]LINAMTCPR(NOL)=[M:PTH1]CPR(NOL)*[M:PTH1]QTYSTU(NOL)
+    [M:PTH1]LINAMTCPR(NOL)= arr([M:PTH1]LINAMTCPR(NOL),10^-GDECPRI)
+  Else
+    #################################
+    # Quand on vient de la facture, on a des éléments de facturation dans [M:PTH1]CPR(NOL)
+    # on laisse comme ça, pas grave pour la suite
+    #################################
+    # Issue 70985 - 2012-02-20 by MUARN : landed cost ajout coût achat forfaitaire
+    #--- Issue 93527 by TS
+    #Call PCAL_QTY([M:PTH1]QTYPUU(NOL),[M:PTH1]PUU(NOL),[M:PTH1]QTYSTU(NOL),[M:PTH1]STU(NOL),
+#&             [M:PTH1]ITMREF(NOL),[M:PTH0]BPSNUM,1,WUOMSTUCOE) From TRTACHQTE1
+    #WCPRAMT = arr([M:PTH1]CPRAMT(NOL)/WUOMSTUCOE,10^-GDECPRI)
+    # Issue 93835 - 2013-10-24 by MUARN : utilisation GBIDD1 ne pas écraser QTYSTU
+    Call PCAL_QTY([M:PTH1]QTYPUU(NOL),[M:PTH1]PUU(NOL),GBIDD1,[M:PTH1]STU(NOL),
+&             [M:PTH1]ITMREF(NOL),[M:PTH0]BPSNUM,1,WUOMSTUCOE) From TRTACHQTE1
+    WCPRAMT = arr([M:PTH1]CPRAMT(NOL)/WUOMSTUCOE,10^-GDECPRI)
+    #---
+    [M:PTH1]CPRPRI(NOL)=arr(([M:PTH1]CPR(NOL)-WCPRAMT)/[M:PTH1]CPRCOE(NOL),10^-GDECPRI)
+    [M:PTH1]LINAMTCPR(NOL)=[M:PTH1]CPR(NOL)*[M:PTH1]QTYSTU(NOL)
+    [M:PTH1]LINAMTCPR(NOL)= arr([M:PTH1]LINAMTCPR(NOL),10^-GDECPRI)
+  Endif
+Else
+  Raz [M:PTH1]CPRPRI(NOL), [M:PTH1]CPRCOE(NOL), [M:PTH1]CPR(NOL)
+  # Issue 70985 - 2012-02-20 by MUARN : landed cost ajout coût achat forfaitaire
+  Raz [M:PTH1]CPRAMT(NOL), [M:PTH1]STCNUM(NOL), [M:PTH1]CPRCUR(NOL), [M:PTH1]WSTCUPD(NOL), [M:PTH1]CPRCLC(NOL)
+  Raz [M:PTH1]LINAMTCPR(NOL), [M:PTH1]CSTPUR(NOL), [M:PTH1]LINCSTPUR(NOL)
+Endif
+#----- Répartition sur ligne et calcul prix unitaire de revient (prix de l'ordre) -----#
+If !GPTH_PICK & !GVTMOD
+  Call MAJ_CUMULS_LIG(NOL,+1) From SUBPTHD
+  Call MAJ_CUMULS_LIG(NOL,-1) From SUBPTHD
+Endif
+#----- Calcul des taxes de la ligne -----#
+Call MAJ_CALTAX_LIG("PTH1",NOL) From TRTACHDIV1 : # [M:PTH1]LINFLG(NOL)=1
+# Issue 84129 - 2012-10-29 by MUARN : landed cost cout achat
+If !GPTH_PICK & !GVTMOD
+  Call MAJ_CSTPUR_LIG("PTH1",NOL,[M:PTH0]RCPDAT,[M:PTH0]CUR, [M:PTH0]CHGTYP) From STCCLC
+Endif
+#----- Site de commande -----#
+Raz [M:PTH1]POHFCY(NOL)
+#----- (1) Site indiqué sur la commande "pickée" -----#
+If [F:POH]POHNUM <>""
+  [M:PTH1]POHFCY(NOL)=[F:POH]POHFCY
+#----- (2) Site associé au client commande si inter-sites -----#
+Elsif GMODU(5)=2 & [M:PTH0]BETFCY=2
+  If !clalev([F:BPR2])  Local File BPARTNER  [BPR2] : Endif
+  If [F:BPR2]BPRNUM<>[F:SDD]BPCORD
+    Read [BPR2] BPR0=[F:SDD]BPCORD : If fstat  Raz [F:BPR2] : Endif
+  Endif
+  [M:PTH1]POHFCY(NOL)=[F:BPR2]FCY
+Endif
+#----- (3) Site de réception si celui-ci est site d'achat -----#
+If [M:PTH1]POHFCY(NOL)=""
+  Read [FCY] FCY0=[M:PTH0]PRHFCY : If fstat  Raz [F:FCY] : Endif
+  If [F:FCY]PURFLG=2
+    [M:PTH1]POHFCY(NOL)=[M:PTH0]PRHFCY
+  #----- (4) Site d'achat de l'utilisateur si appartient à la même société -----#
+  Elsif GFCYDEF(6)<>""
+    Read [FCY] FCY0=GFCYDEF(6) : If fstat  Raz [F:FCY] : Endif
+    If [F:FCY]LEGCPY=GSOCIETE & [F:FCY]PURFLG=2
+      [M:PTH1]POHFCY(NOL)=GFCYDEF(6)
+    Endif
+  Endif
+Endif
+#----- (5) 1er site d'achat appartenant à la même société -----#
+If [M:PTH1]POHFCY(NOL)=""
+  Filter [FCY] Where LEGCPY=GSOCIETE & PURFLG=2
+  Read [FCY] FCY1 First
+  Filter [FCY]
+  If fstat
+    Raz [F:FCY]
+  Else
+    [M:PTH1]POHFCY(NOL)=[F:FCY]FCY
+  Endif
+Endif
+#----- Indicateur de déclaration entrée stocks -----#
+Raz [M:PTH1]WSTOSEQ(NOL)
+#-----
+# Issue 80957 - 2012-03-23 by SR
+#Raz [M:PTH1]OLDQTYSTU(NOL), [M:PTH1]LINTEX(NOL)
+Raz [M:PTH1]OLDQTYSTU(NOL)
+If [M:PTH1]POHNUM(NOL)<>""
+  [L]NEWQTY=[M:PTH1]QTYSTU(NOL)
+  Raz [L]NEWMAXQTY
+  Gosub CAL_MAXQTYRCP  From SUBPTHB
+  [M:PTH1]MAXQTYRCP(NOL)=[L]NEWMAXQTY
+Else
+  [M:PTH1]MAXQTYRCP(NOL)=99999999999.999999
+Endif
+Gosub POSITION_SOLDE From SUBPTHB
+#----- Initialisation du type d'achat -----#
+If [M:PTH1]LINPURTYP(NOL)=0
+  Call D_LINPURTYP ([M:PTH1]LINPURTYP(NOL)) From SUBPTH
+Endif
+#----- Si pas de nature effacement des axes analytiques -----#
+GBIDI2=0 : Gosub PREP_INIT_CCE From SUBPTHB
+#----- Initialisation sections analytiques si réception d'une livraison -----#
+If [M:PTH1]SDHNUM(NOL)<>"" & GNBDIE>0
+  For J=1 To GNBDIE
+    If evalue("[M:PTH1]CCE"+num$(J)+"(NOL)")=""
+      Call INISEC(SECTION,"PTD",J) From TRTX3CPT : # [F:SDD] bien chargé !
+      Assign "[M:PTH1]CCE"+num$(J)+"(NOL)" With SECTION
+    Endif
+  Next J
+Endif
+#----- Si réception d'une livraison inter-sites, pas de saisie du lot ,sous-lot et no série -----#
+If [M:PTH1]SDHNUM(NOL)<>"" & [M:PTH0]BETCPY<>2
+  [M:PTH1]WSTOSAI(NOL)=left$([M:PTH1]WSTOSAI(NOL),6)+"22222"+right$([M:PTH1]WSTOSAI(NOL),12)
+Endif
+#-----
+
+[L]WUOM=[M:PTH1]UOM(NOL) : [L]WCOEFF=[M:PTH1]UOMSTUCOE(NOL) : Gosub DIS_COEFF
+#----- Article non géré en stock et non sous-traitance ou ligne composant -----#
+If ([M:PTH1]STOMGTCOD(NOL)<2 & [F:ITM]SCSFLG<>2) | [M:PTH1]LINTYP(NOL)>2
+  [M:PTH1]WSTOFLG(NOL)=2
+#----- Autres articles -----#
+Else
+  If [M:PTH1]WRKMOTEUR(NOL)=0     : # --- Article classique géré en stock
+    Gosub RELEC : # Relecture des fichiers si nécessaire
+    If [M:PTH1]LINCAT(NOL)=2  : # GA 09/2006 rcp matières pour sous-traitance
+      Call STJSTOENTW("PTH1",16,6,[M:PTH0]RCPDAT,NOL,[M:PTH1]NBLIG+1,"PTR",0,WRETOUR) From STKENT
+    Else
+      Call STJSTOENTW("PTH1",3,6,[M:PTH0]RCPDAT,NOL,[M:PTH1]NBLIG+1,"PTR",0,WRETOUR) From STKENT
+    Endif
+    If WRETOUR
+      Case WRETOUR
+        When 2
+          mkstat=1 : GERR=1 : GMESSAGE=mess(202,194,1)
+        When 4
+                     GERR=2 : GMESSAGE=mess(152,191,1)
+        When 6
+          mkstat=1 : GERR=1 : GMESSAGE=mess(202,194,1)+"\"+mess(152,191,1)
+        When Default
+          Raz [M:PTH1]WSTOFLG(NOL), [M:PTH1]QTYUOM(NOL), [M:PTH1]QTYSTU(NOL)
+          [M:PTH1]WSTOSAI(NOL)="222222222222222"
+      Endcase
+    Endif
+  Elsif find([M:PTH1]WRKMOTEUR(NOL),2,3)  : # --- Article de sous-traitance OF ou EO avec déclaration de prod
+    Call CHARG_STT(NOL) From SUBPTHC
+  Else                                    : # --- Article de sous-traitance sans déclaration
+    [M:PTH1]WSTOFLG(NOL)=2
+  Endif
+Endif
+[M:PTH1]PREQTYPUU(NOL)=[M:PTH1]QTYPUU(NOL)
+# Issue 87864 - 2013-02-11 by SR : Pour SST, si besoin, initialiser les axes sur lignes non saisissables
+If [M:PTH1]LINTYP(NOL) > 2
+  For I = 1 To GNBDIE
+    If evalue("[M:PTH1]CCE"+num$(I)+"(NOL)") = ""
+      Raz LSEC
+      Call INIT_CCE(LSEC,I,"PTD","[M:PTH1]LINACC",NOL) From TRTX3CPT
+      Assign "[M:PTH1]CCE"+num$(I)+"(NOL)" With LSEC
+    Endif
+  Next
+Endif
+#----- Si pas picking et article sous-traité, chargement du service et matières fournies -----#
+If !GPTH_PICK & [M:PTH1]LINTYP(NOL)=2  Gosub CHARG_LIG_SUPPLEMENT From SUBPTHD : Endif
+Return
+
+#--------------------------------------------------#
+# Ajout des factures complémentaires si nécessaire #
+#--------------------------------------------------#
+$FAC_COMPLEMENT
+If !clalev([F:PIDB])  Local File PINVOICED [PIDB] : Endif
+For [PIDB] PID1 Where TYPORI=4 & NUMORI=[F:PID]NUM & LINORI=[F:PID]PIDLIN & PIHTYP=2
+  Read [PIH] PIH0=[F:PIDB]NUM
+  If !fstat & [F:PIH]STA=3
+    # Issue 77436 - 2011-11-14 by VPO : modif calcul prix réception
+    If CAS_WPRIPUR=1
+      # Issue 84130 - 2013-06-11 by MUARN : CPR en facture complémentaire sur facture est devenu montant
+      [M:PTH1]CPR(NOL)+=[F:PIDB]CPR/[F:PID]QTYSTU
+      # Issue 84130 - 2013-03-07 by MUARN : landed cost
+      [M:PTH1]CPRCLC(NOL)=[M:PTH1]CPR(NOL)
+    Else
+         If [F:PIDB]LINTYP=2 & [F:PIDB]QTYUOM<>0
+           WPRIPUR=[F:PIDB]NETPRI*[F:PIDB]QTYUOM
+         Else
+           WPRIPUR=[F:PIDB]NETPRI
+         Endif
+    Endif
+  Endif
+Next
+Return
+
+#-----------------------------------------------------#
+# Test si infos complémentaires doivent être chargées #
+#-----------------------------------------------------#
+$TEST_INFOS_COMPL
+If GREP="C" | GREP="D"
+  If dim(WNUM)<1  Local Char    WNUM(GLONVCR) : Endif
+  If dim(WLIN)<1  Local Integer WLIN          : Endif
+  If dim(I)<1     Local Integer I             : Endif
+  If dim(J)<1     Local Integer J             : Endif
+  J=0
+  If [M:PTH1]NBLIG>0
+    For I=0 To [M:PTH1]NBLIG-1
+      If [M:PTH1]POHNUM(I)<>""
+        WNUM=[M:PTH1]POHNUM(I)
+        WLIN=[M:PTH1]POPLIN(I)
+        J=I+1 : Break : Endif
+    Next I
+  Elsif [M:PTH2]NBFAC>0
+    #----- Si aucune ligne de réception, aucun Mt pied cde et ligne -----#
+    For I=0 To [M:PTH2]NBFAC-1
+      If [M:PTH2]INVORDAMT(I)+[M:PTH2]INVLINAMT(I)<>0 & (dim([M:PTH2]DISVATFLG)<1 | [M:PTH2]DISVATFLG(I)<>2)
+        [M:PTH2]INVDTAAMT(I)-=([M:PTH2]INVORDAMT(I)+[M:PTH2]INVLINAMT(I))
+        Raz [M:PTH2]INVORDAMT(I), [M:PTH2]INVLINAMT(I)
+      Endif
+    Next I
+    #-----
+  Endif
+  If J & [M:PTH1]NBLIG>1
+    If sigma(I=0,[M:PTH1]NBLIG-1,([M:PTH1]POHNUM(I)<>WNUM & [M:PTH1]POHNUM(I)<>""))
+      J=0
+    Endif
+  Endif
+  If J
+    If [F:POH]POHNUM<>WNUM
+      Read [POH] POH0=WNUM
+      If fstat
+        Raz [F:POH]
+      Elsif [F:POH]POHTYP=2 & ([F:POC]POHNUM<>WNUM | [F:POC]POPLIN<>WLIN)
+        Read [POC] POC0=WNUM;WLIN : If fstat  Raz [F:POC] : Endif
+      Endif
+    Endif
+    If [F:POH]POHNUM=WNUM
+      Gosub CHARG_INFOS_COMPL
+    Endif
+  Endif
+Endif
+Return
+
+
+#--------------------------------------------------------------#
+# Chargement des infos complémentaires à partir de la commande #
+#--------------------------------------------------------------#
+$CHARG_INFOS_COMPL
+#----- Ecran complément -----#
+[M:PTHC]BPTNUM=[F:POH]BPTNUM
+[M:PTHC]MDL   =[F:POH]MDL
+[M:PTHC]BPSINV=[F:POH]BPSINV
+[M:PTHC]BPAINV=[F:POH]BPAINV
+[M:PTHC]BPRPAY=[F:POH]BPRPAY
+[M:PTHC]BPAPAY=[F:POH]BPAPAY
+# Issue 89502 - 2013-04-19 by MUARN : landed cost - code regroupement
+[M:PTHC]GPGCOD=[F:POH]GPGCOD
+GBIDC3=[M:PTHC]DEP
+If [F:POH]DEP<>""
+  [M:PTHC]DEP=[F:POH]DEP
+Else
+  Call INIT_ESCOMPTE([M:PTHC]BPSINV,GSOCIETE,"F",[M:PTHC]DEP) From CPTSUB
+Endif
+If [M:PTHC]DEP<>GBIDC3
+  Call AM_DEP([M:PTHC]DEP) From SUBPTH9
+Endif
+#----- Ecran adresse fournisseur expéditeur -----#
+[M:AD68]BPAADD      =[F:POH]BPOADD
+[M:AD68]BPRNAM(0)   =[F:POH]BPONAM(0)
+[M:AD68]BPRNAM(1)   =[F:POH]BPONAM(1)
+[M:AD68]BPAADDLIG(0)=[F:POH]BPOADDLIG(0)
+[M:AD68]BPAADDLIG(1)=[F:POH]BPOADDLIG(1)
+[M:AD68]BPAADDLIG(2)=[F:POH]BPOADDLIG(2)
+[M:AD68]POSCOD      =[F:POH]BPOPOSCOD
+[M:AD68]CTY         =[F:POH]BPOCTY
+[M:AD68]SAT         =[F:POH]BPOSAT
+[M:AD68]CRY         =[F:POH]BPOCRY
+[M:AD68]CRYNAM      =[F:POH]BPOCRYNAM       :
+[M:AD68]ADBFLG=2
+#----- Ecran informations douanières -----#
+If [F:POH]POHTYP<>2
+  #----- Commandes classiques -----#
+  [M:PCEX]EECICT=[F:POH]EECICT    : # Incoterm
+  [M:PCEX]ICTCTY=[F:POH]ICTCTY    : # Ville incoterm
+  [M:PCEX]FFWNUM=[F:POH]FFWNUM    : # Transitaire
+  [M:PCEX]FFWADD=[F:POH]FFWADD    : # Adresse du transitaire
+  If GACTDEB=2
+    [M:PCEX]EECLOC=[F:POH]EECLOC  : # Lieu de transport CEE
+    [M:PCEX]EECNUM=[F:POH]EECNUM  : # Identification CEE
+  Endif
+Else
+  #----- Commandes ouvertes -----#
+  [M:PCEX]EECICT=[F:POC]EECICT2   : # Incoterm
+  [M:PCEX]ICTCTY=[F:POC]ICTCTY2   : # Ville incoterm
+  [M:PCEX]FFWNUM=[F:POC]FFWNUM2   : # Transitaire
+  [M:PCEX]FFWADD=[F:POC]FFWADD2   : # Adresse du transitaire
+  If GACTDEB=2
+    [M:PCEX]EECLOC=[F:POC]EECLOC2 : # Lieu de transport CEE
+    [M:PCEX]EECNUM=[F:POC]EECNUM2 : # Identification CEE
+  Endif
+Endif
+#----- Lecture table des modes de livraison si nécessaire -----#
+If [F:TMD]MDL<>[F:POH]MDL
+  Read [TMD] TMD0=[F:POH]MDL : If fstat  Raz [F:TMD] : Endif
+Endif
+#-----
+If GACTDEB=2
+    [M:PCEX]EECTRN=[F:TMD]EECTRN      : # Mode de transport CEE
+Endif
+#----- Chargement régime de taxe, devise ...etc -----#
+If [M:PTH0]VACBPR<>[F:POH]VACBPR
+  Call AM_VACBPR([F:POH]VACBPR) From SUBPTH : [M:PTH0]VACBPR=[F:POH]VACBPR
+Endif
+# Issue 79429 - 2012-01-19 by VPO : on doit récuperer le cours sur la commande
+#[M:PTH0]CHGTYP=[F:POH]CHGTYP
+If [M:PTH0]CHGTYP<>[F:POH]CHGTYP
+  [M:PTH0]CHGCOE=[F:POH]CHGCOE
+  [M:PTH0]CHGTYP=[F:POH]CHGTYP
+  Call AM_CHGTYP([M:PTH0]CHGTYP)       From SUBPTH
+Endif
+#
+If [M:PTH0]CUR<>[F:POH]CUR
+  Call AM_CUR([F:POH]CUR)       From SUBPTH : [M:PTH0]CUR=[F:POH]CUR
+Endif
+If !GIMPORT  Affzo [PTH0]CUR, CHGTYP, CHGCOE : Endif
+#----- Chargement des sections analytiques entête -----#
+If dim(I)<1 Local Integer I : Endif
+If dim(J)<1 Local Integer J : Endif
+#-----
+For I=1 To max(GNBDIE,GOPTCANA)
+  # Issue 74433 - 2011-06-20 by VPO : pb code activité ANA désactivé & GOPTCANA=0
+  If dim([M:PTH0]DIE)>0
+    J=find([F:POH]DIE(I-1),[M:PTH0]DIE)
+    If J & [F:POH]CCE(I-1)<>""  [M:PTH0]CCE(J-1)=[F:POH]CCE(I-1) : Endif
+  Endif
+Next I
+#-----
+Return
+
+
+$CONT_UNI_RCP
+#-------------------------------------------------------------#
+# Contrôle que l'unité de commande est une unité de réception #
+#-------------------------------------------------------------#
+If dim(WUOM)<0 : Local  Char     WUOM(GLONUOM) : Endif
+If dim(WRET)<0 : Local  Shortint WRET          : Endif
+
+Raz WRET
+[L]WUOM=[M:PTH1]UOM(NOL)
+Call CTLUOM ([M:PTH1]ITMREF(NOL),3,[M:PTH0]BPSNUM, [M:PTH1]UOM(NOL),[L]WCOEFF,
+&             LUSCAV, LLBEFMT, LDACCOE) From STKACT
+If mkstat=2: Raz mkstat : WRET=1      : Endif
+#If LUSCAV<>"S" & LUSCAV<>"C" : WRET=1 : Endif
+If !find(left$(LUSCAV,1),"C","A","S")  WRET=1 : Endif
+#--- Bug 81757
+#----- Need to change UOM if the UOM is not the STU or a pack UOM (demande 40400) ---#
+#If [F:ITM]STOMGTCOD>1 & !find([M:PTH1]UOM(NOL),[F:ITM]STU,[F:ITM]PCU)
+#  WRET=1
+#Endif
+#---
+#--- Bug 89131
+If [F:ITM]STOMGTCOD>1 & !find([M:PTH1]UOM(NOL),[F:ITM]STU,[F:ITM]PCU)
+   [M:ENTW]WZONPCU = "STU"
+   [M:ENTW]WZONQUC = "QTYSTU"
+Else
+   [M:ENTW]WZONPCU = "UOM"
+   [M:ENTW]WZONQUC = "QTYUOM"
+Endif
+#---
+Return
+
+$CHARG_PARAM
+#----------------------------------------------------------------------#
+# Chargement des paramètres avec GFCY = Site de la réception           #
+# -------------------------------------------------------------------- #
+# Chargement GSOCIETE   : Société juridique                            #
+#            GLOCALDEV  : Devise société juridique                     #
+#            GFINRSP    : Site financier                               #
+#            GRCPFCY    : Site réception par défaut                    #
+#            GCUR       : Devise de la réception                       #
+#            GSALDSPWEU : Unité de poids  pour répartition             #
+#            GSALDSPVOU : Unité de volume pour répartition             #
+# Récupération des paramètres ACHATS                                   #
+# Récupération des paramètres STOCK                                    #
+#----------------------------------------------------------------------#
+# Si module GPAO                                                       #
+#    Récupération des paramètres généraux utilisés en réception        #
+#    de cde de sst pour suivi automatique                              #
+# Chargement GMTKMTSNUM : Transaction suivi réception                  #
+# Chargement GSCOPTRNUM : Transaction maj auto ordre de sous-traitance #
+#----------------------------------------------------------------------#
+Local  Char     PARAM2(10)
+#----- Chargement des globales référenciels, comptes et sections de la société -----#
+Call GETCPY(GFCY,"PTR",6,GPTRNUM) From TRTX3CPT
+If GFINRSP=""  GFINRSP=GFCY : Endif
+#----- Si changement société -----#
+If GSOC_UPDFLG
+  #----- Lecture des affectations compteur (réceptions) -----#
+  If dim(OK)<1  Local Integer OK : Endif
+  Call LECTCA(6,OK) From SUBTCA
+  If fstat | !OK
+    GMESSAGE=mess(58,105,1)-mess(6,14,1)-mess(250,199,1) : Return
+  Endif
+  GMANCOU=[F:TCA]MANCOU(5) : GCODNUM=[F:TCA]CODNUM(5)
+  #------ Compteur des encours article ------#
+  Call LECTCA(7,OK) From SUBTCA
+  If fstat | !OK
+    GMESSAGE=mess(58,105,1)-mess(7,14,1)-mess(250,199,1) : Return
+  Endif
+  GWIP=[F:TCA]CODNUM(8)
+  # Issue 95779 - 2014-01-14 by MUARN : compteurs
+  GCHR  = [F:TCA]CODNUM(0)
+  GFIFO = [F:TCA]CODNUM(2)
+  #compteur chrono stock
+  GSTKCPTMAN(0) = [F:TCA]MANCOU(0) # Cpt du chrno stock
+  GSTKCPT   (0) = [F:TCA]CODNUM(0)
+  #compteur chrono fifo
+  GSTKCPTMAN(2) = [F:TCA]MANCOU(2)
+  GSTKCPT   (2) = [F:TCA]CODNUM(2)
+
+  #----- Contrôle longueur compteur pas supérieure à 15 caractères -----#
+  #Call CTRCPT(GWIP,25,OK) From STKLIB
+  #If OK<>0  GERR=1 : GMESSAGE=mess(222,199,1) : OK=0 : Return : Endif
+  #------ Compteur des encours opération ------#
+  If GMODU(8)=2 : # Module GP présent
+    Call LECTCA(8,OK) From SUBTCA
+    If fstat | !OK
+      GMESSAGE=mess(58,105,1)-mess(8,14,1)-mess(250,199,1) : Return
+    Endif
+    GOPS=[F:TCA]CODNUM(4)
+  Endif
+  #----- Chargement indicateur Numérotation Argentine -----#
+  If func AFNC.ACTIV("KAG")
+    Call PARAM(GFCY,"ARGNUM",GBIDC3) From ADOVAL
+    GLOCARGNUM=val(GBIDC3)
+    If GLOCARGNUM>0  GLOCARGNUM-=1 : Endif
+  Else
+    Raz GLOCARGNUM
+  Endif
+  # Issue 71069 - 2013-08-23 by SR : PJT
+  GPJTSNGDOC = func TRTPJT.GET_PARAM_PJTSNGDOC(GFCY)
+  #-----
+  If GLOCARGNUM  Actzo [PTH1]5  Else  Grizo [PTH1]5 : Endif
+Endif
+#-----
+Call PARAM(GFCY,"SALDSPWEU",GSALDSPWEU) From ADOVAL
+Call PARAM(GFCY,"SALDSPVOU",GSALDSPVOU) From ADOVAL
+#-----
+Call GLOBVAR(GFCY)  From WWGLOBACH
+Call GLOBVAR(GFCY)  From WWGLOBSTO
+Call PARAMUTIL("PTHDIR",GBIDC3,GUSER,GFCY) From SUBAUS
+GPTHDIR=val(GBIDC3)
+#----- Si module GPAO actif -----#
+If GMODU(8)=2
+  If dim(GMTKMTSNUM)<1 : Global Char    GMTKMTSNUM(GLONTRS) : Endif
+  Call PARAM(GFCY,"MTKMTSNUM",GMTKMTSNUM) From ADOVAL
+  # Issue 77589 - 2011-11-18 by CCC : Chargement des variables globales GPAO (en particulier GDOSFAB)
+  Call GLOBVAR(GFCY) From WWGLOBGPA
+Endif
+#-----
+If dim(GSCOPTRNUM)<1 : Global Char    GSCOPTRNUM(GLONTRS) : Endif
+Call PARAM(GFCY,"SCOPTRNUM",GSCOPTRNUM) From ADOVAL
+#----- Alimentation de la province d'entrée -----#
+If func AFNC.ACTIV("PTX") & dim([M:PTH0]SATRCP)>0
+  #----- Lecture du site de réception si nécessaire -----#
+  If [F:FCY]FCY<>GFCY
+    Read [FCY] FCY0=GFCY : If fstat  Raz [F:FCY] : Endif
+  Endif
+  #----- Lecture de l'adresse du site de réception si nécessaire -----#
+  If [F:BPA]BPATYP<>3 | [F:BPA]BPANUM<>GFCY | [F:BPA]BPAADD<>[F:FCY]BPAADD
+    Read [BPA] BPA0=3;GFCY;[F:FCY]BPAADD
+    If fstat  Raz [F:BPA] : Endif
+  Endif
+  #-----
+  [M:PTH0]SATRCP=[F:BPA]SAT
+Endif
+# Issue 84130 - 2012-12-17 by MAE : Landed cost
+Call PARAM(GSOCIETE,"NODVATSTO",PARAM2) From ADOVAL
+GNODVATSTO=val(PARAM2)
+
+# Issue 105027 - 2015-02-09 by MUARN : landed cost inter-site élément de facturation pour coût stock
+Call PARAM(GSOCIETE,"BETFCYCST",PARAM2) From ADOVAL
+GBETFCYCST=val(PARAM2)
+
+Return
+
+$RELEC
+#--------------------------------------------------------------------#
+# Lecture des fichiers assiciés à la réception                       #
+#   - BPARTNER    [BPR] : Business partner (Tiers)                   #
+#   - BPSUPPLIER  [BPS] : Fournisseurs                               #
+# Lecture des fichiers associés à la ligne pour utilisation dans MàJ #
+#   - ITMMASTER   [ITM] : Articles                                   #
+#   - ITMFACILITY [ITF] : Articles-Sites                             #
+#   - ITMBPS      [ITP] : Articles-Fournisseur                       #
+#   - PORDER      [POH] : Commandes d'achat entêtes                  #
+#   - PORDERQ     [POQ] : Commandes d'achat lignes quantité          #
+#   - PORDERP     [POP] : Commandes d'achat lignes prix              #
+#   - PORDERC     [POC] : Commandes d'achat lignes article-contrat   #
+#   - SDELIVERY   [SDD] : Livraison ventes  lignes                   #
+#--------------------------------------------------------------------#
+#----- Lecture du tiers BPARTNER si nécessaire -----#
+If [F:BPR]BPRNUM<>[M:PTH0]BPSNUM
+  Read [BPR] BPR0=[M:PTH0]BPSNUM : If fstat  Raz [F:BPR] : Endif
+Endif
+#----- Lecture du fournisseur BPSUPPLIER si nécessaire -----#
+If [F:BPS]BPSNUM<>[M:PTH0]BPSNUM
+  Read [BPS] BPS0=[M:PTH0]BPSNUM : If fstat  Raz [F:BPS] : Endif
+Endif
+#----- Lecture article si nécessaire -----#
+If [F:ITM]ITMREF<>[M:PTH1]ITMREF(nolign-1)
+  Read [ITM] ITM0=[M:PTH1]ITMREF(nolign-1) : If fstat  Raz [F:ITM] : Endif
+Endif
+#----- Lecture article site si nécessaire -----#
+If [F:ITF]ITMREF<>[M:PTH1]ITMREF(nolign-1) | [F:ITF]STOFCY<>[M:PTH0]PRHFCY
+  Read [ITF] ITF0=[M:PTH1]ITMREF(nolign-1);[M:PTH0]PRHFCY
+  If fstat  Raz [F:ITF] : Endif
+Endif
+#----- Lecture article fournisseur si nécessaire -----#
+If [F:ITP]ITMREF<>[M:PTH1]ITMREF(nolign-1) | [F:ITP]BPSNUM<>[M:PTH0]BPSNUM
+  Read [ITP] ITP0=[M:PTH1]ITMREF(nolign-1);[M:PTH0]BPSNUM
+  If fstat  Raz [F:ITP] : Endif
+Endif
+#----- Lecture entête commande si nécessaire -----#
+If [M:PTH1]POHNUM(nolign-1)<>""
+  If [F:POH]POHNUM<>[M:PTH1]POHNUM(nolign-1)
+    Read [POH] POH0=[M:PTH1]POHNUM(nolign-1) : If fstat  Raz [F:POH] : Endif
+  Endif
+  #----- Lecture ligne commande quantités si nécessaire -----#
+  #----- A relire à cause des tiroirs
+  Read [POQ] POQ0=[M:PTH1]POHNUM(nolign-1);[M:PTH1]POPLIN(nolign-1);[M:PTH1]POQSEQ(nolign-1)
+  If fstat  Raz [F:POQ] : Endif
+  #----- Lecture ligne commande prix si nécessaire -----#
+  If [F:POH]POHTYP<>2
+    If [F:POP]POHNUM<>[M:PTH1]POHNUM(nolign-1) | [F:POP]POPLIN<>[M:PTH1]POPLIN(nolign-1)
+&     | [F:POP]POPSEQ<>1
+      Read [POP] POP0=[M:PTH1]POHNUM(nolign-1);[M:PTH1]POPLIN(nolign-1);1
+      If fstat  Raz [F:POP] : Endif
+    Endif
+  Else
+    Filter [POP] Where POHNUM=[M:PTH1]POHNUM(nolign-1) & POPLIN=[M:PTH1]POPLIN(nolign-1) &
+&                      POPDAT>=[F:POQ]DEMRCPDAT
+    Read [POP] POP1 First : If fstat  Raz [F:POP] : Endif
+    Filter [POP]
+  Endif
+Else
+  Raz [F:POH], [F:POQ], [F:POP]
+Endif
+#----- Lecture ligne livraison vente si nécessaire -----#
+#----- A relire à cause des tiroirs
+If [M:PTH0]BETFCY=2 & [M:PTH1]SDHNUM(nolign-1)<>""
+  Read [SDD] SDD0=[M:PTH1]SDHNUM(nolign-1);[M:PTH1]SDDLIN(nolign-1)
+  If fstat  Raz [F:SDD] : Endif
+Elsif GMODU(5)=2
+  Raz [F:SDD]
+Endif
+Return
+
+$POSITION_SOLDE
+#----------------------------------------------------------#
+# Positionnement du solde en fonction du paramètre GPOHCLE #
+# Calcul de la quantité totale réceptionnée                #
+#----------------------------------------------------------#
+# GPOHCLE=1 Si égalité ou supérieur                        #
+# GPOHCLE=2 A la demande                                   #
+# GPOHCLE=3 Jamais                                         #
+# GPOHCLE=4 Suivant tolérance                              #
+# GPOHCLE=5 Tolérance + reste à la demande                 #
+#----------------------------------------------------------#
+If dim(NOL)<0  : Local Shortint NOL  : NOL=nolign-1 : Endif
+If dim(J)<0    : Local Shortint J    : Endif
+J=[M:PTH1]WSOLDE(NOL)
+#-----
+If [M:PTH1]POHNUM(NOL)=""
+  [M:PTH1]WSOLDE(NOL)=1
+Else
+  #----- Lecture ligne commande quantités si nécessaire -----#
+  If [F:POQ]POHNUM<>[M:PTH1]POHNUM(NOL) | [F:POQ]POPLIN<>[M:PTH1]POPLIN(NOL)
+&   |[F:POQ]POQSEQ<>[M:PTH1]POQSEQ(NOL)
+    Read [POQ] POQ0=[M:PTH1]POHNUM(NOL);[M:PTH1]POPLIN(NOL);[M:PTH1]POQSEQ(NOL)
+    If fstat  Raz [F:POQ] : Endif
+    If [F:POH]POHNUM<>[F:POQ]POHNUM
+      Read [POH]POH0=[F:POQ]POHNUM
+      If fstat  Raz [F:POH] : Endif
+    Endif
+  Endif
+  [M:PTH1]WSOLDE(NOL)=1 : # GPOHCLE=3 Jamais
+  If [M:PTH1]POHNUM(NOL)<>""
+    If GPOHCLE=1 | GPOHCLE=2    : # Solde si égalité ou supérieur ou à la demande
+      If[M:PTH1]MAXQTYRCP(NOL)<=0 [M:PTH1]WSOLDE(NOL)=2 : Endif
+    Elsif GPOHCLE=4 | GPOHCLE=5 : # Solde suivant % tolérance + reste à la demande
+      GBIDD1=[M:PTH1]MAXQTYRCP(NOL)
+      If GBIDD1<=0 | abs((GBIDD1/[F:POQ]QTYSTU)*100)<=[F:ITM]MINRMNPRC
+        [M:PTH1]WSOLDE(NOL)=2
+      Endif
+    Endif
+  Endif
+  If [M:PTH1]POHTYP(NOL)=1 & [F:POH]SALFCY<>"" & [F:POQ]LINOCNNUM<>"" &
+&    [F:POQ]OCNLIN<>0 & [F:POQ]OCNSEQ<>0
+    Call CTLMAJSOP("S",[F:POQ]LINOCNNUM,[F:POQ]OCNLIN,[F:POQ]OCNLIN,GBIDI2) From TRTVENISOC
+    #-- Si commande non soldée et GBIDI2<>0 solde interdit
+    If [F:SOQ]SOQSTA<>3 & GBIDI2<>0 & [M:PTH1]WSOLDE(NOL)=2
+      [M:PTH1]WSOLDE(NOL)=1
+    Endif
+    Raz GMESSAGE
+  Endif
+Endif
+Return
+
+$REAJUST_WSOLDE
+#---------------------------------------------#
+# Si le solde est changé sur une ligne        #
+# On recherche si d'autre ligne liée même cde #
+# ou composé (service / matière)              #
+# On positionne le solde de la même façon     #
+#---------------------------------------------#
+For J=0 To [M:PTH1]NBLIG-1
+  #---- Même ligne de commande -----#
+  If J<>NOL & [M:PTH1]POHNUM(J)= [M:PTH1]POHNUM(NOL)
+&           & [M:PTH1]POPLIN(J)= [M:PTH1]POPLIN(NOL)
+&           & [M:PTH1]POQSEQ(J)= [M:PTH1]POQSEQ(NOL)
+&           & [M:PTH1]WSOLDE(J)<>[M:PTH1]WSOLDE(NOL)
+    [M:PTH1]WSOLDE(J)=[M:PTH1]WSOLDE(NOL)
+    If !GIMPORT  Affzo [PTH1]WSOLDE(J) : Endif
+  #----- Ligne service ou matière (composant) liée au produit fini (composé) -----#
+  Elsif J>NOL & [M:PTH1]LINTYP(J)     >2
+&             & [M:PTH1]LINTYP(NOL)   =2
+&             & [M:PTH1]POHNUM(NOL)   =[M:PTH1]POHNUM(J)
+&             & [M:PTH1]VCRTYPORI(NOL)=[M:PTH1]VCRTYPORI(J)
+&             & [M:PTH1]VCRNUMORI(NOL)=[M:PTH1]VCRNUMORI(J)
+    [M:PTH1]WSOLDE(J)=[M:PTH1]WSOLDE(NOL)
+    If !GIMPORT  Affzo [PTH1]WSOLDE(J) : Endif
+  Endif
+  #-----
+Next J
+Return
+
+$CAL_MAXQTYRCP
+#---------------------------------------------------#
+# Calcul de la quantité maxi restant à receptionner #
+# nolign doit être correct                          #
+#---------------------------------------------------#
+If dim(NOL) <0      : Local Shortint NOL       : NOL=nolign-1 : Endif
+If dim(J)<0         : Local Shortint J         : Endif
+If dim(NEWMAXQTY)<0 : Local Decimal  NEWMAXQTY : Endif
+If dim(SVGNOL)<0    : Local Shortint SVGNOL    : Endif
+SVGNOL= nolign
+If [M:PTH1]POHNUM(NOL)<>""
+  #----- Lecture ligne commande quantités si nécessaire -----#
+  If [F:POQ]POHNUM<>[M:PTH1]POHNUM(NOL) | [F:POQ]POPLIN<>[M:PTH1]POPLIN(NOL)
+&   |[F:POQ]POQSEQ<>[M:PTH1]POQSEQ(NOL)
+    Read [POQ] POQ0=[M:PTH1]POHNUM(NOL);[M:PTH1]POPLIN(NOL);[M:PTH1]POQSEQ(NOL)
+    If fstat  Raz [F:POQ] : Endif
+  Endif
+  If [F:POQ]POHNUM<>""
+    [L]NEWMAXQTY=[F:POQ]QTYSTU-[F:POQ]RCPQTYSTU
+    [L]NEWMAXQTY+=[M:PTH1]OLDQTYSTU(NOL)
+    [L]NEWMAXQTY-=[L]NEWQTY
+    [L]NEWMAXQTY-=sigma(J=0,[M:PTH1]NBLIG-1,[M:PTH1]QTYSTU(J)*([M:PTH1]POHNUM(J)=[F:POQ]POHNUM &
+&                                                              [M:PTH1]POPLIN(J)=[F:POQ]POPLIN &
+&                                                              [M:PTH1]POQSEQ(J)=[F:POQ]POQSEQ &
+&                                                              [M:PTH1]CREFLG(J)=0 &
+&                                                              J<>NOL))
+  Endif
+Endif
+nolign=SVGNOL
+Return
+
+$REAJUST_MAXQTY
+#-------------------------------------------------------#
+# Réajustement de la quantité max sur les autres lignes #
+#-------------------------------------------------------#
+If dim(J)<0         : Local Shortint J         : Endif
+If [M:PTH1]POHNUM(NOL)<>""
+  For J=0 To [M:PTH1]NBLIG-1
+     If J<>NOL & [M:PTH1]POHNUM(J)=[F:POQ]POHNUM &
+&      [M:PTH1]POPLIN(J)=[F:POQ]POPLIN & [M:PTH1]POQSEQ(J)=[F:POQ]POQSEQ
+       [M:PTH1]MAXQTYRCP(J) = [M:PTH1]MAXQTYRCP(NOL)
+     Endif
+  Next J
+Endif
+Return
+
+
+$SUPPRESS_TEX
+#-----------------------------------------#
+# Suppression des textes après un abandon #
+#-----------------------------------------#
+If dim(I)<0  Local Integer I : Endif
+#----- Suppression texte entête et pied -----#
+If GREP="D"
+  If left$([M:PTH0]TEX1,3)="PTH"
+    Call SUP_CLOB([M:PTH0]TEX1,GBIDI1) From TRTX3TEX
+  Endif
+  If left$([M:PTH0]TEX2,3)="PTH"
+    Call SUP_CLOB([M:PTH0]TEX2,GBIDI1) From TRTX3TEX
+  Endif
+Endif
+#----- Suppression des textes ligne -----#
+For I=0 To [M:PTH1]NBLIG-1
+  If left$([M:PTH1]LINTEX(I),3)="PTD" & [M:PTH1]CREFLG(I)=0
+    Call SUP_CLOB([M:PTH1]LINTEX(I),GBIDI2) From TRTX3TEX
+  Endif
+Next I
+#-----
+Call RAZ_CLOB From ACLOB
+Return
+
+
+$CHARG_PTD
+#-----------------------#
+# Chargement PRECEIPTD  #
+#-----------------------#
+Local Shortint NOL : NOL=nolign-1
+#----- Chargement site de réception dans site de commande si non renseigné -----#
+If [F:PTD]POHFCY="" [F:PTD]POHFCY=[F:PTD]PRHFCY : Endif
+If dim([M:PTH1]TSICOD1(NOL))>0 [F:PTD]TSICOD(0)=[M:PTH1]TSICOD1(NOL) : Endif
+If dim([M:PTH1]TSICOD2(NOL))>0 [F:PTD]TSICOD(1)=[M:PTH1]TSICOD2(NOL) : Endif
+If dim([M:PTH1]TSICOD3(NOL))>0 [F:PTD]TSICOD(2)=[M:PTH1]TSICOD3(NOL) : Endif
+If dim([M:PTH1]TSICOD4(NOL))>0 [F:PTD]TSICOD(3)=[M:PTH1]TSICOD4(NOL) : Endif
+If dim([M:PTH1]TSICOD5(NOL))>0 [F:PTD]TSICOD(4)=[M:PTH1]TSICOD5(NOL) : Endif
+[F:PTD]VAT(0)=[M:PTH1]VAT1(NOL)
+[F:PTD]VAT(1)=[M:PTH1]VAT2(NOL)
+[F:PTD]VAT(2)=[M:PTH1]VAT3(NOL)
+Return
+
+
+$VERIF_ITM
+If [F:ITM]ITMREF <> VALEUR
+  Read [ITM]ITM0 = VALEUR
+  If fstat : Raz [F:ITM] : Endif
+Endif
+#----------------------------------------------#
+# On vérifie article acheté si pas inter-sites #
+#----------------------------------------------#
+If [M:PTH0]BETFCY<>2 & [F:ITM]PURFLG<>2
+  GMESSAGE = mess(70,197,1)
+  mkstat = 2
+  End
+Endif
+#-----------------------------------#
+# on verifie article a réceptionner #
+#-----------------------------------#
+If [F:ITM]RCPFLG <> 2
+  GMESSAGE = mess(99,194,1)
+  mkstat = 2
+  End
+Endif
+#----------------------------#
+# lecture itf du site client #
+#----------------------------#
+If [M:PTH0]BETFCY = 2 & [M:PTH1]LINSTOFCY(NOL)<>""
+  Read [ITF]ITF0 = VALEUR ; [M:PTH1]LINSTOFCY(NOL)
+  If fstat
+    Raz [F:ITF]
+    GMESSAGE = VALEUR+" "+[M:PTH1]LINSTOFCY(NOL)-mess(25,192,1)
+    mkstat = 2
+    End
+  Endif
+Endif
+Return
+
+$CAL_QTYPUU
+#--------------------------------------------------------------------#
+# Calcul de la quantité en UA et du coeff uompuu                     #
+# Prérequis : NOL doit exister et contenir le numéro de ligne du doc #
+#--------------------------------------------------------------------#
+#--- Calcul de la quantité en UA
+#--- Dans tous les cas calcul qté en UA ---#
+If [M:PTH1]PUU(NOL)=[M:PTH1]STU(NOL)
+  [M:PTH1]QTYPUU(NOL)=[M:PTH1]QTYSTU(NOL)
+Elsif [M:PTH1]PUU(NOL)=[M:PTH1]UOM(NOL) & [M:PTH1]QTYUOM(NOL)<>0
+  [M:PTH1]QTYPUU(NOL)=[M:PTH1]QTYUOM(NOL)
+Elsif [M:PTH1]POHNUM(NOL)<>""
+  Read [POQ] POQ0=[M:PTH1]POHNUM(NOL);[M:PTH1]POPLIN(NOL);[M:PTH1]POQSEQ(NOL)
+  If fstat  Raz [F:POQ] : Endif
+  [M:PTH1]QTYPUU(NOL)=([M:PTH1]QTYSTU(NOL)*[F:POQ]QTYPUU)/[F:POQ]QTYSTU
+Else
+  Call PCAL_QTY([M:PTH1]QTYSTU(NOL),[M:PTH1]STU(NOL),[M:PTH1]QTYPUU(NOL),[M:PTH1]PUU(NOL),[M:PTH1]ITMREF(NOL),
+&        [M:PTH0]BPSNUM,1,GBIDD3) From TRTACHQTE1
+Endif
+If [M:PTH1]QTYUOM(NOL)<>0
+  #----- Dans tous le cas calcul coefficient conversion UOM vers UA -----#
+  [M:PTH1]UOMPUUCOE(NOL) =arr([M:PTH1]QTYPUU(NOL)/[M:PTH1]QTYUOM(NOL),0.00000001)
+Endif
+If [M:PTH1]UOMPUUCOE(NOL)=0 : [M:PTH1]UOMPUUCOE(NOL)=1 : Endif
+#-- Arrondi de la quantité en UA pour être au plus juste
+Call QTEARR([M:PTH1]QTYPUU(NOL),[M:PTH1]PUU(NOL)) From TRTDIV
+Return
+
+$CTL_QTY
+#---------------------------------------------------------------#
+# Message si la quantité est supérieure au reste à receptionner #
+# NOL doit contenir le numéro de ligne à traiter                #
+#---------------------------------------------------------------#
+If dim(NEWMAXQTY)<0 : Local Decimal NEWMAXQTY : Endif
+If dim(OK)<0        : Local Integer OK        : Endif
+OK=2
+Raz GERR
+If [M:PTH1]POHNUM(NOL)<>""
+  If GRCPORD=1 & [L]NEWMAXQTY<0
+    GMESSAGE=mess(229,194,1)
+    Call ERREUR(GMESSAGE) From GESECRAN : Raz GMESSAGE : OK=1 : mkstat=1 : Return
+  Elsif GRCPORD=2 & [L]NEWMAXQTY<0
+    Call OUINON ([F:POQ]POHNUM-[F:POQ]ITMREF+"\"+mess(200,194,1),OK) From GESECRAN
+    If OK<>2 : mkstat = 1 : Return : Endif
+  Endif
+Endif
+Return
+
+
+$DIS_COEFF
+#---------------------------------------------------------------#
+# Alimentation du coeff dans WCOEFF et positionnement flag saisi#
+# WUOM doit contenir l'unité                                    #
+# Actzo Diszo du coeff en fonction de l'autorisation de saisie  #
+# Actzo emplacement si unité autorisée par les stocks           #
+#---------------------------------------------------------------#
+If dim(NOL)<0 Local Shortint NOL : Endif
+NOL=nolign-1
+Local Char     LUSCAV(2), LLBEFMT(GLONARP)
+Local Integer LDACCOE
+Call CTLUOM([M:PTH1]ITMREF(NOL),1,[M:PTH0]BPSNUM, [L]WUOM, [L]WCOEFF,
+&           [L]LUSCAV, [L]LLBEFMT, [L]LDACCOE) From STKACT
+If mkstat : Return : Endif
+If LDACCOE=1
+  Diszo [PTH1]UOMSTUCOE(NOL)
+  [M:PTH1]WSTOSAI(NOL)=left$([M:PTH1]WSTOSAI(NOL),2)+"2"+right$([M:PTH1]WSTOSAI(NOL),4)
+Else
+  Actzo [PTH1]UOMSTUCOE(NOL)
+  [M:PTH1]WSTOSAI(NOL)=left$([M:PTH1]WSTOSAI(NOL),2)+"0"+right$([M:PTH1]WSTOSAI(NOL),4)
+Endif
+If [M:PTH1]STOMGTCOD(NOL)<2 : Return : Endif
+If [F:ITF]ITMREF<>[M:PTH1]ITMREF(NOL) | [F:ITF]STOFCY<>[M:PTH0]PRHFCY
+  Read [ITF] ITF0=[M:PTH1]ITMREF(NOL);[M:PTH0]PRHFCY
+  If fstat  Raz [F:ITF] : [F:ITF]STOMGTCOD=[F:ITM]STOMGTCOD : Endif
+Endif
+If [F:ITF]LOCMGTCOD<>2  Return : Endif
+#-- Activation des zone loc et loctyp
+If [M:PTH1]WSTOFLG(NOL)=0
+  [M:PTH1]WSTOSAI(NOL)=left$([M:PTH1]WSTOSAI(NOL),4)+"00"+right$([M:PTH1]WSTOSAI(NOL),7)
+  If dim([M:PTH1]LOCTYP)>0
+    Actzo [PTH1]LOCTYP(NOL), LOC(NOL)
+  Endif
+Elsif [M:PTH1]WSTOFLG(NOL)<>0 & dim([M:PTH1]LOC)>0 & [M:PTH1]LOC(NOL)<>"" &
+&     [M:PTH1]LOC(NOL)<>"$" & !find("AF", [L]LUSCAV)
+  [M:PTH1]WSTOSAI(NOL)=left$([M:PTH1]WSTOSAI(NOL),4)+"00"+right$([M:PTH1]WSTOSAI(NOL),7)
+  If dim([M:PTH1]LOCTYP)>0
+    Actzo [PTH1]LOCTYP(NOL), LOC(NOL)
+  Endif
+Endif
+Return
+
+
+$CTL_LIG_PTH
+#------------------------------------------#
+# Contrôle au sortir de la saisie de stock #
+# ou modif de stock                        #
+#------------------------------------------#
+If dim(NOL)<0       : Local Shortint NOL       : Endif
+If dim(TRTLIG)<0    : Local Char     TRTLIG(1) : Endif
+If dim(OLDQTY)<0    : Local Decimal  OLDQTY    : Endif
+If dim(NEWQTY)<0    : Local Decimal  NEWQTY    : Endif
+If dim(NEWMAXQTY)<0 : Local Decimal  NEWMAXQTY : Endif
+If dim(SVGNOL)<0    : Local Integer  SVGNOL    : Endif
+SVGNOL=nolign : # Sauvegarde du nolign ecran stock
+NOL=LLIGDOC
+nolign=NOL+1
+[L]NEWQTY =LQTYSTU
+If [L]NEWQTY<>0 & [L]NEWQTY<>[M:PTH1]QTYSTU(NOL)
+  #-- Recherche de la nouvelle quantité maxi
+  Raz [L]NEWMAXQTY
+  If [M:PTH1]POHNUM(NOL)<>""
+    Gosub CAL_MAXQTYRCP  From SUBPTHB
+  #--- Bug 79177
+  # Si picking d'une ligne de livraison
+  Elsif [M:PTH1]SDHNUM(NOL)<>"" & [M:PTH1]CREFLG(NOL)=0
+     # Si somme des qtés des mvts de liv > qté restant à réceptionner
+     If LQTYSTU>[M:PTH1]QTYSTU(NOL) LQTYSTU=[M:PTH1]QTYSTU(NOL) Endif
+  #---
+  Else
+   [L]NEWMAXQTY=99999999999.999999
+  Endif
+  Raz mkstat
+  #-- Contrôle de la quantité
+  If [M:PTH1]POHNUM(NOL)<>""
+    Gosub CTL_QTY From SUBPTHB
+    If mkstat : nolign=SVGNOL : Return  : Endif
+  Endif
+Endif
+#-- Contrôle à faire en modif uniquement
+If [M:PTH1]CREFLG(NOL)<>0
+  Gosub OUVERTURE_TRACE From SUBPTHA
+  [M:STW]TRAFLG=2 : # Trace normale !
+  [L]OLDQTY=[M:PTH1]QTYSTU(NOL)
+  Call QTEARR([L]NEWQTY,[M:PTH1]STU(NOL)) From TRTDIV
+  [M:PTH1]QTYSTU(NOL)=[L]NEWQTY
+  #-- Si la quantité est à 0 (suppression de ligne)
+  If [L]NEWQTY = 0
+    TRTLIG="A" : status=65 : Gosub TEST_ANU From SUBPTH
+  Else
+    TRTLIG="M" : status=75 : Gosub TEST_MOD From SUBPTH
+    If [M:PTH1]INVQTYSTU(NOL)>=[M:PTH1]QTYSTU(NOL)
+      GMESSAGE=mess(112,194,1) : mkstat=2
+    Endif
+  Endif
+  [M:PTH1]QTYSTU(NOL)=[L]OLDQTY
+  If mkstat Call ERREUR(GMESSAGE) From GESECRAN : nolign=SVGNOL : Return : Endif
+Endif
+If [L]NEWQTY<>0 & [L]NEWQTY<>[M:PTH1]QTYSTU(NOL)
+  [M:PTH1]MAXQTYRCP(NOL)=[L]NEWMAXQTY
+Endif
+nolign=SVGNOL
+# Issue 69782 - 2011-01-13 by CCC : Si multi-lot et régul base lot => facture partielle imposssible
+# FQ 69508 GA 04/2011 rcp sous-traitance [M:ENT] n'est pas ouvert
+# Issue 100008 - 2014-05-15 by MUARN : amélioration de la gestion ENT/ENM dans IF et GETTCM
+If !mkstat
+    If [F:ITM]LOTMGTCOD>1
+&    & (  [M:PTH1]CREFLG(LLIGDOC) = 0
+&       & dim([M:ENT]NBLIG)>0 & [M:ENT]NBLIG>1
+&       & sigma(1,[M:ENT]NBLIG-1,[M:ENT]NUMLIGLOT(0)<>[M:ENT]NUMLIGLOT(indcum))
+&    | ( [M:PTH1]CREFLG(LLIGDOC) <> 0
+&       & dim([M:ENM]NBLIG)>0 & [M:ENM]NBLIG>1
+&       & sigma(1,[M:ENM]NBLIG-1,[M:ENM]NUMLIGLOT(0)<>[M:ENM]NUMLIGLOT(indcum))) )
+
+        If !clalev([F:TCM]) : Local File TABCOSTMET [TCM] : Endif
+        Local Char LTCM(GLONTCM), LMAXABSCOD
+        Local Integer LRET : #VPO 07/04/11 73048 : LRET Variable inexistante
+        Local Integer LOK
+        If dim([M:ENT]NBLIG)>0
+          Call GETTCM([M:ENT]ITMREF, [M:ENT]STOFCY, LTCM, LRET) From STKVAL
+        Else
+          Call GETTCM([M:ENM]ITMREF, [M:ENM]STOFCY, LTCM, LRET) From STKVAL
+        Endif
+        If [F:TCM]PRIREG=2
+            # Issue 102988 - 2014-10-02 by MUARN : amélioration de la gestion ENT/ENM
+            If dim([M:ENT]NBLIG)>0
+              Call PARAM([M:ENT]STOFCY, "MAXABSCOD", LMAXABSCOD) From ADOVAL
+            Else
+              Call PARAM([M:ENM]STOFCY, "MAXABSCOD", LMAXABSCOD) From ADOVAL
+            Endif
+            If LMAXABSCOD="3" # Absorption base lot
+                # Issue 87025 - 2013-01-14 by MAE : Si import, la réception est importée avec un message d'avertissement dans la trace.
+                If GIMPORT
+                  LOK = 2
+                  Call AVERTIR(mess(377,184,1), LOK) From GESECRAN
+                Else
+                  LOK=1
+                  Call AVERTIR(mess(377,184,1)-mess(205,100,1), LOK) From GESECRAN
+                Endif
+                If LOK=1
+                    mkstat=2
+                    Return
+                Endif
+            Endif
+        Endif
+    Endif
+Endif
+
+Return
+
+
+$MAJ_LIG_PTH
+#-----------------------------------------------------------------------#
+# Mise à jour de la ligne de réception au retour du moteur de stock     #
+# LLIGDOC contient le numéro de ligne du doc                            #
+# Cette étiquette est appelée depuis MAJ_LIGNE_DOCUMENT From TRTSTOENTA #
+# quand VCRTYP = 6 Réception                                            #
+#-----------------------------------------------------------------------#
+# Issue 84130 - 2013-02-13 by SR
+Local Integer WRET
+If dim(NOL)<0           Local Shortint NOL             : Endif
+If dim(J)<0             Local Shortint J               : Endif
+If dim(OLDWCOEFF)<0     Local Decimal  OLDWCOEFF       : Endif
+If dim([L]WOLDQTYPUU)<0 Local Decimal  WOLDQTYPUU      : Endif
+If dim([L]WOLDQTYSTU)<0 Local Decimal  WOLDQTYSTU      : Endif
+If dim(OLDUOM)<0        Local Char     OLDUOM(GLONUOM) : Endif
+
+NOL=LLIGDOC
+nolign=NOL+1
+#----- Sauvegarde des quantités UA, US avant maj -----#
+[L]OLDWCOEFF =[M:PTH1]UOMSTUCOE(NOL)
+[L]WOLDQTYPUU=[M:PTH1]QTYPUU(NOL)
+[L]WOLDQTYSTU=[M:PTH1]QTYSTU(NOL)
+[L]OLDUOM    =[M:PTH1]UOM(NOL)
+#--- Cas de la suppression
+If LQTYSTU=0
+  If [M:PTH1]CREFLG(NOL)<>0
+    [M:PTH1]QTYUOM(NOL)=0
+    [M:PTH1]QTYSTU(NOL)=0
+    [M:PTH1]QTYPUU(NOL)=0
+    Return
+  Elsif [M:PTH1]CREFLG(NOL)=0
+    Raz [M:PTH1]WSTOFLG(NOL) : [M:PTH1]WSTOSAI(NOL)="222222222222222"
+  Endif
+Endif
+If [F:ITM]ITMREF<>[M:PTH1]ITMREF(NOL)
+  Read [ITM]ITM0=[M:PTH1]ITMREF(NOL)
+  If fstat : Raz [F:ITM] : Endif
+Endif
+If LQTYSTU<>[M:PTH1]QTYSTU(NOL) | LCOEF=0 : # si qté modifiée ou plusieurs coef
+  #-- Si l'unité est la même et coeff unique sur toute les lg
+  #-- Uniquement en réception directe
+  If LCOEF<>0
+    If LPCU=[M:PTH1]UOM(NOL)
+      [M:PTH1]QTYUOM(NOL) = LQTYSTU / LCOEF
+      [M:PTH1]UOMSTUCOE(NOL)= LCOEF
+      [M:PTH1]QTYSTU(NOL)=LQTYSTU
+    # on a tout saisi en US, on reconvertit dans l'unité de réception
+    # si on obtient un chiffre rond ok sinon on met tout en US
+    Elsif LPCU=[M:PTH1]STU(NOL)
+      [L]NEWQTY   =LQTYSTU/[M:PTH1]UOMSTUCOE(NOL)
+      GBIDD1     = [L]NEWQTY
+      Call QTEARR(GBIDD1,[M:PTH1]UOM(NOL)) From TRTDIV
+      If [L]NEWQTY=GBIDD1
+        [M:PTH1]QTYUOM(NOL)= GBIDD1
+      Else
+        [M:PTH1]UOM(NOL)=[F:ITM]STU
+        [M:PTH1]QTYUOM(NOL)= LQTYSTU
+        [M:PTH1]UOMSTUCOE(NOL)=1
+      Endif
+      [M:PTH1]QTYSTU(NOL)=LQTYSTU
+      [M:PTH1]STU(NOL)   =[F:ITM]STU
+    # on a tout saisie dans une autre unité, on reconvertit dans l'unité de réception
+    # si on obtient un chiffre rond ok sinon on met tout en US
+    Else
+      [L]NEWQTY   =LQTYSTU/[M:PTH1]UOMSTUCOE(NOL)
+      GBIDD1=[L]NEWQTY
+      Call QTEARR(GBIDD1,[M:PTH1]UOM(NOL)) From TRTDIV
+      If [L]NEWQTY=GBIDD1
+        [M:PTH1]QTYUOM(NOL)= GBIDD1
+      Else
+        [M:PTH1]UOM(NOL)      = [F:ITM]STU
+        [M:PTH1]QTYUOM(NOL)   = LQTYSTU
+        [M:PTH1]UOMSTUCOE(NOL)= 1
+      Endif
+      [M:PTH1]QTYSTU(NOL)=LQTYSTU
+      [M:PTH1]STU(NOL)   =[F:ITM]STU
+    Endif
+  Else
+    #-- Sinon on met tout en US
+    [M:PTH1]UOM(NOL)=[F:ITM]STU
+    [M:PTH1]QTYUOM(NOL)= LQTYSTU
+    [M:PTH1]UOMSTUCOE(NOL)=1
+    [M:PTH1]QTYSTU(NOL)=LQTYSTU
+  Endif
+  If [M:PTH0]BETFCY=2 & [M:PTH1]SDHNUM(NOL)<>"" &
+&   [M:PTH1]QTYSTU(NOL)<>[M:PTH1]SDDQTY(NOL)
+    #- avertissement car la quantité a été modifiée par rapport à la livraison -#
+    Call MESSAGE (mess(281,194,1)) From GESECRAN
+  Endif
+Endif
+If [M:PTH1]UOM(NOL)=[M:PTH1]STU(NOL)
+  Diszo [PTH1]UOMSTUCOE(NOL)
+  [M:PTH1]WSTOSAI(NOL)=left$([M:PTH1]WSTOSAI(NOL),2)+"2"+right$([M:PTH1]WSTOSAI(NOL),4)
+Endif
+If [M:PTH1]QTYUOM(NOL)<>0
+  #----------------------------------------------------------------#
+  # Point d'entrée CLCQTYPTH pour ne pas recalculer les qtés en UA #
+  # -------------------------------------------------------------- #
+  # Variables utilisables par le point d'entrée :                  #
+  # Les classes [M:PTH0], [M:PTH1] et [M:PTH2]                     #
+  # La classe [F:ITM]                                              #
+  # WNOL    : Indice de la ligne en cours de traitement            #
+  # -------------------------------------------------------------- #
+  # Variable modifiable par le point d'entrée :                    #
+  # WCLCFLG : Indicateur recalcul des qtés en UA (0=Non, 1=Oui)    #
+  #----------------------------------------------------------------#
+  If dim([V]GTOTQTY)<1  Global Decimal GTOTQTY : Endif
+  [V]GTOTQTY=LQTYSTU
+  Local Decimal OLDQTY  : OLDQTY=WOLDQTYSTU
+  Local Integer WNOL    : WNOL=NOL
+  Local Integer WCLCFLG : WCLCFLG=1 : # Par défaut on recalcule les qtés UA
+  If [F:ITM]STU<>[M:PTH1]PUU(NOL)
+    Gosub POINT_CLCQTYPTH From SUBPTHA
+  Endif
+  #----- Calcul qtés totale, Q et R en UA -----#
+  If WCLCFLG
+    Gosub CAL_QTYPUU
+  Else
+    If [M:PTH1]UOM(NOL)=[M:PTH1]PUU(NOL)
+      [M:PTH1]QTYUOM(NOL)=[M:PTH1]QTYPUU(NOL)
+      [M:PTH1]UOMSTUCOE(NOL)=arr([M:PTH1]QTYSTU(NOL)/[M:PTH1]QTYUOM(NOL),0.00000001)
+    Endif
+    If [M:PTH1]QTYUOM(NOL)<>0
+      [M:PTH1]UOMPUUCOE(NOL) =arr([M:PTH1]QTYPUU(NOL)/[M:PTH1]QTYUOM(NOL),0.00000001)
+    Endif
+    If [M:PTH1]UOMPUUCOE(NOL)=0 : [M:PTH1]UOMPUUCOE(NOL)=1 : Endif
+  Endif
+Else
+  [M:PTH1]QTYPUU(NOL)=0
+Endif
+
+If [L]WOLDQTYPUU<>[M:PTH1]QTYPUU(NOL)
+  # Issue 84130 - 2013-02-12 by MUARN : landed cost
+  Call CONVERT_VOUWEU("PTH1",NOL,[M:PTH1]LINWEU(NOL),[M:PTH1]LINVOU(NOL),[M:PTH1]QTYSTU(NOL),WOLDQTYSTU) From STCLIB
+  # Issue 110325 - 2015-12-01 by SR : Charges sur expéditions
+  If [M:PTH1]CREFLG(NOL)=0 & [M:PTH1]STCNUM(NOL) <> ""
+    Gosub ALIM_STCP From SUBPTH
+    Call GES_STCDW("PTH1",NOL,WRET) From STCCLC
+  Endif
+Endif
+
+#-- Si on a changer l'unité (donc le coef) il faut recalculer le prix en nouvelle UOM
+If ([L]OLDWCOEFF<>[M:PTH1]UOMSTUCOE(NOL) | [L]WOLDQTYSTU<>[M:PTH1]QTYSTU(NOL)) &
+&   [M:PTH1]QTYSTU(NOL)<>0 & [M:PTH1]LINTYP(NOL)<>2
+  OK=1
+  If GACTION="SAISTOENT" & [M:PTH1]POHNUM(NOL)="" & [M:PTH1]SDHNUM(NOL)=""
+    OK=2 : Call OUINON(mess(63,196,1),OK) From GESECRAN
+    If OK=2
+      Call INI_TARIF(NOL,"UOM") From SUBPTHB
+    Endif
+  Endif
+  If OK=1 & [L]OLDWCOEFF<>0 & [L]OLDWCOEFF<>[M:PTH1]UOMSTUCOE(NOL)
+    #-- Recalcul du prix si unité modifiée uniquement (coef modifié)
+    Call REAJUST_TARIF("PTH1",NOL,OLDUOM,[M:PTH1]UOM(NOL),
+&                      OLDWCOEFF,[M:PTH1]UOMSTUCOE(NOL)) From TRTACHPRI1
+  Else
+    #----- Calcul du montant ligne -----#
+    [M:PTH1]LINAMT(NOL)=[M:PTH1]NETPRI(NOL)*[M:PTH1]QTYUOM(NOL)
+    Call ARRDEV([M:PTH1]LINAMT(NOL),[M:PTH1]NETCUR(NOL)) From TRTDIV
+  Endif
+Endif
+#----- Màj indicateurs de solde si quantité modifiée
+If [L]WOLDQTYSTU<>[M:PTH1]QTYSTU(NOL)
+  # Issue 111184- 2015-09-21 by SR :remettre à jour la quantité maxi à réceptionner avant de positionner le flag solde
+  [M:PTH1]MAXQTYRCP(NOL) += WOLDQTYSTU
+  [M:PTH1]MAXQTYRCP(NOL) -= [M:PTH1]QTYSTU(NOL)
+  [M:PTH1]MAXQTYRCP(NOL) = max(0,[M:PTH1]MAXQTYRCP(NOL))
+  # End issue 111184
+  [M:PTH1]LINFLG(NOL)=2
+  If [M:PTH1]CREFLG(NOL)=0
+    #-- Avertissement car la quantité a été modifiée  -#
+    Call MESSAGE (mess(191,194,1)) From GESECRAN
+  Endif
+  #--- Position du solde (J est déclaré et contient l'ancienne valeur)
+  Gosub POSITION_SOLDE From SUBPTHB
+Endif
+#-----
+# Issue 107177 - 2015-10-21 by MUARN : A faire en APRES_NBLIG si réception non créée
+# Issue 109590 - 2015-11-03 by SR : Pas de tests de CREFLG dans ce contexte
+#If [M:PTH1]LINTYP(NOL)=2 & [M:PTH1]CREFLG(NOL)<>0
+If [M:PTH1]LINTYP(NOL)=2
+  Call CALCUL_COMPOSANTS(NOL) From SUBPTHD
+  # Issue 109590 - 2015-11-03 by SR : mise à jour des quantités des composants fournis au sous-traitant
+  Gosub OPEN_FILES_SCO From SCOLIB
+  Local Mask="PTHPSCM"  [PSCM]
+  Call CHARG_SCM(NOL, WRET) From SUBPTHC
+ # End issue 109590
+Endif
+#-----
+# Issue 108538 - 2015-06-04 by SR : Landed Cost
+If [M:PTH1]SHIPNUM(NOL) <> ""
+   If [L]WOLDQTYSTU <> [M:PTH1]QTYSTU(NOL)
+      [M:PTH1]SHDQTYSTU(NOL)+= [L]WOLDQTYSTU
+      [M:PTH1]SHDQTYSTU(NOL)-= [M:PTH1]QTYSTU(NOL)
+      [M:PTH1]SHDQTYSTU(NOL) = max(0,[M:PTH1]SHDQTYSTU(NOL))
+      Gosub MAJ_WSHDSOLDE
+   Endif
+   If !GIMPORT Affzo [M:PTH1]WSHDSOLDE(NOL) : Endif
+Endif
+# Issue 106538 - 2015-06-04 by SR : comment
+
+If [L]WOLDQTYSTU<>[M:PTH1]QTYSTU(NOL) | LCOEF=0
+  Affzo [PTH1]UOM(NOL), QTYUOM(NOL), QTYSTU(NOL), UOMSTUCOE(NOL), WSOLDE(NOL), GROPRI(NOL),
+&             NETPRI(NOL), LINAMT(NOL)
+Endif
+Return
+
+# Issue 84130 - 2013-05-31 by SR : comment
+# Pour annuler les mvts stocks de régul des FCC de la commande réceptionnéet
+$AVT_MAJ_DOCUMENT
+#---------------------------------------------------#
+# Mise à jour avant passage dans le moteur de modif #
+# On est dans une transaction                       #
+#---------------------------------------------------#
+If dim(NOL)<0            Local Shortint NOL           : Endif
+NOL=LLIGDOC
+If [F:PTD]PTHNUM <> [M:PTH0]PTHNUM | [F:PTD]PTDLIN <> [M:PTH1]PTDLIN(NOL)
+  Read [PTD] PTD0=[M:PTH0]PTHNUM;[M:PTH1]PTDLIN(NOL)
+  If fstat : Raz [F:PTD] : Return : Endif
+Endif
+If [F:POQ]POHNUM <> [F:PTD]POHNUM | [F:POQ]POPLIN <> [F:PTD]POPLIN | [F:POQ]POQSEQ <> [F:PTD]POQSEQ
+   Read [POQ] POQ0=[F:PTD]POHNUM;[F:PTD]POPLIN;[F:PTD]POQSEQ
+   If fstat : Raz [F:POQ] : Return : Endif
+Endif
+# Modification de la quantité et commande était soldée
+If LQTYSTU <> [F:PTD]QTYSTU & [F:POQ]LINCLEFLG = 2
+   Call REGPRIX_FCC(3,"",0) From TRTACHFAC1
+Endif
+Return
+
+$TRT_MAJ_DOCUMENT
+#---------------------------------------------------#
+# Mise à jour après passage dans le moteur de modif #
+# On est dans une transaction                       #
+#---------------------------------------------------#
+If dim(NOL)<0            Local Shortint NOL           : Endif
+If dim(TRTLIG)<0         Local Char     TRTLIG(1)     : Endif
+If dim(ANC_LININVFLG)<0  Local Libelle  ANC_LININVFLG : Endif
+If dim(ANC_CPR)<0        Local Decimal  ANC_CPR       : Endif
+If dim(WORDNOT)<0        Local Decimal  WORDNOT       : Endif
+If dim(WORDATI)<0        Local Decimal  WORDATI       : Endif
+If dim(WRCPNOT)<0        Local Decimal  WRCPNOT       : Endif
+If dim(WRCPATI)<0        Local Decimal  WRCPATI       : Endif
+If dim(SIGN)<0           Local Integer  SIGN          : Endif
+If dim(MAXLIG)<0         Local Integer  MAXLIG        : Endif
+If dim(ANC_WINVDTACST)<0 Local Decimal  ANC_WINVDTACST : Endif # Issue 85147 - 2012-10-17 by MUARN : modif élément facturation
+If dim(ANC_QTY)<0        Local Decimal  ANC_QTY        : Endif # Issue 102352 - 2014-09-02 by MUARN : modif quantité ligne
+If dim(ANC_WINVDTALIN)<0 Local Integer  ANC_WINVDTALIN(1..9)   : Endif # Issue 101100 - 2014-09-16 by MUARN : code élément de facturation
+#-----
+Local Decimal    WQTE, WQTE1,  WQTE2, WQTERES
+Local Char       SYMBOLE2(30), WFINRSP(GLONFCY)
+Local Integer    SIGN, WSTAT,  SAVNOLIGN, I, OK, WPTDLIN, WRETOUR
+Local Libelle    ANC_LINCLEFLG
+#--- Bug 73441
+Local Integer    WENM : WENM=0
+# Issue 110325 - 2016-03-03 by SR : FCC sur expé
+Local Libelle    ANC_SHDCLEFLG
+#-----
+MAXLIG=[M:PTH1]NBLIG
+NOL=LLIGDOC
+nolign=NOL+1
+WPTDLIN=[M:PTH1]PTDLIN(NOL)
+[M:PTH1]UPDFLG(NOL)=1
+#----- Suppression ligne -----#
+If LQTYSTU=0
+  status=65
+  Call AVANT_NBLIG From SUBPTH
+  Dela NOL,1,[M:PTH1]NBLIG-1 [M:PTH1]NBLIG : [M:PTH1]NBLIG-=1
+  Call APRES_NBLIG From SUBPTH
+#----- Modification ligne -----#
+Else
+  status=75
+  # Issue 84130 - 2013-02-06 by MUARN : landed cost
+  [M:PTH1]WSTCUPD(NOL) = 2
+  Call AVANT_NBLIG From SUBPTH
+  Gosub MAJ_LIG_PTH
+  Call APRES_NBLIG From SUBPTH
+  Gosub TEST_VALID From SUBPTH
+Endif
+#----- Modification de la réception -----#
+If [M:PTH1]NBLIG>0
+  #----- Lecture avec lock de l'entête -----#
+  Readlock [PTH] PTH0=[M:PTH0]PTHNUM
+  If fstat=1
+    GOK=-1 : GLOCK="$PRECEIPT"-[M:PTH0]PTHNUM : Return
+  Elsif fstat
+    GOK=0  : Call RSTA("PTH",[M:PTH0]PTHNUM) From GLOCK : Return
+  Endif
+  #-----
+  Gosub AVANT_MODFIC From SUBPTHA
+  #-----
+  [F:PTH] = [M:PTH0]
+  [F:PTH] = [M:PTH1]
+  [F:PTH] = [M:PTH2]
+  [F:PTH] = [M:PTHC]
+  #-----
+  Gosub INIMOD  From SUBPTHA
+  #-----
+  Rewrite [PTH]
+  If fstat  GOK=0 : Call FSTA("PTH") From GLOCK : Return : Endif
+  #----- Ecriture des éléments de facturation avec comptes et sections -----#
+  Call ENREG_ELEMENTS(6,[M:PTH0]PTHNUM,"PTH2","M") From TRTACHELT1
+  If GOK<1  Return : Endif
+  #----- Ecriture du tableau des taxes -----#
+  Call ENREG_TAXES   (6,[M:PTH0]PTHNUM,"PTH2","M") From TRTACHELT1
+  If GOK<1  Return : Endif
+  #----- Traitement des lignes supprimées -----#
+  SIGN=-1 : TRTLIG="A"
+  #--- Bug 73441
+  WENM=1
+  For nolign=1 To MAXLIG
+    If !find(nolign,[M:PTH1]CREFLG(0..[M:PTH1]NBLIG-1))
+      # Issue 79687 - 2012-01-30 by VPO : on travailler avec n° de ligne avant suppression : WPTDLIN
+      #Readlock [PTD] PTD0=[M:PTH0]PTHNUM;[M:PTH1]PTDLIN(nolign-1)
+      Readlock [PTD] PTD0=[M:PTH0]PTHNUM;WPTDLIN
+      If fstat=1
+        #GOK=-1 : GLOCK="$PRECEIPTD"-[M:PTH0]PTHNUM-num$([M:PTH1]PTDLIN(nolign-1))
+        GOK=-1 : GLOCK="$PRECEIPTD"-[M:PTH0]PTHNUM-num$(WPTDLIN)
+        Break
+      Elsif fstat
+        #GOK=0  : Call RSTA("PTD",[M:PTH0]PTHNUM-num$([M:PTH1]PTDLIN(nolign-1))) From GLOCK
+        GOK=0  : Call RSTA("PTD",[M:PTH0]PTHNUM-num$(WPTDLIN)) From GLOCK
+        Break
+      Endif
+      Gosub VALLIG From SUBPTHA : If GOK<1  Break : Endif
+      #Delete [PTD] Where PTHNUM=[M:PTH0]PTHNUM & PTDLIN=[M:PTH1]PTDLIN(nolign-1)
+      Delete [PTD] Where PTHNUM=[M:PTH0]PTHNUM & PTDLIN=WPTDLIN
+      If fstat=1
+        #GOK=-1 : GLOCK="$PRECEIPTD"-[M:PTH0]PTHNUM-num$([M:PTH1]PTDLIN(nolign-1))
+        GOK=-1 : GLOCK="$PRECEIPTD"-[M:PTH0]PTHNUM-num$(WPTDLIN)
+        Break
+      Elsif fstat
+        GOK=0  : Call FSTA("PTD") From GLOCK
+        Break
+      Endif
+    Endif
+  Next nolign
+  #--- Bug 73441
+  WENM=0
+  If GOK<1  Return : Endif
+  #----- Traitement des lignes modifiées -----#
+  For nolign=1 To [M:PTH1]NBLIG
+    If [M:PTH1]UPDFLG(nolign-1)<>0
+      Readlock [PTD] PTD0=[M:PTH0]PTHNUM;[M:PTH1]PTDLIN(nolign-1)
+      If fstat=1
+        GOK=-1 : GLOCK="$PRECEIPTD"-[M:PTH0]PTHNUM-num$([M:PTH1]PTDLIN(nolign-1))
+        Break
+      Elsif fstat
+        GOK=0  : Call RSTA("PTD",[M:PTH0]PTHNUM-num$([M:PTH1]PTDLIN(nolign-1))) From GLOCK
+        Break
+      Endif
+      SIGN=-1 : TRTLIG="M"
+      Gosub VALLIG From SUBPTHA : If GOK<1  Break : Endif
+      [F:PTD]=[M:PTH1]
+      [F:PTD]UPDDAT=date$
+      [F:PTD]UPDUSR=GUSER
+      [F:PTD]EXPNUM=[C]EXPORT
+      Gosub INIMOD_LIG From SUBPTHA
+      Rewrite [PTD]
+      If fstat  GOK=0 : Call FSTA("PTD") From GLOCK : Break : Endif
+      SIGN=+1 : TRTLIG="M"
+      Gosub VALLIG From SUBPTHA : If GOK<1  Break : Endif
+      [M:PTH1]UPDFLG(nolign-1)=0
+      [M:PTH1]INIQTYPUU(nolign-1)=[M:PTH1]QTYPUU(nolign-1)
+    Endif
+  Next nolign
+  If GOK<0  Return : Endif
+  #-----
+  Gosub DEVERROU_POH From SUBPTHA : # Déverrou commandes, livraisons
+  If GOK<1  Return : Endif
+  Gosub REAJUST_ENTETE From SUBPTHA
+  If GOK<1  Return : Endif
+  #----- Mise à jour statistiques entête réception -----#
+  SIGN=1 : Call VALSTA("PTH",SIGN) From SUBPS2 : If GOK<1 Return : Endif
+#----- Suppression de la réception -----#
+Else
+  Read [PTH] PTH0=[M:PTH0]PTHNUM
+  If fstat  GOK=0 : Call RSTA("PTH",[M:PTH0]PTHNUM) From GLOCK : Return : Endif
+  #----- Avant Delete de la réception PTH : Suppression texte entête et pied -----#
+  If left$([F:PTH]TEX1,3)="PTH"
+    Call SUP_CLOB([F:PTH]TEX1,GBIDI2) From TRTX3TEX
+  Endif
+  If left$([F:PTH]TEX2,3)="PTH"
+    Call SUP_CLOB([F:PTH]TEX2,GBIDI2) From TRTX3TEX
+  Endif
+  #----- Suppression éléments de facturation avec comptes et sections -----#
+  Call ENREG_ELEMENTS(6,[M:PTH0]PTHNUM,"PTH2","A") From TRTACHELT1
+  If GOK<1  Return : Endif
+  #----- Suppression du tableau des taxes -----#
+  Call ENREG_TAXES   (6,[M:PTH0]PTHNUM,"PTH2","A") From TRTACHELT1
+  If GOK<1  Return : Endif
+  #-----
+  SIGN=-1 : TRTLIG="A"
+  #--- Bug 73441
+  WENM=1
+  For [PTD] PTD0 Where PTHNUM=[M:PTH0]PTHNUM
+    Gosub VALLIG From SUBPTHA : If GOK<1  Break : Endif
+  Next
+  #--- Bug 73441
+  WENM=0
+  If GOK<1  Return : Endif
+  #-----
+  Delete [PTD] Where PTHNUM=[M:PTH0]PTHNUM
+  If fstat=1
+    GOK=-1 : GLOCK="$PRECEIPTD"-[M:PTH0]PTHNUM : Return
+  Elsif fstat
+    GOK=0  : Call FSTA("PTD") From GLOCK       : Return
+  Endif
+  #----- Mise à jour statistiques entête réception -----#
+  Call VALSTA("PTH",SIGN) From SUBPS2 : If GOK<1 Return : Endif
+  #-----
+  Delete [PTH] Where PTHNUM=[M:PTH0]PTHNUM
+  If fstat  GOK=0 : Call FSTA("PTH") From GLOCK : Return : Endif
+Endif
+#----- Si tout s'est bien déroulé -----#
+If GOK=1  GRELITPTH=1 : Endif
+Return
+
+
+$RECH_MVT
+#--------------------------------------#
+# Recherche des mouvements             #
+# Appelé en lien                       #
+#--------------------------------------#
+If dim(NOL)<0 Local Shortint NOL : Endif
+NOL=nolign-1
+Default Mask [PTH1]
+Call RECSTO_F ("PTH1", [M:PTH0]PRHFCY, 6,
+&              [M:PTH0]PTHNUM, [M:PTH1]PTDLIN(NOL), NOL, "") From STKECR
+Return
+
+
+$INIT_COMPTES_LIGNE
+#-------------------------------------------------#
+# Chargement des comptes d'une ligne de réception #
+#-------------------------------------------------#
+If dim(I)<0    Local Integer  I   : Endif
+If dim(NOL)<0  Local Shortint NOL : Endif
+NOL=nolign-1
+#----- Chargement de comptes avec "" pour désactiver l'action d'init -----#
+For I=1 To 10
+  If evalue("dim([M:PTH1]LINACC"+num$(I)+")")>0
+    Assign "[M:PTH1]LINACC"+num$(I)+"(NOL)" With ""
+  Endif
+Next I
+#----- Si ligne vide, pas la peine d'initialiser ! -----#
+If [M:PTH1]ITMREF(NOL)=""  Return : Endif
+#-----
+If dim(J)<0        Local Integer  J                       : Endif
+If dim(WID1)<0     Local Char     WID1(20)(1..1)          : Endif
+If dim(WID2)<0     Local Char     WID2(20)(1..3)          : Endif
+If dim(WSTAT)<0    Local Integer  WSTAT                   : Endif
+If dim(TPLAN)<0    Local Char     TPLAN  (GLONCOA)(1..10) : Endif
+If dim(TCOMPTE)<0  Local Char     TCOMPTE(GLONGAC)(1..10) : Endif
+If dim(WMESSAGE)<0 Local Char     WMESSAGE(80)            : Endif
+#-----
+If !clalev([F:GAD])  Local File GAUTACED [GAD] : Endif
+Local File PORDER [TB0], PORDERQ [TB1], CPTANALIN [TB2]
+#-----
+[F:TB0]=[M:PTH0] : [F:TB0]=[M:PTH1] : [F:TB0]=[M:PTH2]
+[F:TB1]=[M:PTH0] : [F:TB1]=[M:PTH1] : [F:TB1]=[M:PTH2]
+#----- Prendre le site financier de la société comme site de facturation -----#
+[F:TB0]INVFCY=GFINRSP
+#-----
+For I=0 To dim([F:TB0]INVDTALIN1)-1 : [F:TB0]INVDTALIN1(I)=GINVDTALIN(I) : Next I
+If [F:TB1]LINPURTYP=0  [F:TB1]LINPURTYP=1 : Endif
+#----- Chargement table liée PORDERP pour la pièce auto PORD -----#
+[F:POP]=[M:PTH1]
+[F:POP]VAT(0)=[M:PTH1]VAT1(NOL)
+[F:POP]VAT(1)=[M:PTH1]VAT2(NOL)
+[F:POP]VAT(2)=[M:PTH1]VAT3(NOL)
+#----- Chargement pseudo fichier lignes comptables CPTANALIN [TB2] -----#
+Raz [F:TB2]
+[F:TB2]ABRFIC="POP"
+[F:TB2]VCRNUM=[M:PTH1]POHNUM(NOL)
+[F:TB2]VCRLIN=[M:PTH1]POPLIN(NOL)
+[F:TB2]VCRSEQ=[M:PTH1]POQSEQ(NOL)
+[F:TB2]ANALIG=1
+For I=1 To max(GNBCOA,2)
+  J=GTYPLED(I)
+  If J
+    [F:TB2]LED(J-1)=GLEDSOC(I)
+    [F:TB2]COA(J-1)=GCOA(I)
+    [F:TB2]ACC(J-1)=evalue("[M:PTH1]LINACC"+num$(I)+"(NOL)")
+  Endif
+Next I
+For I=1 To max(GNBDIE,GOPTCANA)
+  [F:TB2]DIE(I-1)=GDIE(I)
+  If evalue("dim([M:PTH1]CCE"+num$(I)+")")>0
+    [F:TB2]CCE(I-1)=evalue("[M:PTH1]CCE"+num$(I)+"(NOL)")
+  Endif
+Next I
+#-----
+WID1(1)=[M:PTH1]POHNUM(NOL)
+WID2(1)=[M:PTH1]POHNUM(NOL)
+WID2(2)=num$([M:PTH1]POPLIN(NOL))
+WID2(3)=num$([M:PTH1]POQSEQ(NOL))
+If [M:PTH1]POHNUM(NOL)=""  Raz WID1,WID2 : Endif
+#----- Recherche des comptes à l'aide de la pièce auto -----#
+Call COMPTE("PORD",1,WID1,WID2,TPLAN,TCOMPTE,WSTAT,WMESSAGE) From TRTACHCDE1
+If WSTAT
+  Raz TPLAN, TCOMPTE, GMESSAGE
+Else
+  For I=1 To 10
+    If TPLAN(I)<>""
+     #J=find(TPLAN(I),GCOA(1..GNBCOA))
+      J=find([F:GAD]LEDTYP(I-1),GTYPLED(1..GNBTYPLED))
+      If J
+        Assign "[M:PTH1]LINACC"+num$(J)+"(NOL)" With TCOMPTE(I)
+      Endif
+    Endif
+  Next I
+Endif
+#-----
+Close Local File [TB0], [TB1], [TB2]
+If [F:GAC]COA<>GCOA(1) | [F:GAC]ACC<>[M:PTH1]LINACC1(NOL)
+   Read [GAC] GAC0=GCOA(1);[M:PTH1]LINACC1(NOL) : If fstat Raz [F:GAC] : Endif
+Endif
+If [F:GAC]VATIPT=5
+  [M:PTH1]LINPURTYP(NOL)=3
+Elsif [F:GAC]VATIPT=4
+ [M:PTH1]LINPURTYP(NOL)=2
+Else
+ [M:PTH1]LINPURTYP(NOL)=1
+Endif
+Default File [PTD]
+Return
+
+# Issue 106506 - 2015-04-23 by SR : Landed Cost
+################################################################
+$MAJ_WSHDSOLDE
+# Positionnement du flag "Solde" pour la ligne de Shipment
+# Si plus rien à réceptionner pour cette ligne de shipment ou, ligne de commande soldée
+# NOL doit être positionné
+If [M:PTH1]SHDQTYSTU(NOL) = 0 | [M:PTH1]WSOLDE(NOL) = 2
+   [M:PTH1]WSHDSOLDE(NOL) = 2
+Else
+   [M:PTH1]WSHDSOLDE(NOL) = 1
+Endif
+Return
+
+
+################################################################
+# Estmation de la part des éléments de facturation
+# Issue 77436 - 2011-11-14 by VPO : modif calcul prix réception
+################################################################
+Subprog CALCUL_MTELT(NOL,WMTELT)
+Value    Integer NOL
+Variable Decimal WMTELT
+
+Local    Integer WSTAT,I,J
+
+WUOM  =[M:PTH1]UOM(NOL)
+WCUR  =[M:PTH1]NETCUR(NOL)
+WCOEFF=[M:PTH1]UOMSTUCOE(NOL)
+#WMTELT=sigma(WI=1,9,evalue("[F:PTD]DISCRGAMT"+num$(WI)))
+# Issue 79861 - 2012-02-20 by VPO : elt de facturation non valorisés en stock
+#WMTELT=sigma(WI=1,9,evalue("[M:PTH1]DISCRGAMT"+num$(WI)+"(NOL)"))
+#----- Eléments provenant du pied de réception -----#
+Raz WMTELT
+For I=1 To 9
+  If [M:PTH1]INVDTALIN2(I-1)<>0
+    Read [PFI] PFI0=[M:PTH1]INVDTALIN2(I-1) : If fstat Raz [F:PFI] : Endif
+    If [F:PFI]NPRVLT=2
+      #ici, pour la sous-traitance, on vient toujours avec LINTYP=3
+      # normalement inutile, mais on laisse au cas où
+      If [M:PTH1]LINTYP(NOL)=2
+        J=NOL+1
+        While [M:PTH1]LINTYP(J)>2 & J<[M:PTH1]NBLIG
+          WMTELT+=evalue("[M:PTH1]DISCRGAMT"+num$(I)+"(J)")
+          J+=1
+        Wend
+      Endif
+      WMTELT+=evalue("[M:PTH1]DISCRGAMT"+num$(I)+"(NOL)")
+    Endif
+  Endif
+Next I
+
+#----- Conversion si nécessaire du montant en devise société -----#
+If WCUR<>GLOCALDEV
+  If GPTHCURDAT<>2 & [M:PTH1]POHNUM(NOL)<>""
+    If [F:POH]POHNUM<>[M:PTH1]POHNUM(NOL)
+      Read [POH] POH0=[M:PTH1]POHNUM(NOL)
+      If fstat
+        Raz [F:POH] : [F:POH]ORDDAT=[M:PTH0]RCPDAT : [F:POH]CHGTYP=[M:PTH0]CHGTYP
+      Endif
+    Endif
+    Call CONVERT2(WCUR,GLOCALDEV,GLOCALDEV,[F:POH]CHGTYP,[F:POH]ORDDAT,
+&                  WMTELT,WMTELT,WSTAT) From TRTDEV
+  Else
+    If [M:PTH0]CHGCOE=0
+      Call CONVERT2(WCUR,GLOCALDEV,GLOCALDEV,[M:PTH0]CHGTYP,[M:PTH0]RCPDAT,
+&                    WMTELT,WMTELT,WSTAT) From TRTDEV
+    Else
+      WMTELT=WMTELT*[M:PTH0]CHGCOE
+    Endif
+  Endif
+Endif
+
+#----- la part des elements de facturation doit être par unité de stock -----#
+If WUOM<>[M:PTH1]STU(NOL)
+  If WCOEFF=0  WCOEFF=1 : Endif
+  WMTELT=arr(WMTELT/WCOEFF,10^-GDECPRI)
+Else
+  WMTELT=arr(WMTELT,10^-GDECPRI)
+Endif
+
+End
+#------------------------------------------------------------#
+# Calcul PRIPUR                                              #
+# Si on a une facture validé on prend le prix de la facture  #
+# Sinon on calcul avec le prix de la ligne                   #
+#------------------------------------------------------------#
+# Issue 77436 - 2011-11-14 by VPO : modif calcul prix réception
+Subprog CALCUL_PRIPUR(NOL,WPRIPUR)
+Value    Integer NOL
+Variable Decimal WPRIPUR
+#-----
+Local    Char    WUOM(GLONUOM)
+Local    Char    WCUR(GLONCUR)
+Local    Integer WSTAT
+Local    Decimal WCOEFF
+Local    Char    WNUM(GLONPIH)
+Local    Decimal WQTE
+Local    Integer WLINTYP
+Local    Integer J
+#-----
+Raz WPRIPUR
+# Issue 77436 - 2011-11-14 by VPO : modif calcul prix réception
+##################################################################
+#Calcul du prix dans le cas de la surfacturation
+################
+# Si CAS_WPRIPUR=1 , on alimente [M:PTH1]CPR(NOL)
+# Si CAS_WPRIPUR=2 , on alimente WPRIPUR
+##################################################################
+CAS_WPRIPUR=2
+##----- Récupération prix d'achat sur facture si facture validée avant réception -----#
+Gosub CALCUL_SUR_PRIPUR
+#If [M:PTH1]POHNUM(NOL)<>""
+#  If [F:POQ]POHNUM<>[M:PTH1]POHNUM(NOL)
+#&  | [F:POQ]POPLIN<>[M:PTH1]POPLIN(NOL)
+#&  | [F:POQ]POQSEQ<>[M:PTH1]POQSEQ(NOL)
+#    Read [POQ] POQ0=[M:PTH1]POHNUM(NOL);[M:PTH1]POPLIN(NOL);[M:PTH1]POQSEQ(NOL)
+#    If fstat  Raz [F:POQ] : Endif
+#  Endif
+#  #----- Il y a une quantité facturée -----#
+#  If [F:POQ]INVQTYPUU<>0
+#    Raz WNUM, WQTE, WLINTYP
+#    #----- Recherche d'une facture validée pointant sur la ligne de commande -----#
+#    For [PID] PID1 Where TYPORI=1
+#&                      & NUMORI=[F:POQ]POHNUM
+#&                      & LINORI=[F:POQ]POPLIN
+#&                      & SEQORI=[F:POQ]POQSEQ
+#       Read [PIH] PIH0=[F:PID]NUM : If fstat  Raz [F:PIH] : Endif
+#       If [F:PIH]STA=3
+#         If [F:PID]LINTYP=2 & [F:PID]QTYUOM<>0
+#           WPRIPUR=[F:PID]NETPRI*[F:PID]QTYUOM
+#         Else
+#           WPRIPUR=[F:PID]NETPRI
+#         Endif
+#         WUOM   =[F:PID]UOM
+#         WCUR   =[F:PIH]CUR
+#         If [F:PID]QTYUOM<>0
+#           WCOEFF=arr([F:PID]QTYSTU/[F:PID]QTYUOM,0.00000001)
+#         Else
+#           Call PCAL_QTY(1,WUOM,GBIDD1,[M:PTH1]STU(NOL),[M:PTH1]ITMREF(NOL),
+#&                        [M:PTH0]BPSNUM,3,WCOEFF) From TRTACHQTE1
+#           WCOEFF=arr([L]WCOEFF,0.00000001)
+#         Endif
+#         WNUM   =[F:PID]NUM
+#         WQTE   =[F:PID]QTYUOM
+#         WLINTYP=[F:PID]LINTYP
+#         Break
+#       Endif
+#    Next
+#    #----- Si ligne produit fini, recherche lignes service et matière -----#
+#    If WLINTYP=2
+#      For [PID] PID1 Where TYPORI =1
+#&                        & NUMORI =[F:POQ]POHNUM
+#&                        & LINORI>=[F:POQ]POPLIN
+#&                        & NUM    =WNUM
+#&                        & LINTYP> 2
+#        If [F:PID]QTYUOM<>0
+#          WPRIPUR+=[F:PID]NETPRI*[F:PID]QTYUOM
+#        Else
+#          WPRIPUR+=[F:PID]NETPRI
+#        Endif
+#      Next
+#      If WQTE<>0
+#        WPRIPUR/=WQTE
+#      Endif
+#    Endif
+#    #-----
+#    If WPRIPUR=0
+#      Raz WNUM, WQTE, WLINTYP
+#      #----- Recherche d'une facture validée pointant sur les réceptions de la ligne de commande -----#
+#      For [PTDB] PTD2 Where POHNUM=[F:POQ]POHNUM
+#&                         & POPLIN=[F:POQ]POPLIN
+#&                         & POQSEQ=[F:POQ]POQSEQ
+#        For [PID] PID1 Where TYPORI=2
+#&                          & NUMORI=[F:PTDB]PTHNUM
+#&                          & LINORI=[F:PTDB]PTDLIN
+#          Read [PIH]PIH0=[F:PID]NUM
+#          If fstat : Raz [F:PIH] : Endif
+#          If [F:PIH]STA=3
+#            If [F:PID]LINTYP=2 & [F:PID]QTYUOM<>0
+#              WPRIPUR=[F:PID]NETPRI*[F:PID]QTYUOM
+#            Else
+#              WPRIPUR=[F:PID]NETPRI
+#            Endif
+#            WUOM   =[F:PID]UOM
+#            WCUR   =[F:PIH]CUR
+#            If [F:PID]QTYUOM<>0
+#              WCOEFF=arr([F:PID]QTYSTU/[F:PID]QTYUOM,0.00000001)
+#            Else
+#              Call PCAL_QTY(1,WUOM,GBIDD1,[M:PTH1]STU(NOL),[M:PTH1]ITMREF(NOL),
+#&                           [M:PTH0]BPSNUM,3,WCOEFF) From TRTACHQTE1
+#              WCOEFF=arr(WCOEFF,0.00000001)
+#            Endif
+#            WNUM   =[F:PID]NUM
+#            WQTE   =[F:PID]QTYUOM
+#            WLINTYP=[F:PID]LINTYP
+#            Break 2
+#          Endif
+#        Next
+#      Next
+#      #----- Si ligne produit fini, recherche lignes service et matière -----#
+#      If WLINTYP=2
+#        For [PID] PID1 Where TYPORI =2
+#&                          & NUMORI =[F:PTDB]PTHNUM
+#&                          & LINORI>=[F:PTDB]PTDLIN
+#&                          & NUM    =WNUM
+#&                          & LINTYP> 2
+#          If [F:PID]QTYUOM<>0
+#            WPRIPUR+=[F:PID]NETPRI*[F:PID]QTYUOM
+#          Else
+#            WPRIPUR+=[F:PID]NETPRI
+#          Endif
+#        Next
+#        If WQTE<>0
+#          WPRIPUR/=WQTE
+#        Endif
+#      Endif
+#      #-----
+#    Endif
+#  Endif
+#Endif
+#----- Récupération prix d'achat sur réception -----#
+If WPRIPUR=0
+  If [M:PTH1]LINTYP(NOL)=2
+    J=NOL+1
+    While [M:PTH1]LINTYP(J)>2 & J<[M:PTH1]NBLIG
+      If [M:PTH1]QTYUOM(J)<>0
+        WPRIPUR+=[M:PTH1]NETPRI(J)*[M:PTH1]QTYUOM(J)
+      Else
+        WPRIPUR+=[M:PTH1]LINAMT(J)
+      Endif
+      J+=1
+    Wend
+    If [M:PTH1]QTYUOM(NOL)<>0
+      WPRIPUR/=[M:PTH1]QTYUOM(NOL)
+    Endif
+  Else
+    WPRIPUR=[M:PTH1]NETPRI(NOL)
+  Endif
+  WUOM  =[M:PTH1]UOM(NOL)
+  WCUR  =[M:PTH1]NETCUR(NOL)
+  WCOEFF=[M:PTH1]UOMSTUCOE(NOL)
+Endif
+#----- Conversion si nécessaire du montant en devise société -----#
+If WCUR<>GLOCALDEV
+  If GPTHCURDAT<>2 & [M:PTH1]POHNUM(NOL)<>""
+    If [F:POH]POHNUM<>[M:PTH1]POHNUM(NOL)
+      Read [POH] POH0=[M:PTH1]POHNUM(NOL)
+      If fstat
+        Raz [F:POH] : [F:POH]ORDDAT=[M:PTH0]RCPDAT : [F:POH]CHGTYP=[M:PTH0]CHGTYP
+      Endif
+    Endif
+    Call CONVERT2(WCUR,GLOCALDEV,GLOCALDEV,[F:POH]CHGTYP,[F:POH]ORDDAT,
+&                  WPRIPUR,WPRIPUR,WSTAT) From TRTDEV
+  Else
+    If [M:PTH0]CHGCOE=0
+      Call CONVERT2(WCUR,GLOCALDEV,GLOCALDEV,[M:PTH0]CHGTYP,[M:PTH0]RCPDAT,
+&                    WPRIPUR,WPRIPUR,WSTAT) From TRTDEV
+    Else
+      WPRIPUR=WPRIPUR*[M:PTH0]CHGCOE
+    Endif
+  Endif
+Endif
+#----- Le prix unitaire d'achat doit être par unité de stock -----#
+If WUOM<>[M:PTH1]STU(NOL)
+  If WCOEFF=0  WCOEFF=1 : Endif
+  WPRIPUR=arr(WPRIPUR/WCOEFF,10^-GDECPRI)
+Else
+  WPRIPUR=arr(WPRIPUR,10^-GDECPRI)
+Endif
+End
+
+##################################################################
+#Calcul du prix dans le cas de la surfacturation
+################
+# Si CAS_WPRIPUR=1 , on alimente [M:PTH1]CPR(NOL)
+# Si CAS_WPRIPUR=2 , on alimente WPRIPUR
+##################################################################
+$CALCUL_SUR_PRIPUR
+#-----
+Local    Char    WUOM(GLONUOM)
+Local    Char    WCUR(GLONCUR)
+Local    Integer WSTAT
+Local    Decimal WCOEFF
+Local    Char    WNUM(GLONPIH)
+Local    Decimal WQTE
+Local    Integer WLINTYP
+Local    Integer J
+#-----
+
+If [M:PTH1]POHNUM(NOL)<>""
+  If [F:POQ]POHNUM<>[M:PTH1]POHNUM(NOL)
+&  | [F:POQ]POPLIN<>[M:PTH1]POPLIN(NOL)
+&  | [F:POQ]POQSEQ<>[M:PTH1]POQSEQ(NOL)
+    Read [POQ] POQ0=[M:PTH1]POHNUM(NOL);[M:PTH1]POPLIN(NOL);[M:PTH1]POQSEQ(NOL)
+    If fstat  Raz [F:POQ] : Endif
+  Endif
+Endif
+# Issue 77436 - 2011-11-14 by VPO : modif calcul prix réception
+#&                          & [F:POQ]INVQTYSTU-[F:POQ]RCPQTYPUU>0
+If [M:PTH1]POHNUM(NOL)<>"" & [F:POQ]POHNUM=[M:PTH1]POHNUM(NOL)
+&                          & [F:POQ]INVQTYSTU-[F:POQ]RCPQTYSTU>0
+&                          & [M:PTH1]LINTYP(NOL)<3
+  If dim(WSTAT)<0  Local Integer WSTAT : Endif
+  Call LOATCM([M:PTH1]ITMREF(NOL),[M:PTH0]PRHFCY,3,[M:PTH0]TRSCOD,WSTAT) From STKVAL
+  If !WSTAT & [F:TCM]PRIREG=2
+    #----------------------------------------------------------#
+    # Point d'entrée CHXPRIORD pour choisir le prix de l'ordre #
+    # -------------------------------------------------------- #
+    # Variables utilisables par le point d'entrée :            #
+    # La classe [M:PTH1], [F:POQ]                              #
+    # NOL      : indice de la ligne en cours de traitement     #
+    # -------------------------------------------------------- #
+    # Variables modifiables par le point d'entrée :            #
+    # WPRIFLG : Indicateur pour alimentation prix ordre        #
+    #           1 = prix de la commande                        #
+    #           2 = prix de la 1ère facture                    #
+    #           3 = prix de la 1ère facture + fact.complément. #
+    #           4 = prix de la dernière facture                #
+    #           5 = prix de la dernière facture + fact.compl.  #
+    #           6 = prix spécifique indiqué dans WPRIORD       #
+    # WPRIORD : Prix ordre spécifique par US en devise société #
+    #----------------------------------------------------------#
+    Local Integer WPRIFLG : WPRIFLG=3
+    Local Decimal WPRIORD
+    #-----
+    Gosub POINT_CHXPRIORD From SUBPTHA
+    #-----
+    If WPRIFLG=6
+      If CAS_WPRIPUR=1
+        [M:PTH1]CPR(NOL)=WPRIORD
+        # Issue 84130 - 2013-03-07 by MUARN : landed cost
+        [M:PTH1]CPRCLC(NOL)=WPRIORD
+      Else
+        WPRIPUR=arr(WPRIORD/[M:PTH1]CPRCOE(NOL),10^-GDECPRI)
+      Endif
+    Elsif WPRIFLG>1 & WPRIFLG<6
+      #----- Recherche facture sur la ligne de commande -----#
+      If WPRIFLG=4 | WPRIFLG=5
+        # Issue 84130 - 2013-06-11 by MUARN : ajout PIHTYP
+        Filter [PID] Where TYPORI=1
+&                        & NUMORI=[M:PTH1]POHNUM(NOL)
+&                        & LINORI=[M:PTH1]POPLIN(NOL)
+&                        & SEQORI=[M:PTH1]POQSEQ(NOL)
+&                        & PIHTYP=1
+&                    Order By Key PID1 Desc
+      Else
+        # Issue 84130 - 2013-06-11 by MUARN : ajout PIHTYP
+        Filter [PID] Where TYPORI=1
+&                        & NUMORI=[M:PTH1]POHNUM(NOL)
+&                        & LINORI=[M:PTH1]POPLIN(NOL)
+&                        & SEQORI=[M:PTH1]POQSEQ(NOL)
+&                        & PIHTYP=1
+&                    Order By Key PID1 Asc
+      Endif
+      For [PID]
+        Read [PIH] PIH0=[F:PID]NUM : If fstat  Raz [F:PIH] : Endif
+        If [F:PIH]STA=3
+          If CAS_WPRIPUR=1
+             # Issue 77436 - 2011-11-14 by VPO : modif calcul prix réception
+             #[M:PTH1]INVQTYSTU(NOL)=[F:POQ]INVQTYSTU-[F:POQ]RCPQTYPUU
+             [M:PTH1]INVQTYSTU(NOL)=[F:POQ]INVQTYSTU-[F:POQ]RCPQTYSTU
+             [M:PTH1]CPR(NOL)=[F:PID]CPR
+             # Issue 84130 - 2013-03-07 by MUARN : landed cost
+             [M:PTH1]CPRCLC(NOL)=[F:PID]CPR
+             If WPRIFLG=3 | WPRIFLG=5  Gosub FAC_COMPLEMENT : Endif
+             Break
+          Else
+             If [F:PID]LINTYP=2 & [F:PID]QTYUOM<>0
+               WPRIPUR=[F:PID]NETPRI*[F:PID]QTYUOM
+             Else
+               WPRIPUR=[F:PID]NETPRI
+             Endif
+             WUOM   =[F:PID]UOM
+             WCUR   =[F:PIH]CUR
+             If [F:PID]QTYUOM<>0
+               WCOEFF=arr([F:PID]QTYSTU/[F:PID]QTYUOM,0.00000001)
+             Else
+               Call PCAL_QTY(1,WUOM,GBIDD1,[M:PTH1]STU(NOL),[M:PTH1]ITMREF(NOL),
+&                           [M:PTH0]BPSNUM,3,WCOEFF) From TRTACHQTE1
+               WCOEFF=arr([L]WCOEFF,0.00000001)
+             Endif
+             WNUM   =[F:PID]NUM
+             WQTE   =[F:PID]QTYUOM
+             WLINTYP=[F:PID]LINTYP
+             If WPRIFLG=3 | WPRIFLG=5  Gosub FAC_COMPLEMENT : Endif
+             Break
+          Endif
+        Endif
+      Next
+      Filter [PID]
+      #----- Si ligne produit fini, recherche lignes service et matière -----#
+      If CAS_WPRIPUR=2 & WLINTYP=2
+        For [PID] PID1 Where TYPORI =1
+&                        & NUMORI =[F:POQ]POHNUM
+&                        & LINORI>=[F:POQ]POPLIN
+&                        & NUM    =WNUM
+&                        & LINTYP> 2
+          If [F:PID]QTYUOM<>0
+            WPRIPUR+=[F:PID]NETPRI*[F:PID]QTYUOM
+          Else
+            WPRIPUR+=[F:PID]NETPRI
+          Endif
+        Next
+        If WQTE<>0
+          WPRIPUR/=WQTE
+        Endif
+      Endif
+      #----- Recherche facture sur autres réceptions de la ligne de commande -----#
+      # Issue 84130 - 2013-03-07 by MUARN : LANDED COST-cpr alimenté par commande donc non nul, CPRCLC non alimenté par commande
+      If (CAS_WPRIPUR=1 & [M:PTH1]CPRCLC(NOL)=0) |(CAS_WPRIPUR=2 & WPRIPUR=0)
+        Raz WNUM, WQTE, WLINTYP
+        For [PTDB] PTD2 Where POHNUM=[M:PTH1]POHNUM(NOL)
+&                           & POPLIN=[M:PTH1]POPLIN(NOL)
+&                           & POQSEQ=[M:PTH1]POQSEQ(NOL)
+          #-----
+#--- TS LDC - Ajout filtre sur PIHTYP
+          If WPRIFLG=4 | WPRIFLG=5
+            Filter [PID] Where TYPORI=2
+&                            & NUMORI=[F:PTDB]PTHNUM
+&                            & LINORI=[F:PTDB]PTDLIN
+&                            & PIHTYP=1
+&                        Order By Key PID1 Desc
+          Else
+            Filter [PID] Where TYPORI=2
+&                            & NUMORI=[F:PTDB]PTHNUM
+&                            & LINORI=[F:PTDB]PTDLIN
+&                            & PIHTYP=1
+&                        Order By Key PID1 Asc
+          Endif
+          #-----
+          For [PID]
+            Read [PIH] PIH0=[F:PID]NUM : If fstat  Raz [F:PIH] : Endif
+            If [F:PIH]STA=3
+              If CAS_WPRIPUR=1
+                # Issue 97129 - 2014-02-24 by MUARN : RCPQTYPUU remplacé par RCPQTYPUU
+                [M:PTH1]INVQTYSTU(NOL)=[F:POQ]INVQTYSTU-[F:POQ]RCPQTYSTU
+                [M:PTH1]CPR(NOL)=[F:PID]CPR
+                # Issue 84130 - 2013-03-07 by MUARN : landed cost
+                [M:PTH1]CPRCLC(NOL)=[M:PTH1]CPR(NOL)
+                If WPRIFLG=3 | WPRIFLG=5  Gosub FAC_COMPLEMENT : Endif
+                Break 2
+              Else
+                If [F:PID]LINTYP=2 & [F:PID]QTYUOM<>0
+                  WPRIPUR=[F:PID]NETPRI*[F:PID]QTYUOM
+                Else
+                  WPRIPUR=[F:PID]NETPRI
+                Endif
+                WUOM   =[F:PID]UOM
+                WCUR   =[F:PIH]CUR
+                If [F:PID]QTYUOM<>0
+                  WCOEFF=arr([F:PID]QTYSTU/[F:PID]QTYUOM,0.00000001)
+                Else
+                  Call PCAL_QTY(1,WUOM,GBIDD1,[M:PTH1]STU(NOL),[M:PTH1]ITMREF(NOL),
+&                              [M:PTH0]BPSNUM,3,WCOEFF) From TRTACHQTE1
+                  WCOEFF=arr(WCOEFF,0.00000001)
+                Endif
+                WNUM   =[F:PID]NUM
+                WQTE   =[F:PID]QTYUOM
+                WLINTYP=[F:PID]LINTYP
+                If WPRIFLG=3 | WPRIFLG=5  Gosub FAC_COMPLEMENT : Endif
+                Break 2
+              Endif
+            Endif
+          Next
+        Next
+        Filter [PID]
+        #----- Si ligne produit fini, recherche lignes service et matière -----#
+        If CAS_WPRIPUR=2 & WLINTYP=2
+          For [PID] PID1 Where TYPORI =2
+&                          & NUMORI =[F:PTDB]PTHNUM
+&                          & LINORI>=[F:PTDB]PTDLIN
+&                          & NUM    =WNUM
+&                          & LINTYP> 2
+            If [F:PID]QTYUOM<>0
+              WPRIPUR+=[F:PID]NETPRI*[F:PID]QTYUOM
+            Else
+              WPRIPUR+=[F:PID]NETPRI
+            Endif
+          Next
+          If WQTE<>0
+            WPRIPUR/=WQTE
+          Endif
+        Endif
+      #-----
+      Endif
+      #-----
+    Endif
+  Endif
+Endif
+#-----
+Return
+
+###############################################################################
+# Préparation des sections analytiques                                        #
+# --------------------------------------------------------------------------- #
+# Si l'axe est suivi en analytique et que la section correspondante est vide  #
+#    il faut forcer l'initialisation grâce au Raz                             #
+# Si l'axe n'est pas suivi en analytique                                      #
+#    il faut "mettre  à blanc" la section correspondante                      #
+# --------------------------------------------------------------------------- #
+# NOL contient l'indice de la ligne en cours                                  #
+# [M:PTH1]LINACC1-10(NOL) contient les compte                                 #
+# GBIDI2 : 0 = Pas d'affichage des sections analytiques                       #
+#          1 = Affichage des sections analytiques                             #
+###############################################################################
+$PREP_INIT_CCE
+#-----
+If dim(J)<1    Local Integer J             : Endif
+If dim(WCCE)<1 Local Char    WCCE(GLONCCE) : Endif
+#----- Pas de section si pas de suivi analytique sur l'axe concerné -----#
+For J=1 To GNBDIE
+  WCCE=evalue("[M:PTH1]CCE"+num$(J)+"(NOL)")
+  Raz mkstat
+  Call SAIS_CCE(WCCE,J,"[M:PTH1]LINACC","") From TRTX3CPT
+  If mkstat
+    Assign "[M:PTH1]CCE"+num$(J)+"(NOL)" With ""
+    Raz mkstat
+  Elsif evalue("[M:PTH1]CCE"+num$(J)+"(NOL)")=""
+    #----- Raz pour forcer l'initialisation -----#
+    Case J
+      When  1 : Raz [M:PTH1]CCE1 (NOL)
+      When  2 : Raz [M:PTH1]CCE2 (NOL)
+      When  3 : Raz [M:PTH1]CCE3 (NOL)
+      When  4 : Raz [M:PTH1]CCE4 (NOL)
+      When  5 : Raz [M:PTH1]CCE5 (NOL)
+      When  6 : Raz [M:PTH1]CCE6 (NOL)
+      When  7 : Raz [M:PTH1]CCE7 (NOL)
+      When  8 : Raz [M:PTH1]CCE8 (NOL)
+      When  9 : Raz [M:PTH1]CCE9 (NOL)
+      When 10 : Raz [M:PTH1]CCE10(NOL)
+      When 11 : Raz [M:PTH1]CCE11(NOL)
+      When 12 : Raz [M:PTH1]CCE12(NOL)
+      When 13 : Raz [M:PTH1]CCE13(NOL)
+      When 14 : Raz [M:PTH1]CCE14(NOL)
+      When 15 : Raz [M:PTH1]CCE15(NOL)
+      When 16 : Raz [M:PTH1]CCE16(NOL)
+      When 17 : Raz [M:PTH1]CCE17(NOL)
+      When 18 : Raz [M:PTH1]CCE18(NOL)
+      When 19 : Raz [M:PTH1]CCE19(NOL)
+      When 20 : Raz [M:PTH1]CCE20(NOL)
+    Endcase
+  Endif
+Next J
+#----- Affichage des sections analytiques -----#
+If GBIDI2=1
+  Gosub AFFICH_CCE From SUBPTH
+Endif
+Return
+
+
+#######################################################
+#   Création d'une ligne de DL suite à un splittage   #
+# --------------------------------------------------- #
+# La classe [F:POQ] doit être chargée (DL à splitter) #
+# L'insertion de la nouvelle ligne de DL essaie de se #
+# faire d'abord après puis avant la ligne à splitter  #
+#######################################################
+Subprog SPLITTAGE_DL
+#-----
+If !clalev([F:POQW])  Local File PORDERQ  [POQW] : Endif
+#-----
+Local Integer WSTAT, IND, WPOQSEQ, WDELTA, WSENS
+#-----
+# Issue 80138 - 2012-02-23 by SR
+If [F:ITM]ITMREF <> [F:POQ]ITMREF
+  Read [ITM] ITM0=[F:POQ]ITMREF : If fstat  Raz [F:ITM] : Endif
+Endif
+WPOQSEQ=[F:POQ]POQSEQ
+WDELTA =0
+#----- Tentative d'insertion après -----#
+WSENS=+1
+Filter [POQW] Where POHNUM=[F:POQ]POHNUM & POPLIN=[F:POQ]POPLIN & POQSEQ>[F:POQ]POQSEQ
+Read [POQW] POQ0 First
+If fstat
+  Raz [F:POQW]
+  If WPOQSEQ>99998000  WDELTA=(99999999-WPOQSEQ)/2  Else  WDELTA=1000 : Endif
+Else
+  WDELTA=([F:POQW]POQSEQ-WPOQSEQ)/2
+Endif
+#----- Tentative d'insertion avant -----#
+If WDELTA=0
+  WSENS=-1
+  Filter [POQW] Where POHNUM=[F:POQ]POHNUM & POPLIN=[F:POQ]POPLIN & POQSEQ<[F:POQ]POQSEQ
+  Read [POQW] POQ0 Last
+  If fstat
+    Raz [F:POQW]
+    If WPOQSEQ<2000  WDELTA=WPOQSEQ/2  Else  WDELTA=1000 : Endif
+  Else
+    WDELTA=(WPOQSEQ-[F:POQW]POQSEQ)/2
+  Endif
+Endif
+#-----
+Filter [POQW]
+#----- Pas d'insertion possible -----#
+If WDELTA=0
+  #----- La DL à insérer peut-elle être fusionnée avec une autre DL ? -----#
+  If !clalev([F:POQS])  Local File PORDERQ  [POQS] : Endif
+  WPOQSEQ=[F:POQ]POQSEQ
+  Gosub CHARG_SPLITTAGE
+  [F:POQS]=[F:POQ]
+  [F:POQ] =[F:POQW]
+  Call FUSION_DL(1) From SUBPTHB
+  #----- Erreur à la fusion, abandon de la transaction de màj -----#
+  If GOK<1
+    [F:POQ]=[F:POQS]
+  #----- La DL à insérer a pu être fusionnée, réécriture de la DL résultante -----#
+  Elsif [F:POQ]POQSEQ<>WPOQSEQ
+    WPOQSEQ =[F:POQ]POQSEQ
+    [F:POQW]=[F:POQ]
+    [F:POQW]POQLNK = mid$("00000000",1,8-len(num$([F:POQW]POPLIN)))+num$([F:POQW]POPLIN)
+&                  + mid$("00000000",1,8-len(num$([F:POQW]POQSEQ)))+num$([F:POQW]POQSEQ)
+    #----- Relecture ligne de commande réceptionnée avant splittage -----#
+    Readlock [POQ] POQ0=[F:PTD]POHNUM;[F:PTD]POPLIN;[F:PTD]POQSEQ
+    If fstat=1
+      GOK=-1 : GLOCK = "$PORDERQ"-[F:PTD]POHNUM-num$([F:PTD]POPLIN)
+    Elsif fstat
+      GOK=0  : Call RSTA ("POQ",[F:PTD]POHNUM-num$([F:PTD]POPLIN)) From GLOCK
+    Endif
+    #-----
+    [F:POQ] =[F:POQS]
+    #-----
+    Gosub ENREG_SPLITTAGE
+  #----- Erreur car impossibilité d'écrire la nouvelle DL résultant du splittage -----#
+  Else
+    [F:POQ] =[F:POQS]
+    GOK=0 : Call ERREUR([F:POQ]POHNUM-mess(337,194,1)) From GESECRAN
+  Endif
+#----- La DL résultant du splittage peut être insérée -----#
+Else
+  # SR 09.11 Demande 75817
+# WDELTA=min(WDELTA,4) : # On limite le séquencement à 4
+  WDELTA=min(WDELTA,GSTEP3) : # On limite le séquencement à GSTEP3 qui vaut 4 en standard(modifiable par point d'entrée)
+  WPOQSEQ+=WDELTA*WSENS
+  Gosub CHARG_SPLITTAGE
+  Gosub ENREG_SPLITTAGE
+Endif
+#-----
+End
+
+#-------------------------------------------------#
+# Chargement du buffer de la nouvelle ligne de DL #
+#-------------------------------------------------#
+$CHARG_SPLITTAGE
+[F:POQW]       = [F:POQ]
+[F:POQW]POQSEQ = WPOQSEQ
+[F:POQW]POQLNK = mid$("00000000",1,8-len(num$([F:POQW]POPLIN)))+num$([F:POQW]POPLIN)
+&              + mid$("00000000",1,8-len(num$([F:POQW]POQSEQ)))+num$([F:POQW]POQSEQ)
+[F:POQW]QTYPUU = [F:POQ]QTYPUU-[F:POQ]RCPQTYPUU
+[F:POQW]QTYSTU = [F:POQ]QTYSTU-[F:POQ]RCPQTYSTU
+[F:POQW]QTYUOM = [F:POQW]QTYPUU
+#-----
+Raz [F:POQW]RCPQTYPUU, [F:POQW]RCPQTYSTU, [F:POQW]INVQTYPUU, [F:POQW]INVQTYSTU
+Raz [F:POQW]LINRCPNBR, [F:POQW]LININVNBR, [F:POQW]INVRCPNBR
+#----- Mise à jour qtés besoins pris en compte -----#
+If [F:POQ]RETQTYPUU>[F:POQ]RCPQTYPUU
+  [F:POQW]RETQTYPUU = [F:POQ]RETQTYPUU-[F:POQ]RCPQTYPUU
+  [F:POQW]RETQTYSTU = [F:POQ]RETQTYSTU-[F:POQ]RCPQTYSTU
+Else
+  [F:POQW]RETQTYPUU = 0
+  [F:POQW]RETQTYSTU = 0
+Endif
+#-----
+If [M:PTH1]WSOLDE(nolign-1)=2 & [M:PTH1]CREFLG(nolign-1)=0
+  [F:POQW]LINCLEFLG = 2
+  [F:POQW]RCPCLEFLG = 1
+  [F:POQW]CMMFLG    = 1
+  [F:POQW]LINSTA    = 3
+Else
+  [F:POQW]LINCLEFLG = 1
+  [F:POQW]RCPCLEFLG = 1
+  [F:POQW]CMMFLG    = 1
+  If [F:POQW]DEMRCPDAT<[F:POC]EARDAT
+    [F:POQW]LINSTA  = 2
+  Else
+    [F:POQW]LINSTA  = 1
+  Endif
+Endif
+#-----
+[F:POQW]LININVFLG = 1
+[F:POQW]LINPRNFLG = 1
+#-----
+[F:POQW]LINAMT    = [F:POQW]QTYPUU*[F:POQ]LINAMT/[F:POQ]QTYPUU
+Call ARRDEV([F:POQW]LINAMT,[F:POH]CUR) From TRTDIV
+[F:POQW]LINATIAMT = [F:POQW]QTYPUU*[F:POQ]LINATIAMT/[F:POQ]QTYPUU
+Call ARRDEV([F:POQW]LINATIAMT,[F:POH]CUR) From TRTDIV
+[F:POQW]LINATI    = [F:POQW]QTYPUU*[F:POQ]LINATI/[F:POQ]QTYPUU
+Call ARRDEV([F:POQW]LINATI,[F:POH]CUR) From TRTDIV
+Return
+
+#-------------------------------------------#
+# Enregistrement de la nouvelle ligne de DL #
+#-------------------------------------------#
+$ENREG_SPLITTAGE
+#----- Création de l'encours si nécessaire -----#
+# Issue 80138 - 2012-02-23 by SR
+If [F:POQW]LINCLEFLG<>2 & [F:ITM]STOMGTCOD > 1
+  Raz [F:POQW]WIPNUM
+  Call NUMERO(GWIP,[F:POQW]PRHFCY,date$,"",[F:POQW]WIPNUM,WSTAT) From SUBANM
+  If GOK<0
+    Return
+  Elsif GOK<1 | WSTAT<>0
+    GOK=0 : GERR=1 : GMESSAGE=GWIP-mess(60,199,1) : Return
+  Endif
+  #----- Lecture de l'encours d'origine -----#
+  Read [ORD] ORD0=[F:POQ]WIPTYP;[F:POQ]WIPNUM;[F:POQ]ITMREF
+  If fstat  Raz [F:ORD] : Endif
+  [M:ORDK]       = [F:ORD]
+  [M:ORDK]MAJCOD = "C"
+  [M:ORDK]WIPTYP = [F:POQW]WIPTYP
+  [M:ORDK]WIPSTA = 1
+  [M:ORDK]WIPNUM = [F:POQW]WIPNUM
+  [M:ORDK]ITMREF = [F:POQW]ITMREF
+  [M:ORDK]STOFCY = [F:POQW]PRHFCY
+  [M:ORDK]PJT    = [F:POP]PJT
+  [M:ORDK]BPRNUM = [F:POQW]BPSNUM
+  [M:ORDK]STRDAT = [F:POQW]ORDDAT
+  [M:ORDK]ENDDAT = [F:POQW]EXTRCPDAT
+  [M:ORDK]VCRTYP = 14
+  [M:ORDK]VCRNUM = [F:POQW]POHNUM
+  [M:ORDK]VCRLIN = [F:POQW]POPLIN
+  [M:ORDK]VCRSEQ = [F:POQW]POQSEQ
+  [M:ORDK]EXTQTY = [F:POQW]QTYSTU
+  [M:ORDK]CPLQTY = 0
+  [M:ORDK]ALLQTY = 0
+  [M:ORDK]SHTQTY = 0
+  [M:ORDK]FMI    = 1
+  [M:ORDK]MRPMES = 1
+  # Issue 71276 - 2015-02-27 by SR : Versions
+  If dim([M:ORDK]ECCVALMAJ)> 0
+   [M:ORDK]ECCVALMAJ = [F:POQW]ECCVALMAJ
+   [M:ORDK]ECCVALMIN = [F:POQW]ECCVALMIN
+  Endif
+  # End issue 71276
+  #----- Chargement infos origine si erreur lecture sur l'ordre à modifier -----#
+  If [F:ORD]WIPNUM=""
+    [M:ORDK]ORIFCY    = [F:POQW]POHFCY
+    [M:ORDK]VCRTYPORI = 0
+    [M:ORDK]VCRNUMORI = ""
+    [M:ORDK]VCRLINORI = 0
+    [M:ORDK]VCRSEQORI = 0
+  Endif
+  #-----
+  [M:ORDK]BOMALT = 0
+  [M:ORDK]ORI    = 1
+  [M:ORDK]ABBFIL = "POC"
+  Call WIP From TRTWIP : If GOK<1   Return  : Endif
+Endif
+#-----
+[F:POQW]PTHNUM = ""
+[F:POQW]PTDLIN = 0
+[F:POQW]EXPNUM = 0
+#-----
+[F:POQW]CREUSR = GUSER
+[F:POQW]CREDAT = date$
+#---------------------------------------------------------------#
+#  Point d'entrée MAJDL pour alimentation de zones spécifiques  #
+# ------------------------------------------------------------- #
+# Variables utilisables par le point d'entrée                   #
+#                                                               #
+# TYPMAJ  : Type de mise à jour                                 #
+#           6 = éclatement DL (création nouvelle DL)            #
+# FICHIER : Nom de la table qui va être écrite "PORDERQ"        #
+# ABRFIC  : Abréviation de la table qui va être écrite "POQW"   #
+# La classe [F:POQW] est modifiable avant le Write              #
+#---------------------------------------------------------------#
+Local Libelle  TYPMAJ
+Local Char     FICHIER(GLONATB)
+Local Char     ABRFIC(4)
+TYPMAJ=6 : ABRFIC="POQW" : Gosub POINT_MAJDL From TRTACHPOD1
+#-----
+Write [POQW]
+If fstat GOK=0 : Call FSTA ("POQW") From GLOCK : Return : Endif
+#---------------------------------------------------------#
+# Si on a dans l'écran une ligne qui correspond au POQSEQ #
+# Le nouveau WPOQSEQ doit remplacer POQSEQ                #
+#---------------------------------------------------------#
+IND = 0
+While IND<[M:PTH1]NBLIG
+ If [M:PTH1]ITMREF(IND) = [F:POQ]ITMREF & [M:PTH1]POHNUM(IND) = [F:POQ]POHNUM &
+&   [M:PTH1]POPLIN(IND) = [F:POQ]POPLIN & [M:PTH1]POQSEQ(IND) = [F:POQ]POQSEQ &
+&   [M:PTH1]CREFLG(IND) = 0 & (nolign-1) <> IND
+    [M:PTH1]POQSEQ(IND) = WPOQSEQ
+ Endif
+ IND += 1
+Wend
+# Issue X3-58532 - 2018-04-03 by SR : Aucune raison de désengager ici
+##----- Désengagement si le splittage créé est soldé -----#
+#If [F:POQW]LINCLEFLG=2
+#  WPOQSEQ=[F:POQW]POQSEQ
+#  [F:POQW]=[F:POQ]
+#  Call TRTMAJCMM([F:POQ]POHNUM,[F:POQ]POPLIN,WPOQSEQ,-1,2,"POQ2",0,GBIDI1) From TRTACHDIV1
+#  # Issue 82005 - 2012-05-10 by MUARN : déduire la quantié de l'encours du stock
+#  If dim(WRETOUR)<0  Local Integer  WRETOUR  : Endif
+#  Call LECITV([F:PTD]PRHFCY,[F:PTD]ITMREF,"",WRETOUR) From STKLIB
+#  If GOK<>1 Return : Endif
+#  If WRETOUR=0 [F:ITV]ORDSTO-=[F:POQ]QTYSTU : Endif
+#  If WRETOUR>2   Return : Endif
+#  Rewrite [ITV]
+#  If fstat  GOK=0 : Call FSTA("ITV") From GLOCK : Return : Endif
+#  # fin Issue 82005 - 2012-05-10 by MUARN : déduire la quantié de l'encours du stock
+#  #----- Relecture ligne de commande réceptionnée (avant splittage) -----#
+#  Readlock [POQ] POQ0=[F:PTD]POHNUM;[F:PTD]POPLIN;[F:PTD]POQSEQ
+#  If fstat=1
+#    GOK=-1 : GLOCK = "$PORDERQ"-[F:PTD]POHNUM-num$([F:PTD]POPLIN)
+#  Elsif fstat
+#    GOK=0  : Call RSTA ("POQ",[F:PTD]POHNUM-num$([F:PTD]POPLIN)) From GLOCK
+#  Endif
+#  #-----
+#  [F:POQ]=[F:POQW]
+#Endif
+# End issue X3-58532
+#-----
+Return
+
+
+########################################################
+#  Essai de fusion d'une DL suite à une modification   #
+#       ou suppression d'une ligne de réception        #
+# ---------------------------------------------------- #
+# La classe [F:POQ] doit être chargée (DL à fusionner) #
+# La fusion essaie de se faire avec la DL suivante ou  #
+# précédente si :                                      #
+#   - EXTRCPDAT/CAD/YEA/MON/WEE la date est identique  #
+#   - WIPSTA le statut encours est identique           #
+#   - CMMNUM le no engagement est identique (WTRAIT=2) #
+#   - PTHNUM le numéro de réception est vide           #
+#   - SOHNUM le numéro de cde vente est vide           #
+#   - SDHNUM le numéro de liv vente est vide           #
+#   - RCPQTYPUU/RCPQTYSTU la qté réceptionnée est 0    #
+#   - INVQTYPUU/INVQTYSTU la qté facturée est 0        #
+#   - LINRCPNBR/LININVNBR les nbres rcp et fac sont 0  #
+# ---------------------------------------------------- #
+# Paramètre en entrée                                  #
+# WTRAIT : 1 = Fusion d'un splittage à créer           #
+#          2 = Fusion d'une DL existante               #
+########################################################
+Subprog FUSION_DL(WTRAIT)
+Value Integer WTRAIT
+#-----
+If !clalev([F:POQW])  Local File PORDERQ  [POQW] : Endif
+#----- Variables locales -----#
+Local Char    WPOHNUM(GLONPOH)
+Local Integer WPOPLIN
+Local Integer WPOQSEQ
+#----- Lecture DL suivante -----#
+Filter [POQW] Where POHNUM=[F:POQ]POHNUM
+&                 & POPLIN=[F:POQ]POPLIN
+&                 & POQSEQ>[F:POQ]POQSEQ
+Read [POQW] First
+Gosub DL_ELIGIBLE
+#----- Lecture DL précédente -----#
+If [F:POQW]POHNUM="" & [F:POQ]POQSEQ>1
+  Filter [POQW] Where POHNUM=[F:POQ]POHNUM
+&                   & POPLIN=[F:POQ]POPLIN
+&                   & POQSEQ<[F:POQ]POQSEQ
+  Read [POQW] Last
+  Gosub DL_ELIGIBLE
+Endif
+#-----
+Filter [POQW]
+#----- Aucune DL éligible, fusion impossible -----#
+If [F:POQW]POHNUM=""  End : Endif
+#----- Fusion des deux DL -----#
+WPOHNUM=[F:POQW]POHNUM
+WPOPLIN=[F:POQW]POPLIN
+WPOQSEQ=[F:POQW]POQSEQ
+#-----
+[F:POQ]QTYUOM   +=[F:POQW]QTYUOM
+[F:POQ]QTYPUU   +=[F:POQW]QTYPUU
+[F:POQ]QTYSTU   +=[F:POQW]QTYSTU
+[F:POQ]RETQTYPUU+=[F:POQW]RETQTYPUU
+[F:POQ]RETQTYSTU+=[F:POQW]RETQTYSTU
+[F:POQ]LINAMT   +=[F:POQW]LINAMT
+[F:POQ]LINATIAMT+=[F:POQW]LINATIAMT
+[F:POQ]LINATI   +=[F:POQW]LINATI
+#----- Suppression de l'encours de la DL fusionnée -----#
+# Issue 80138 - 2012-02-23 by SR
+If [F:POQW]LINCLEFLG<>2 & [F:ITM]STOMGTCOD > 1
+  [M:ORDK]MAJCOD="A"
+  [M:ORDK]WIPTYP=[F:POQW]WIPTYP
+  [M:ORDK]WIPNUM=[F:POQW]WIPNUM
+  [M:ORDK]ITMREF=[F:POQW]ITMREF
+  Call WIP From TRTWIP : If GOK<1  End : Endif
+Endif
+#-----
+If WTRAIT=2
+  #----- Mise à jour de l'engagement si la DL fusionnée était soldée -----#
+  If [F:POQW]LINCLEFLG=2
+    #----- Il faut dépositionner les indicateurs de solde pour la màj engagement -----#
+    Update [POQW] Where POHNUM=WPOHNUM & POPLIN=WPOPLIN & POQSEQ=WPOQSEQ
+&                  With LINCLEFLG=1, RCPCLEFLG=1
+    If fstat  GOK=0 : Call FSTA("POQW") From GLOCK : End : Endif
+    #----- Sauvegarde buffer de la DL réceptionnée intégrant la DL fusionnée -----#
+    [F:POQW]=[F:POQ]
+    Call TRTMAJCMM(WPOHNUM,WPOPLIN,WPOQSEQ,+1,2,"POQ2",0,GBIDI1) From TRTACHDIV1
+    #----- Relecture ligne de commande réceptionnée avant fusion -----#
+    If WTRAIT=2
+      Readlock [POQ] POQ0=[F:PTD]POHNUM;[F:PTD]POPLIN;[F:PTD]POQSEQ
+      If fstat=1
+        GOK=-1 : GLOCK = "$PORDERQ"-[F:PTD]POHNUM-num$([F:PTD]POPLIN)
+      Elsif fstat
+        GOK=0  : Call RSTA ("POQ",[F:PTD]POHNUM-num$([F:PTD]POPLIN)) From GLOCK
+      Endif
+    Endif
+    #----- Restitution buffer de la DL réceptionnée intégrant la DL fusionnée -----#
+    [F:POQ]=[F:POQW]
+    #-----
+    If GOK<1  End : Endif
+  Endif
+Else
+  #----- Désengagement sur l'ancien numéro d'engagement -----#
+  If [F:POQW]LINCLEFLG<>2
+    #----- Sauvegarde buffer de la DL intégrant la DL fusionnée -----#
+    [F:POQW]=[F:POQ]
+    Call TRTMAJCMM(WPOHNUM,WPOPLIN,WPOQSEQ,-1,2,"POQ1",0,GBIDI1) From TRTACHDIV1
+    #----- Restitution buffer de la DL intégrant la DL fusionnée -----#
+    [F:POQ]=[F:POQW]
+    If GOK<1  End : Endif
+  Endif
+  #----- Réengagement sur le nouveau numéro d'engagement -----#
+  Update [POQW] Where POHNUM=WPOHNUM & POPLIN=WPOPLIN & POQSEQ=WPOQSEQ
+&                With LINCLEFLG=1, RCPCLEFLG=1, CMMNUM=[F:POQ]CMMNUM, CMMFLG=[F:POQ]CMMFLG
+  If fstat  GOK=0 : Call FSTA("POQW") From GLOCK : End : Endif
+  #----- Sauvegarde buffer de la DL intégrant la DL fusionnée -----#
+  [F:POQW]=[F:POQ]
+  Call TRTMAJCMM(WPOHNUM,WPOPLIN,WPOQSEQ,+1,2,"POQ1",0,GBIDI1) From TRTACHDIV1
+  #----- Restitution buffer de la DL intégrant la DL fusionnée -----#
+  [F:POQ]=[F:POQW]
+  If GOK<1  End : Endif
+Endif
+#----- Suppression de la DL fusionnée -----#
+Delete [POQW] Where POHNUM=WPOHNUM & POPLIN=WPOPLIN & POQSEQ=WPOQSEQ
+If fstat=1  GOK=-1 : GLOCK="$PORDERQ"-WPOHNUM-num$(WPOPLIN)-num$(WPOQSEQ) : End : Endif
+#----- Si fusion lors d'un splittage à créer, récupération séquence DL fusionnée -----#
+If WTRAIT=1
+  [F:POQ]POQSEQ=WPOQSEQ
+Endif
+#-----
+End
+
+#---------------------------------------------------#
+# Vérification si la DL trouvée peut être fusionnée #
+#---------------------------------------------------#
+$DL_ELIGIBLE
+# Issue 71276 - 2015-02-27 by SR : Rester les égalités sur les Versions
+# Issue 122580 - 2017-04-25 by SR : Tester les égalités sur site et adresse de réception
+If fstat |  [F:POQW]EXTRCPDAT<>[F:POQ]EXTRCPDAT
+&        |  [F:POQW]CAD      <>[F:POQ]CAD
+&        |  [F:POQW]YEA      <>[F:POQ]YEA
+&        |  [F:POQW]MON      <>[F:POQ]MON
+&        |  [F:POQW]WEE      <>[F:POQ]WEE
+&        |  [F:POQW]WIPSTA   <>[F:POQ]WIPSTA
+&        |  [F:POQW]PTHNUM   <>""
+&        |  [F:POQW]SOHNUM   <>""
+&        |  [F:POQW]LINOCNNUM<>""
+&        |  [F:POQW]SDHNUM   <>""
+&        |  [F:POQW]RCPQTYPUU<>0
+&        |  [F:POQW]RCPQTYSTU<>0
+&        |  [F:POQW]INVQTYPUU<>0
+&        |  [F:POQW]INVQTYSTU<>0
+&        |  [F:POQW]LINRCPNBR<>0
+&        |  [F:POQW]LININVNBR<>0
+&        |  (dim([F:POQ]ECCVALMAJ)> 0 & [F:POQW]ECCVALMAJ <>[F:POQ]ECCVALMAJ)
+&        |  (dim([F:POQ]ECCVALMIN)> 0 & [F:POQW]ECCVALMIN <>[F:POQ]ECCVALMIN)
+&        |  [F:POQW]PRHFCY <> [F:POQ]PRHFCY
+&        |  [F:POQW]FCYADD <> [F:POQ]FCYADD
+  Raz [F:POQW]
+Elsif WTRAIT=2 & [F:POQW]CMMNUM<>[F:POQ]CMMNUM
+  Raz [F:POQW]
+Endif
+Return
+
+
+###########################
+# Initialisation du tarif #
+###########################
+Subprog INI_TARIF(NOL,COUZON)
+Value  Shortint NOL
+Value  Char     COUZON
+GPUU=[M:PTH1]PUU(NOL) : Call RECH_TARIF ("PTH",NOL) From TRTACHTAR1
+[M:PTH1]LINAMT(NOL)=[M:PTH1]NETPRI(NOL)*[M:PTH1]QTYUOM(NOL)
+Call ARRDEV([M:PTH1]LINAMT(NOL),[M:PTH1]NETCUR(NOL)) From TRTDIV
+If !GIMPORT
+   Affzo [PTH1]GROPRI(NOL)
+   If GCOLREM(0)<>"" Affzo [PTH1]DISCRGVAL1(NOL) : Endif
+   If GCOLREM(1)<>"" Affzo [PTH1]DISCRGVAL2(NOL) : Endif
+   If GCOLREM(2)<>"" Affzo [PTH1]DISCRGVAL3(NOL) : Endif
+   If GCOLREM(3)<>"" Affzo [PTH1]DISCRGVAL4(NOL) : Endif
+   If GCOLREM(4)<>"" Affzo [PTH1]DISCRGVAL5(NOL) : Endif
+   If GCOLREM(5)<>"" Affzo [PTH1]DISCRGVAL6(NOL) : Endif
+   If GCOLREM(6)<>"" Affzo [PTH1]DISCRGVAL7(NOL) : Endif
+   If GCOLREM(7)<>"" Affzo [PTH1]DISCRGVAL8(NOL) : Endif
+   If GCOLREM(8)<>"" Affzo [PTH1]DISCRGVAL9(NOL) : Endif
+   Affzo [PTH1]NETPRI(NOL), LINAMT(NOL)
+Endif
+[M:PTH1]LINFLG(NOL)=2
+End
+
+
+#####################################################################################
+#                                                                                   #
+#                    Traitement pour les stocks en V140                             #
+#####################################################################################
+#####################################################################################
+# Chargement des paramètres en saisie de l'écran de stock en création               #
+#####################################################################################
+Subprog CHARG_PARAM_STOENT(LLIG)
+Value    Integer  LLIG
+Global Char    GSAIFLG(15) : GSAIFLG = "000000000000000"
+
+#------ Par sécurité, lecture ITM ------#
+If [F:ITM]ITMREF<>[M:PTH1]ITMREF(LLIG)
+  Read [ITM] ITM0=[M:PTH1]ITMREF(LLIG)
+  If fstat  Raz [F:ITM] : Endif
+Endif
+[M:ENT]STOFCY    = [M:PTH0]PRHFCY
+[M:ENT]ITMREF    = [M:PTH1]ITMREF(LLIG)
+#--- Bug 81757 TS
+If [M:PTH1]UOM(LLIG)=[F:ITM]STU | find([M:PTH1]UOM(LLIG),[F:ITM]PCU(0..dim([F:ITM]PCU)-1))
+   [M:ENT]QTYTOENT  = [M:PTH1]QTYUOM(LLIG)
+   [M:ENT]PCUTOENT  = [M:PTH1]UOM(LLIG)
+   [M:ENT]COETOENT  = [M:PTH1]UOMSTUCOE(LLIG)
+Else
+   [M:ENT]QTYTOENT  = [M:PTH1]QTYSTU(LLIG)
+   [M:ENT]PCUTOENT  = [M:PTH1]STU(LLIG)
+   [M:ENT]COETOENT  = 1
+Endif
+#[M:ENT]QTYTOENT  = [M:PTH1]QTYUOM(LLIG)
+#[M:ENT]PCUTOENT  = [M:PTH1]UOM(LLIG)
+#[M:ENT]COETOENT  = [M:PTH1]UOMSTUCOE(LLIG)
+#---
+[M:ENT]STU       = [M:PTH1]STU(LLIG)
+#--- Bug 73441
+[M:ENT]VCRTYP    = 6
+[M:ENT]VCRNUM    = [M:PTH0]PTHNUM
+[M:ENT]VCRLIN    = [M:PTH1]PTDLIN(LLIG)
+[M:ENT]WSTOSEQ   = [M:PTH1]WSTOSEQ(LLIG)
+[M:ENT]MVTDES    = [M:PTH1]MVTDES(LLIG)
+[M:ENT]TRSFAM    = [M:PTH1]TRSFAM(LLIG)
+[M:ENT]PRI       = [M:PTH1]CPR(LLIG)
+If [M:PTH1]LINCAT(LLIG)=2: # GA 09/2006
+   [M:ENT]TRSTYP = 16                   : # Type mouvement (M.704): rcp matières pour sous-traitance
+Else
+   [M:ENT]TRSTYP = 3                    : # Type mouvement (M.704): rcp fournisseur
+Endif
+[M:ENT]TRSCOD    = [M:PTH0]TRSCOD       : # code mouvement
+[M:ENT]QUAFLG    = [M:PTH1]QUAFLG(LLIG) : # Code contrôle qualité (2=Q uniquement)
+[M:ENT]QUAFRE    = [M:PTH1]QUAFRE(LLIG) : # hcb V6CQ
+If dim([M:PTH1]WRH)>0
+  [M:ENT]XWRH    = [M:PTH1]WRH(LLIG)
+Endif
+If [M:PTH0]BETFCY=2
+  [M:ENT]VCRNUMORI=[M:PTH1]SDHNUM(LLIG)
+  [M:ENT]VCRTYPORI=4
+  [M:ENT]STOFCYORI=[M:PTH1]LINSTOFCY(LLIG)
+  [M:ENT]VCRLINORI=[M:PTH1]SDDLIN(LLIG)
+  # Si inter-site (intra-société) avec pièce d'origine
+  # Pas de saisie lot, sous_lot, lot fournisseur (sauf si import)
+  If !GIMPORT
+    #--- Bug 39779
+    #If [M:PTH1]SDHNUM(LLIG)<>"" & [F:ITM]SERMGTCOD=1
+    #  GSAIFLG="000000220220000"
+    #Elsif [M:PTH1]SDHNUM(LLIG)<>"" & [F:ITM]SERMGTCOD>1
+    #  GSAIFLG="222000220200000"
+    #Endif
+    If [M:PTH1]SDHNUM(LLIG)<>""
+      If [M:PTH0]BETCPY=2
+        If [F:ITM]SERMGTCOD=1
+          GSAIFLG="000000000020000"
+        Else
+          GSAIFLG="222000000000000"
+        Endif
+      Else
+        If [F:ITM]SERMGTCOD=1
+          GSAIFLG="000000220220000"
+        Else
+          GSAIFLG="222000220200000"
+        Endif
+      Endif
+    Endif
+    #---
+  Endif
+Else
+  [M:ENT]VCRNUMORI = [M:PTH1]POHNUM(LLIG) : # Numéro de commande achat
+  [M:ENT]VCRLINORI = [M:PTH1]POPLIN(LLIG)
+  [M:ENT]VCRTYPORI = 14
+Endif
+[M:ENT]SRGWAIFLG = [F:PTR]SRGWAIFLG
+[M:ENT]CCECODS   = GSTODIE
+[M:ENT]PRNCOD1   = [F:PTR]PRNCOD1
+[M:ENT]PRNNBFLG1 = [F:PTR]PRNNBFLG1
+[M:ENT]IPTDAT    = [M:PTH0]RCPDAT         : # Date imputation
+[M:ENT]BPRNUM    = [M:PTH0]BPSNUM         : # Numéro de fournisseur
+[M:ENT]CUR       = [M:PTH1]NETCUR(LLIG)   : # Devise
+#                                                              # hcb 71276 deb
+If dim([M:PTH1]ECCVALMAJORI)>0
+   [M:ENT]ECCVALMAJORI  = [M:PTH1]ECCVALMAJORI(LLIG)   # version majeure origine
+   [M:ENT]ECCVALMINORI  = [M:PTH1]ECCVALMINORI(LLIG)   # version mineure origine
+   [M:ENT]ECCBOMFLG     = [M:PTH1]ECCSAIFLG(LLIG)      # Issue 107513/US4 - 2015-06-23 by GA : from BOM
+Endif
+#                                                          # hcb 71276 fin
+
+End
+
+#####################################################################################
+# Chargement des paramètres en saisie de l'écran de stock en modification           #
+#####################################################################################
+Subprog CHARG_PARAM_STOENTM(LLIG)
+Value Integer  LLIG
+If LLIG<>999999
+  [M:ENM]STOFCY   = [M:PTH0]PRHFCY
+  [M:ENM]ENTCOD   = [M:PTH0]ENTCOD          : # Pièce auto stock
+  [M:ENM]ITMREF   = [M:PTH1]ITMREF(LLIG)
+  #--- Bug 81757 TS
+  If [M:PTH1]UOM(LLIG)=[F:ITM]STU | find([M:PTH1]UOM(LLIG),[F:ITM]PCU(0..dim([F:ITM]PCU)-1))
+    [M:ENM]QTYTOENT  = [M:PTH1]QTYUOM(LLIG)
+    [M:ENM]PCUTOENT  = [M:PTH1]UOM(LLIG)
+    [M:ENM]COETOENT  = [M:PTH1]UOMSTUCOE(LLIG)
+  Else
+    [M:ENM]QTYTOENT  = [M:PTH1]QTYSTU(LLIG)
+    [M:ENM]PCUTOENT  = [M:PTH1]STU(LLIG)
+    [M:ENM]COETOENT  = 1
+  Endif
+  #[M:ENM]QTYTOENT  = [M:PTH1]QTYUOM(LLIG)
+  #[M:ENM]PCUTOENT  = [M:PTH1]UOM(LLIG)
+  #[M:ENM]COETOENT  = [M:PTH1]UOMSTUCOE(LLIG)
+  #---
+  [M:ENM]STU      = [M:PTH1]STU(LLIG)
+  [M:ENM]VCRNUM   = [M:PTH0]PTHNUM
+  [M:ENM]VCRLIN   = [M:PTH1]PTDLIN(LLIG)
+  [M:ENM]MVTDES   = [M:PTH1]MVTDES(LLIG)
+  [M:ENM]TRSFAM   = [M:PTH1]TRSFAM(LLIG)
+  [M:ENM]PJT      = [M:PTH1]PJT(LLIG)
+  If [M:PTH1]LINCAT(LLIG)=2: # GA 09/2006
+    [M:ENM]TRSTYP = 16                      : # Type mouvement (M.704): rcp matières pour sous-traitance
+  Else
+    [M:ENM]TRSTYP = 3                       : # Type mouvement (M.704): rcp fournisseur
+  Endif
+  [M:ENM]TRSCOD   = [M:PTH0]TRSCOD          : # Code mouvement
+  [M:ENM]QUAFLG   = [M:PTH1]QUAFLG(LLIG)    : # Code contrôle qualité (2=Q uniquement)
+  [M:ENM]QUAFRE   = [M:PTH1]QUAFRE(LLIG)    : # hcb V6CQ
+  If dim([M:PTH1]WRH)>0
+    [M:ENM]XWRH   = [M:PTH1]WRH(LLIG)
+  Endif
+  [M:ENM]BPRNUM   = [M:PTH0]BPSNUM          : # Numéro de fournisseur
+  [M:ENM]TRFFCY   = [M:PTH1]LINSTOFCY(LLIG) : # Site de transfert
+Else : # Cas de la suppression
+  [M:ENM]STOFCY   = [F:PTD]PRHFCY
+  [M:ENM]ENTCOD   = [F:PTH]ENTCOD           : # Pièce auto stock
+  [M:ENM]ITMREF   = [F:PTD]ITMREF
+  [M:ENM]QTYTOENT = [F:PTD]QTYUOM
+  [M:ENM]PCUTOENT = [F:PTD]UOM
+  [M:ENM]COETOENT = [F:PTD]UOMSTUCOE
+  [M:ENM]STU      = [F:PTD]STU
+  [M:ENM]VCRNUM   = [F:PTD]PTHNUM
+  [M:ENM]VCRLIN   = [F:PTD]PTDLIN
+  [M:ENM]MVTDES   = ""
+  [M:ENM]TRSFAM   = ""
+  [M:ENM]PJT      = [F:PTD]PJT
+  If [F:PTD]LINCAT=2 : # GA 09/2006
+    [M:ENM]TRSTYP = 16                      : # Type mouvement (M.704): rcp matières pour sous-traitance
+  Else
+    [M:ENM]TRSTYP = 3                       : # Type mouvement (M.704): rcp fournisseur
+  Endif
+  [M:ENM]TRSCOD   = [F:PTH]TRSCOD        : # Code mouvement
+  [M:ENM]QUAFLG   = [F:PTD]QUAFLG        : # Code contrôle qualité (2=Q uniquement)
+  [M:ENM]BPRNUM   = [F:PTD]BPSNUM        : # Numéro de fournisseur
+  [M:ENM]TRFFCY   = [F:PTD]LINSTOFCY     : # Site de transfert
+Endif
+#-----
+[M:ENM]SRGWAIFLG = [F:PTR]SRGWAIFLG
+[M:ENM]PRNCOD1   = [F:PTR]PRNCOD1
+[M:ENM]PRNNBFLG1 = [F:PTR]PRNNBFLG1
+#----- Si inter-site avec pièce d'origine
+# Pas de saisie lot, sous_lot, lot fournisseur, numéros série
+If LLIG=999999 : End : Endif
+If ([M:PTH1]SDHNUM(LLIG)<>"")
+  #--- Bug 39779
+  #GSAIFLG="000000220220000"
+  If [F:PTH]BETCPY=2
+    GSAIFLG="000000000020000"
+  Else
+    GSAIFLG="000000220220000"
+  Endif
+  #---
+Endif
+#                                                              # hcb 71276 deb
+If dim([M:PTH1]ECCVALMAJORI)>0
+   [M:ENM]ECCVALMAJORI  = [M:PTH1]ECCVALMAJORI(LLIG)   # version majeure origine
+   [M:ENM]ECCVALMINORI  = [M:PTH1]ECCVALMINORI(LLIG)   # version mineure origine
+   [M:ENM]ECCBOMFLG     = [M:PTH1]ECCSAIFLG(LLIG)      # Issue 107513/US4 - 2015-06-23 by GA : from BOM
+Endif
+#                                                          # hcb 71276 fin
+End
+
+
+##################################################################
+# CONVERSION : S/P de conversion des montants ligne dans la      #
+#              devise de la réception                            #
+# -------------------------------------------------------------- #
+# Subprog CONVERSION (OLDCUR,NOL)                                #
+#    OLDCUR : Ancienne devise                                    #
+#    NOL    : Numéro de la ligne en cours (nolign-1)             #
+##################################################################
+Subprog CONVERSION (OLDCUR,NOL)
+Value Char     OLDCUR
+Value Shortint NOL
+Local Shortint I
+Local Integer  STAT
+Local Decimal  MT1, MT2
+Call CONVERT2(OLDCUR,[M:PTH0]CUR,GLOCALDEV,[M:PTH0]CHGTYP,[M:PTH0]RCPDAT,
+&             [M:PTH1]GROPRI(NOL),MT2,STAT) From TRTDEV
+[M:PTH1]GROPRI(NOL)=arr(MT2,10^-GDECPRI)
+Call CONVERT2(OLDCUR,[M:PTH0]CUR,GLOCALDEV,[M:PTH0]CHGTYP,[M:PTH0]RCPDAT,
+&             [M:PTH1]NETPRI(NOL),MT2,STAT) From TRTDEV
+[M:PTH1]NETPRI(NOL)=arr(MT2,10^-GDECPRI)
+
+For I=1 To 9
+    If evalue ("dim([M:PTH1]DISCRGVAL"+num$(I)+"(NOL))")>0
+       If GFMTREM(I-1)="M"
+          MT1=evalue ("[M:PTH1]DISCRGVAL"+num$(I)+"(NOL)")
+          Call CONVERT(OLDCUR,[M:PTH0]CUR,GLOCALDEV,[M:PTH0]CHGTYP,
+&                      [M:PTH0]RCPDAT,MT1,MT2,STAT) From TRTDEV
+          Assign "[M:PTH1]DISCRGVAL"+num$(I)+"(NOL)" With MT2
+       Endif
+    Endif
+Next
+End
+
+
+#########################################################################
+# VERIF_RETOUR : S/P de vérification d'existence de retours non validés #
+# --------------------------------------------------------------------- #
+# Subprog VERIF_RETOUR (WNUMRCP,WLINRCP)                                #
+#    WNUMRCP : Numéro de la réception à contrôler                       #
+#    WLINRCP : Numéro de la ligne de réception à contrôler              #
+#              (0 = Contrôle global sur la réception)                   #
+# --------------------------------------------------------------------- #
+# GMESSAGE = "" --> Pas de retour non validé                            #
+#         <> "" --> Des retours non validés ont été trouvés             #
+#########################################################################
+Subprog VERIF_RETOUR (WNUMRCP,WLINRCP)
+Value Char    WNUMRCP
+Value Integer WLINRCP
+#-----
+Local Libelle WINDICE
+#----- Link fichiers retours pour recherche des retours non validés -----#
+If !clalev([F:PNHB])  Local File PRETURN  [PNHB] : Endif
+If !clalev([F:PNDB])  Local File PRETURND [PNDB] : Endif
+If !clalev([PNX])
+  Link [PNDB] With [PNHB] PNH0=[F:PNDB]PNHNUM As [PNX]
+Endif
+#-----
+Raz [L]WINDICE, GMESSAGE
+If WLINRCP=0
+  #----- Vérif qu'il n'y a pas déjà un retour non validé sur cette réception -----#
+  For [PNX] Where [F:PNDB]PTHNUM=[L]WNUMRCP & [F:PNHB]CFMFLG=1
+    [L]WINDICE=1 : Break
+  Next
+Else
+  #----- Vérif qu'il n'y a pas déjà un retour non validé sur cette ligne réception -----#
+  For [PNX] Where [F:PNDB]PTHNUM=[L]WNUMRCP & [F:PNDB]PTDLIN=[L]WLINRCP & [F:PNHB]CFMFLG=1
+    [L]WINDICE=1 : Break
+  Next
+Endif
+If [L]WINDICE=1
+  GMESSAGE=mess(353,194,1)
+Endif
+End
+
+
+
+
+
+
+

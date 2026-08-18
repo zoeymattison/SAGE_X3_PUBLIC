@@ -1,0 +1,32 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Stock change transactions
+$ACTION
+Case ACTION
+ When "FILTRE" : Gosub CLE_GAUCHE
+ When Default
+Endcase
+Return
+
+$CLE_GAUCHE
+If GUSER="MOZM" & CURRBOX="GAU_CHE1"
+FILTSUP = "STA=A"
+Endif
+Return
+
+Subprog AS_LOCTYPDES(VALEUR)
+Variable Char VALEUR()
+End
+
+
+######################################################################################
+## Section automatically added (screen SCS1) 02/17/2025 10:19:43 (MOZM)
+######################################################################################
+Subprog AP_STOFCY(VALEUR)
+Variable Char    VALEUR()
+
+End
+
+
+######################################################################################
+
+
+

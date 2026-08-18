@@ -1,0 +1,197 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Pick tickets
+
+######################################################################################
+## Modified: 2023-10-05                                                             ##
+## Author (Company): TAC                                                            ##
+## Notes: ACTION modifications made in YSPEPRH                                      ##
+######################################################################################
+## EXEBOUT in YSPEPRH                                                               ##
+######################################################################################
+#    When "EXEBOUT" : Gosub EXEBOUT From YSPEPRH
+$ACTION
+Case ACTION
+    When "VERIF_MOD" : Gosub VERIF_MOD
+	When "SETBOUT" : Gosub SETBOUT
+	When "MODIF" : Gosub MODIF
+	When "AVANTBOUT" : Gosub AVANTBOUT
+	When Default
+Endcase
+Return
+
+# 2023-11-27 I removed the link to TAC's EXEBOUT action call. I've rewritten the functioning of the button to print our new labels which
+# can be printed with or without a prep plan and after the pick ticket has gone into delivery status.
+# For a full list of the new modiciations related to this, please contact me - email@example.com
+# The new scripts are located in ZSHIPLAB (for individual pick tickets) and ZSHIPBULKLBL (For prep plan mass label printing)
+
+$AVANTBOUT
+Case BOUT
+	When "a","b" : Gosub PICKTICK_PRINT
+	When "c" : Gosub MOT_LABEL
+Endcase
+Return
+
+$MOT_LABEL
+Local Char TBPAR(15)(1..50),TBVAL(30)(1..50)
+TBPAR(1) = "vcrdeb" : TBVAL(1) = [M:PRH0]PRHNUM
+TBPAR(2) = "printcase"
+TBPAR(3) = "pagtot"
+TBPAR(4) = "pagcur"
+
+Local Char ZL_DEST(50) : [L]ZL_DEST= func AFNC.INTFLD("APRTAUS", "PRT", GUSER+"~MONK-CPY-CST~")
+
+If [L]ZL_DEST="" : [L]ZL_DEST="PREVIEW" : TBVAL(2) = "1" : TBVAL(3) = "1"
+&	: TBVAL(4)="1" : Call ETAT("MONK-CPY-CST",[L]ZL_DEST,"",0,"",TBPAR,TBVAL) From AIMP3 : Return : Endif
+
+Local Integer LOK
+Local Char LINPUT : [L]LINPUT = "1"
+Local Char ZTITLE : ZTITLE = "Print MOT shipping label"
+Local Char ZFLDTIT : ZFLDTIT = "Number of labels "
+Local Char ZOBJ : ZOBJ = " "
+
+$RETRY
+Call SAICAR (LINPUT, ZTITLE, ZFLDTIT, ZOBJ,0,0,"",LOK) From GESECRAN
+
+If [L]LOK=2
+
+	If val([L]LINPUT)>20 : Infbox "Maximum Labels: 20" : [L]LINPUT="20" : Goto RETRY : Endif
+	TBVAL(3) = [L]LINPUT
+	For I=1 To val([L]LINPUT)
+		TBVAL(4)=num$(I)
+		Call ETAT("MONK-CPY-CST",[L]ZL_DEST,"",0,"",TBPAR,TBVAL) From AIMP3
+	Next
+Endif
+
+Return
+
+$PICKTICK_PRINT
+Local Char TBPAR(15)(1..50),TBVAL(30)(1..50)
+Local Char ZL_DEST(50) : [L]ZL_DEST=""
+Local Integer ZL_PRINT : [L]ZL_PRINT=2
+Case BOUT
+	When "a" : [L]ZL_DEST="PREVIEW"
+	When "b" : [L]ZL_DEST="SEANH-RECV"
+Endcase
+TBPAR(1) = "pickdeb" : TBVAL(1) = [M:PRH0]PRHNUM
+TBPAR(2) = "pickfin" : TBVAL(2) = [M:PRH0]PRHNUM
+TBPAR(3) = "prepplan" : TBVAL(3) = ""
+Local Integer ZL_OKCAN : [L]ZL_OKCAN=2
+If BOUT="b"
+    Call AVERTIR("Sent pick ticket to warehouse printer?", [L]ZL_OKCAN) From GESECRAN
+    If [L]ZL_OKCAN<>2
+    	[L]ZL_PRINT=1
+    Endif
+Endif
+If [L]ZL_PRINT=2
+	Call ETAT("MONK-PICKTICK",[L]ZL_DEST,"",0,"",TBPAR,TBVAL) From AIMP3
+Endif
+Return
+
+$VERIF_MOD
+For I=0 To [M:PRH1]NBLIG-1
+    If [M:PRH1]ZPKEFLG(I)=0
+        [M:PRH1]ZPKEFLG(I)=1
+        Affzo [M:PRH1]ZPKEFLG(I)
+    Endif
+    If [M:PRH1]ZITMFLG(I)=0
+        [M:PRH1]ZITMFLG(I)=1
+        Affzo [M:PRH1]ZITMFLG(I)
+    Endif
+Next
+Return
+
+$SETBOUT
+If [M:PRH1]DLVFLG=3
+	Diszo [M:PRH1]ZITMSEL
+Endif
+If [M:PRH0]PRHNUM<>""
+	CHMEN+="za"
+	CHMEN+="zb"
+	CHMEN+="zc"
+Endif
+Return
+
+$MODIF
+If !clalev([ZPRE]) : Local File STOPRED [ZPRE] Endif
+	For I=0 To [M:PRH1]NBLIG-1
+		Read [ZPRE]PRE0=[M:PRH0]PRHNUM;[M:PRH1]PRELIN(I)
+		[F:ZPRE]ZITMFLG=[M:PRH1]ZITMFLG(I)
+		[F:ZPRE]ZPKEFLG=[M:PRH1]ZPKEFLG(I)
+		Rewrite [ZPRE]
+	Next
+Return
+
+Subprog C_ZITMFLG(VALEUR)
+Variable Integer VALEUR
+End
+
+Subprog AM_ZITMFLG(VALEUR)
+Variable Integer VALEUR
+End
+
+Subprog C_ZPKEFLG(VALEUR)
+Variable Integer VALEUR
+End
+
+Subprog AM_ZPKEFLG(VALEUR)
+Variable Integer VALEUR
+End
+
+Subprog C_ZITMSEL(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog LINE_VERIFICATION(ZL_ITMREF)
+Variable Char ZL_ITMREF
+Local Integer ZL_COUNT : [L]ZL_COUNT=0
+# STEP 1 - Figure out if this product exists in the lines and mark it
+For I=0 To [M:PRH1]NBLIG-1
+	If [M:PRH1]ITMREF(I)=[L]ZL_ITMREF
+		[M:PRH1]ZITMFLG(I)=2
+		Affzo [M:PRH1]ZITMFLG(I)
+		[L]ZL_COUNT+=1
+	Endif
+Next
+If [L]ZL_COUNT=0
+	# STEP 2 - No lines were found, try to search for an alternative product
+    Filter [ZITM] Where RPLITM=[L]ZL_ITMREF
+    Read [ZITM] First
+    If ![S]fstat
+    	[L]ZL_ITMREF=[F:ZITM]ITMREF
+    	For I=0 To [M:PRH1]NBLIG-1
+        	If [M:PRH1]ITMREF(I)=[L]ZL_ITMREF
+        		[M:PRH1]ZITMFLG(I)=2
+        		Affzo [M:PRH1]ZITMFLG(I)
+        	Endif
+   		Next
+    Else
+    	Call ERREURT("Product not found the lines! Is it a picking error?",0) From GESECRAN
+    Endif
+Endif
+End
+
+
+######################################################################################
+######################################################################################
+## Section automatically added (screen PRH1) 04/28/2025 09:54:50 (MOZM)
+######################################################################################
+Subprog AP_ZITMSEL(VALEUR)
+Variable Char    VALEUR()
+If VALEUR<>""
+    If !clalev([ZITM]) : Local File ITMMASTER [ZITM] : Endif
+    Read [ZITM]ITM0=VALEUR
+    If ![S]fstat
+    	Call LINE_VERIFICATION([F:ZITM]ITMREF)
+    Else
+    	Filter [ZITM] Where EANCOD=VALEUR
+    	Read [ZITM] First
+    	If !fstat
+     		Call LINE_VERIFICATION([F:ZITM]ITMREF)
+    	Else
+    		Call ERREURT("Product record not found!",0) From GESECRAN
+    	Endif
+    Endif
+Endif
+End
+
+
+######################################################################################

@@ -1,0 +1,137 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+###########################################################################################
+# Script            : XINFP_IBP
+# Creation date     : 13/02/2017
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : STOCK
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : INTERNAL TRANSFER PO INTEGRATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When "ALIMSKSOH" : Gosub ALIMSKSOH
+        When Default
+    Endcase
+Return
+
+
+# MANUAL ASSIGNMENT OF SO NUMBER
+########################################################################################################################
+$ALIMSKSOH
+    If GIMPORT
+        If clalev([F:XINFITH])
+[M]SOHTYP = 'INFP'
+            [M]SOHNUM = [F:XINFITH]VCRNUM
+        Endif
+    Endif
+Return
+
+########################################################################################################################
+# SUBPROG THAT CREATES PURHCASE RECEIPT
+########################################################################################################################
+Subprog TRANS_CREPO()
+    # TODO - UPDATE OF MESSAGE
+    Call ECR_TRACE("PURCHASE ORDER : " - [F:XINFITH]VCRNUM,0) From GESECRAN
+
+    Call TRANS_CRE From XINFP_IBP
+End
+
+# CREATION OF PURCHASE RECEIPT
+##################################################################################################
+Subprog TRANS_CRE
+    Local Char    XLINE(255), XMESSAGE(255)
+
+    # DELETE OF CREATED FILE
+    #############################################################################################################
+    Local Integer STAT
+
+    Call EFFACE(filpath("tmp",[F:XINFITH]VCRNUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFITH]VCRNUM,'TXT')+".err",STAT) From ORDSYS
+
+    GOK = 1
+
+    ## CREATE PURCHASE ORDER FILE FOR IMPORT
+    #################################################################################
+    adxifs = ';' : adxirs = chr$(13)+chr$(10)
+
+    ## OPEN FILE
+    #################################################################################
+    Openo filpath("INFOPOS",[F:XINFITH]VCRNUM,'TXT') Using [FIC1]
+
+    XLINE =   "E;"  + [F:XINFITH]FCYTO
+    XLINE + = ";"   + [F:XINFITH]VCRNUM
+    XLINE +=  ";"   + format$("D:DDMMYYYY",[F:XINFITH]IPTDAT)
+    XLINE +=  ";"   + [F:XINFITH]FCYFROM
+    XLINE +=  ";"   + [F:XINFITH]VCRDES
+
+    Wrseq XLINE Using [FIC1]
+
+    # LOADS THE CONTENT OF THE DETAILED PURCHASE ORDER LINES
+    Filter [F:XINFITD] Where [F:XINFITD]VCRNUM = [F:XINFITH]VCRNUM
+&   Order By Key XINFITD0
+
+    For [F:XINFITD]XINFITD0
+        # WRITE THE LINE DETAIL RECORD INFORMATION
+        ########################################################################################################
+        XLINE =   "L;"  + [F:XINFITD]ITMREF
+        XLINE +=  ";"   + [F:XINFITD]UOM
+        XLINE +=  ";"   + num$([F:XINFITD]QTYR)
+
+        Wrseq XLINE Using [FIC1]
+    Next
+
+    ## CLOSE FILE
+    #################################################################################
+    Openo Using [FIC1]
+
+    # WRITING OF FILE SUCCESSFUL, IMPORT THE FILE
+    #############################################################################################################
+    If GOK
+        # CALLS THE IMPORT PROCESS
+        # Call IMPORTSIL(IMPT, FIL) From GIMPOBJ
+        # @ IMPT - TEMPLATE TO BE USED
+        # @ FIL  - FILE + LOCATION
+        ###############################################################
+        Raz [M:IMP2]
+
+        [M:IMP2]MODIMP = "XINFPPOH"
+        [M:IMP2]NOMIMP = filpath("INFOPOS",[F:XINFITH]VCRNUM,'TXT')
+        [M:IMP2]TYPEXP = 2
+
+        Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+
+        Look [F:XPOHA]POH0 = [F:XINFITH]VCRNUM
+
+        If fstat
+            # TODO - UPDATE OF MESSAGE
+            Call XERR_TRANS("IBT", [F:XINFITH]VCRNUM, [F:XINFITH]EXPNUM, 1, 0, "ERROR ON THE PURCHASE ORDER CREATION- PLEASE REFER TO X3 LOG") From XINFP_ERR
+        Else
+            # TODO - UPDATE OF MESSAGE
+            Call ECR_TRACE("SUCCESS ON THE PURCHASE ORDER CREATION",0) From GESECRAN
+        Endif
+    Endif
+
+    # DELETE OF CREATED FILE
+    #############################################################################################################
+    Call EFFACE(filpath("INFOPOS",[F:XINFITH]VCRNUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("INFOPOS",[F:XINFITH]VCRNUM,'TXT')+".err",STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFITH]VCRNUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFITH]VCRNUM,'TXT')+".err",STAT) From ORDSYS
+End
+
+
+
+
+
+
+

@@ -1,0 +1,23 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+# Mask management BPABPC (Specific)
+
+######################################################################################
+## Section automatically added (screen BPABPC) 08/01/2025 07:49:01 (MOZM)
+######################################################################################
+$ACTION
+Case ACTION
+ When Default
+Endcase
+Return
+
+Subprog C_XWEB5(VALEUR)
+Variable Char    VALEUR()
+If [M:YBPC]ZMARKETING=2 and VALEUR=""
+    GMESSAGE="Please disable marketing emails before removing this email!"
+    Chgstl [M:YBPC]ZMARKETING With "BACKRED"
+    mkstat=2
+Endif
+End
+
+
+######################################################################################

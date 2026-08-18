@@ -1,0 +1,73 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#Entry point TRTVENLIVV note 2 vs
+#
+#
+$ACTION
+ CASE ACTION
+   WHEN "AFTSDHVAL" : gosub AFTSDHVAL
+ Endcase
+Return
+
+$AFTSDHVAL
+if GUSER='INFP' : return : endif
+if !clalev([F:ZSOQ]) : local file SORDERQ [ZSOQ] : endif
+for [ZSOQ] where SOHNUM=[F:SOQ]SOHNUM
+if ([F:BPC]YNOBO = 2 & ([F:ZSOQ]SHTQTY > 0 | [F:ZSOQ]DEMSTA = 2)  & [F:ZSOQ]SOQSTA=1 & [F:ZSOQ]ALLQTY=0 & [F:ZSOQ]LPRQTY=0 & [F:ZSOQ]ODLQTY=0 & [F:ZSOQ]PREQTY=0)
+  Call DIVCLESOQ ([F:ZSOQ]SOHNUM,[F:ZSOQ]SOPLIN, [F:ZSOQ]SOQSEQ, 'NOBO') from TRTVENCDE
+endif
+next
+Return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

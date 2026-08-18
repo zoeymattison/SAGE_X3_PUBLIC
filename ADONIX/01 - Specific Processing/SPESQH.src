@@ -1,0 +1,99 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Quotes
+$ACTION
+Case ACTION
+    When "SETBOUT" : Gosub SETBOUT
+    When "AVANTBOUT" : Gosub AVANTBOUT
+    When "STYLE" : Gosub STYLE
+    When "VERIF_CRE" : Gosub VERIF_CRE
+    When Default
+Endcase
+Return
+
+$VERIF_CRE
+If num$([M:SQH1]ZVALDAT)="00/00/0000" : [M:SQH1]ZVALDAT=addmonth(date$,1) : Affzo [M:SQH1]ZVALDAT : Endif
+
+If !find([M:SQH1]REP(0),"08","22","37","54","75","76","85","88","90","2221","SS") and [M:SQH2]QUONOT<>0 and func AFNC.INTFLD("BPCUSTOMER","ZFSCFLG",[M:SQH1]ZBPCINV)<>"2"
+    [M:SQH3]INVDTAAMT(3) = 5
+    Affzo [M:SQH3]INVDTAAMT(3)
+Endif
+
+Return
+
+$STYLE
+[M:SQH1]ZINVNAM=func AFNC.INTFLD("BPCUSTOMER","BPCNAM",[M:SQH1]ZBPCINV)
+[M:SQH1]ZPYRNAM=func AFNC.INTFLD("BPCUSTOMER","BPCNAM",[M:SQH1]ZBPCPYR)
+Affzo [M:SQH1]ZINVNAM
+Affzo [M:SQH1]ZPYRNAM
+
+
+For I=0 To [M:SQH2]NBLIG-1
+	[M:SQH2]ZQTYAVL(I)=func YTAC.QTYAVL([M:SQH2]DSTOFCY(I),[M:SQH2]ITMREF(I))
+	Affzo [M:SQH2]ZQTYAVL(I)
+Next
+If [M:SQH2]QUONOT>0
+    [M:SQH2]ZPFMPER=100*([M:SQH2]PFMTOT/[M:SQH2]QUONOT)
+    Affzo [M:SQH2]ZPFMPER
+Endif
+
+Return
+
+$SETBOUT
+If [M:SQH0]SQHNUM<>""
+   CHMEN+="Ze"
+Endif
+If [M:SQH1]QUOSTA=3 or [M:SQH1]QUOSTA=0
+    Diszo [M:SQH1]ZBPCINV
+    Diszo [M:SQH1]ZBPCPYR
+Endif
+Return
+
+$AVANTBOUT
+Case BOUT
+    When "e" :
+        Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+        TBPAR_BP(1) = "sohnum" : TBVAL_BP(1) = [M:SQH0]SQHNUM
+        Call ETAT("ZRPT-QUOTE","PREVIEW","",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+Endcase
+Return
+
+
+######################################################################################
+## Section automatically added (screen SQH0) 04/25/2025 07:40:09 (MOZM)
+######################################################################################
+Subprog AM_BPCORD(VALEUR)
+Variable Char    VALEUR()
+Local Char BPC_INV : [L]BPC_INV=func AFNC.INTFLD("BPCUSTOMER","BPCINV",VALEUR)
+Local Char BPC_PAY : [L]BPC_PAY=func AFNC.INTFLD("BPCUSTOMER","BPCPYR",VALEUR)
+[M:SQH1]ZBPCINV=[L]BPC_INV
+[M:SQH1]ZINVNAM=func AFNC.INTFLD("BPCUSTOMER","BPCNAM",[L]BPC_INV)
+[M:SQH1]ZBPCPYR=[L]BPC_PAY
+[M:SQH1]ZPYRNAM=func AFNC.INTFLD("BPCUSTOMER","BPCNAM",[L]BPC_PAY)
+Affzo [M:SQH1]ZBPCINV
+Affzo [M:SQH1]ZINVNAM
+Affzo [M:SQH1]ZBPCPYR
+Affzo [M:SQH1]ZPYRNAM
+End
+
+
+######################################################################################
+
+
+
+
+
+
+
+######################################################################################
+## Section automatically added (screen SQH1) 04/25/2025 13:51:38 (MOZM)
+######################################################################################
+Subprog AM_ZBPCINV(VALEUR)
+Variable Char    VALEUR()
+Local Char BPR_PAY(240) : [L]BPR_PAY=func AFNC.INTFLD("BPCUSTOMER","BPCPYR",VALEUR)
+[M:SQH1]ZBPCPYR=[L]BPR_PAY
+[M:SQH1]ZPYRNAM=func AFNC.INTFLD("BPCUSTOMER","BPCNAM",[L]BPR_PAY)
+Affzo [M:SQH1]ZBPCPYR
+Affzo [M:SQH1]ZPYRNAM
+End
+
+
+######################################################################################

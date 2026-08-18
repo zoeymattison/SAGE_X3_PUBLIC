@@ -1,0 +1,91 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+###########################################################################################
+# Script            : XINFP_INTPY
+# Creation date     : 08/15/2018
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : SUPERVISOR - PROCESS EXECUTION
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION - AP/AR ONLY
+# Description       : MAIN ACTION OF THE INTEGRATION COMPONENT INTEGRATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When "INIT"    : Gosub INIT    From XINFP_INT
+        When "EXEC"    : Gosub EXEC    From XINFP_INT
+        When "TERMINE" : Gosub TERMINE From XINFP_INT
+        When Default
+    Endcase
+Return
+
+# INIT OF THE VARIABLES AND TABLES THAT IS USED FOR THE STD PROCESS
+###########################################################################################
+$INIT
+
+Return
+
+# EXECUTION OF THE MAIN PROCESS CODE
+###########################################################################################
+$EXEC
+    #TODO - PRINT APPROPRIATE MESSAGE FOR THE LOG HEADER
+    If !GSERVEUR
+        Call OUVRE_TRACE("TESTING OF THE INTEGRATION MODULES" - time$) From LECFIC
+        Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+    Else
+        Call ECR_TRACE("INFOPOS TRANSACTION INTEGRATION PROCESS - AP/AR ONLY", 0) From GESECRAN
+        Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+        Call ECR_TRACE("PARAMETERS    : NONE",0) From GESECRAN
+        Call ECR_TRACE("COMPANY GROUP : NONE",0) From GESECRAN
+        Call ECR_TRACE("SITE GROUP    : NONE",0) From GESECRAN
+        Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+        Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+        Call ECR_TRACE("START TIME : " + num$(time$),0) From GESECRAN
+        Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+        Call ECR_TRACE("", 0) From GESECRAN
+        Call ECR_TRACE("", 0) From GESECRAN
+    Endif
+
+    # AP/AR ACCOUNTING
+    ##########################################################################################
+    #TODO - PRINT APPROPRIATE MESSAGE FOR EXPENSES DOCUMENTS
+    Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+    Call PAYE_TRANS From XINFP_PAYE
+
+    #TODO - PRINT APPROPRIATE MESSAGE FOR REVENUE DOCUMENTS
+    Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+    Call PAYR_TRANS From XINFP_PAYR
+
+    #TODO - PRINT APPROPRIATE MESSAGE FOR CBT TRANSACTIONS
+    Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+    Call CBT_TRANS From XINFP_CBT
+
+    #TODO - IF NOT IN BATCH MODE, CLOSE THE LOG FILE AND PRINT IT OUT
+    If !GSERVEUR
+        Call OUVRE_TRACE("COMPLETION OF INTEGRATION RUN" - time$) From LECFIC
+
+        Call FERME_TRACE From LECFIC
+        Call LEC_TRACE From LECFIC
+    Else
+        Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+        Call ECR_TRACE("COMPLETION TIME : " + num$(time$),0) From GESECRAN
+        Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+    Endif
+Return
+
+# TERMINATION OF THE PROCESS CODE, CLOSING OF OPEN TABLES AND KILLING OFF OF VARIABLES
+###########################################################################################
+$TERMINE
+
+Return
+
+
+
+

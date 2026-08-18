@@ -1,0 +1,321 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+	When "OUVRE" : Gosub OUVRE
+	When "DEBUT" : Gosub DEBUT
+	When "SETBOUT" : Gosub SETBOUT
+	When "CLE_GAUCHE" : Gosub CLE_GAUCHE
+	When "AVANT_NEW" : Gosub AVANT_NEW
+	When "AVANT_CRE" : Gosub AVANT_CRE
+	When "AVANT_ENR" : Gosub AVANT_ENR
+	When "AVANT_ABA" : Gosub AVANT_ABA
+	When "APRES_MODIF" : Gosub APRES_MODIF
+	When Default
+Endcase
+Return
+
+$OUVRE
+If !clalev([ZRH]) : Local File ZINTRH [ZRH] : Endif
+If !clalev([ZRD]) : Local File ZINTRD [ZRD] : Endif
+If !clalev([ZSDH]) : Local File SDELIVERY [ZSDH] : Endif
+If !clalev([ZSDD]) : Local File SDELIVERYD [ZSDD] : Endif
+If !clalev([ALK]) : Local File APLLCK [ALK] : Endif
+Return
+
+$DEBUT
+Global Char ZV_SESSID(150) # Document number to be used for creation
+Return
+
+$SETBOUT
+Case [V]GREP
+	When "" : Enable GSTANEW : Disable GSTAENR : Disable GSTACRE : Disable GSTAFIN # Nothing happening
+	When "C" : Disable GSTANEW : Disable GSTAENR : Enable GSTACRE : Enable GSTAFIN # Creating document
+	When "M" : Disable GSTANEW : Enable GSTAENR : Disable GSTACRE : Enable GSTAFIN # Modifying document
+Endcase
+Return
+
+$CLE_GAUCHE
+If [F:ZRH]ZRHNUM="" : Return : Endif
+[M:ZRR0]ZRHNUM=[F:ZRH]ZRHNUM
+[M:ZRR0]RECFCY=[F:ZRH]RECFCY
+[M:ZRR0]STOFCY=[F:ZRH]STOFCY
+Local Shortint ZL_LINNUM : [L]ZL_LINNUM=0
+Filter [ZRD] Where ZRHNUM=[F:ZRH]ZRHNUM
+For [ZRD] Where SDHNUM<>"N/A"
+	[M:ZRR1]SDHNUM([L]ZL_LINNUM)=[F:ZRD]SDHNUM
+	[M:ZRR1]SDDLIN([L]ZL_LINNUM)=[F:ZRD]SDDLIN
+	[M:ZRR1]ITMREF([L]ZL_LINNUM)=[F:ZRD]ITMREF
+	[M:ZRR1]ITMDES1([L]ZL_LINNUM)=[F:ZRD]ITMDES1
+	[M:ZRR1]QTYDLV([L]ZL_LINNUM)=[F:ZRD]QTYDLV
+	[M:ZRR1]QTYRCP([L]ZL_LINNUM)=[F:ZRD]QTYRCP
+	[M:ZRR1]QTYUOM([L]ZL_LINNUM)=[F:ZRD]QTYUOM
+	[M:ZRR1]LINFLG([L]ZL_LINNUM)=[F:ZRD]LINFLG
+	[M:ZRR1]ZRHSTA([L]ZL_LINNUM)=[F:ZRD]ZRHSTA
+	[L]ZL_LINNUM+=1
+Next
+[M:ZRR1]NBLIG=[L]ZL_LINNUM
+Affzo [ZRR1]
+[L]ZL_LINNUM=0
+For [ZRD] Where SDHNUM="N/A"
+	[M:ZRR2]SDHNUM([L]ZL_LINNUM)=[F:ZRD]SDHNUM
+	[M:ZRR2]SDDLIN([L]ZL_LINNUM)=[F:ZRD]SDDLIN
+	[M:ZRR2]ITMREFPKE([L]ZL_LINNUM)=[F:ZRD]ITMREF
+	[M:ZRR2]ITMDES1([L]ZL_LINNUM)=[F:ZRD]ITMDES1
+	[M:ZRR2]QTYRCP([L]ZL_LINNUM)=[F:ZRD]QTYRCP
+	[M:ZRR2]QTYUOM([L]ZL_LINNUM)=[F:ZRD]QTYUOM
+	[M:ZRR2]PKEDES([L]ZL_LINNUM)=[F:ZRD]PKEDES
+	[L]ZL_LINNUM+=1
+Next
+[M:ZRR2]NBLIG=[L]ZL_LINNUM
+Affzo [ZRR2]
+Affzo [ZRR0]
+Return
+
+# New
+$AVANT_NEW
+[V]GREP="C"
+[V]ZV_SESSID=GUSER+"-"+format$("YYMMDD[-]hhmmss",date$)
+Gosub CLEAR
+Return
+
+# Create
+$AVANT_CRE
+[F:ZRH]ZRHNUM=[V]ZV_SESSID
+[F:ZRH]RECFCY=[M:ZRR0]RECFCY
+[F:ZRH]STOFCY=[M:ZRR0]STOFCY
+[F:ZRH]CREDAT=gdat$(day(date$),month(date$),year(date$))
+[F:ZRH]UPDDAT=gdat$(day(date$),month(date$),year(date$))
+[F:ZRH]ZRHSTA=1
+Write [ZRH]
+For I=0 To [M:ZRR1]NBLIG-1
+    [F:ZRD]ZRHNUM=[V]ZV_SESSID
+    [F:ZRD]STOFCY=[M:ZRR0]STOFCY
+    [F:ZRD]RECFCY=[M:ZRR0]RECFCY
+	[F:ZRD]SDHNUM=[M:ZRR1]SDHNUM(I)
+	[F:ZRD]SDDLIN=[M:ZRR1]SDDLIN(I)
+	[F:ZRD]ITMREF=[M:ZRR1]ITMREF(I)
+	[F:ZRD]ITMDES1=[M:ZRR1]ITMDES1(I)
+	[F:ZRD]QTYDLV=[M:ZRR1]QTYDLV(I)
+	[F:ZRD]QTYRCP=[M:ZRR1]QTYRCP(I)
+	[F:ZRD]QTYUOM=[M:ZRR1]QTYUOM(I)
+	[F:ZRD]LINFLG=[M:ZRR1]LINFLG(I)
+	[F:ZRD]ZRHSTA=[M:ZRR1]ZRHSTA(I)
+	[F:ZRD]CREDAT=gdat$(day(date$),month(date$),year(date$))
+	[F:ZRD]UPDDAT=gdat$(day(date$),month(date$),year(date$))
+	Write [ZRD]
+Next
+For I=0 To [M:ZRR2]NBLIG-1
+    [F:ZRD]ZRHNUM=[V]ZV_SESSID
+    [F:ZRD]STOFCY=[M:ZRR0]STOFCY
+    [F:ZRD]RECFCY=[M:ZRR0]RECFCY
+	[F:ZRD]SDHNUM="N/A"
+	[F:ZRD]SDDLIN=0
+	[F:ZRD]ITMREF=[M:ZRR2]ITMREFPKE(I)
+	[F:ZRD]ITMDES1=[M:ZRR2]ITMDES1(I)
+	[F:ZRD]QTYDLV=0
+	[F:ZRD]QTYRCP=[M:ZRR2]QTYRCP(I)
+	[F:ZRD]QTYUOM=[M:ZRR1]QTYUOM(I)
+	[F:ZRD]LINFLG=3
+	[F:ZRD]ZRHSTA=2
+	[F:ZRD]CREDAT=gdat$(day(date$),month(date$),year(date$))
+	[F:ZRD]UPDDAT=gdat$(day(date$),month(date$),year(date$))
+	[F:ZRD]CLMFLG=1
+	[F:ZRD]PKEDES=[M:ZRR2]PKEDES(I)
+	Write [ZRD]
+Next
+Read [ZRH]ZRH0=[V]ZV_SESSID : Gosub CLE_GAUCHE
+[V]GREP=""
+Raz [M:ZRR0]ITMREF,[M:ZRR0]QTYADD,[M:ZRR0]ITMDES1,[M:ZRR0]ITMDES2,[M:ZRR0]PRI
+Affzo [ZRR0]
+Return
+
+# Save
+$AVANT_ENR
+For I=0 To [M:ZRR1]NBLIG-1
+    [F:ZRD]ZRHNUM=[M:ZRR0]ZRHNUM
+    [F:ZRD]STOFCY=[M:ZRR0]STOFCY
+    [F:ZRD]RECFCY=[M:ZRR0]RECFCY
+	[F:ZRD]SDHNUM=[M:ZRR1]SDHNUM(I)
+	[F:ZRD]SDDLIN=[M:ZRR1]SDDLIN(I)
+	[F:ZRD]ITMREF=[M:ZRR1]ITMREF(I)
+	[F:ZRD]ITMDES1=[M:ZRR1]ITMDES1(I)
+	[F:ZRD]QTYDLV=[M:ZRR1]QTYDLV(I)
+	[F:ZRD]QTYRCP=[M:ZRR1]QTYRCP(I)
+	[F:ZRD]QTYUOM=[M:ZRR1]QTYUOM(I)
+	[F:ZRD]LINFLG=[M:ZRR1]LINFLG(I)
+	[F:ZRD]ZRHSTA=[M:ZRR1]ZRHSTA(I)
+	[F:ZRD]CREDAT=gdat$(day(date$),month(date$),year(date$))
+	[F:ZRD]UPDDAT=gdat$(day(date$),month(date$),year(date$))
+	Look [ZRD]ZRD0=[M:ZRR1]SDHNUM(I);[M:ZRR1]SDDLIN(I);[M:ZRR1]ITMREF(I)
+	If [S]fstat
+		Write [ZRD]
+	Else
+		Rewrite [ZRD]
+	Endif
+Next
+For I=0 To [M:ZRR2]NBLIG-1
+    [F:ZRD]ZRHNUM=[M:ZRR0]ZRHNUM
+    [F:ZRD]STOFCY=[M:ZRR0]STOFCY
+    [F:ZRD]RECFCY=[M:ZRR0]RECFCY
+	[F:ZRD]SDHNUM="N/A"
+	[F:ZRD]SDDLIN=0
+	[F:ZRD]ITMREF=[M:ZRR2]ITMREFPKE(I)
+	[F:ZRD]ITMDES1=[M:ZRR2]ITMDES1(I)
+	[F:ZRD]QTYDLV=0
+	[F:ZRD]QTYRCP=[M:ZRR2]QTYRCP(I)
+	[F:ZRD]QTYUOM=[M:ZRR1]QTYUOM(I)
+	[F:ZRD]LINFLG=3
+	[F:ZRD]ZRHSTA=2
+	[F:ZRD]CREDAT=gdat$(day(date$),month(date$),year(date$))
+	[F:ZRD]UPDDAT=gdat$(day(date$),month(date$),year(date$))
+	[F:ZRD]CLMFLG=1
+	[F:ZRD]PKEDES=[M:ZRR2]PKEDES(I)
+	Look [ZRD]ZRD0=[M:ZRR1]SDHNUM(I);[M:ZRR1]SDDLIN(I);[M:ZRR1]ITMREF(I)
+	If [S]fstat
+		Write [ZRD]
+	Else
+		Rewrite [ZRD]
+	Endif
+Next
+
+# Handle deletion of grid lines in the picking error tab
+Filter [ZRD] Where ZRHNUM=[M:ZRR0]ZRHNUM and SDHNUM="N/A"
+For [ZRD]
+	If !find([F:ZRD]ITMREF,[M:ZRR2]ITMREFPKE) : Delete [ZRD] : Endif
+Next
+Read [ZRH]ZRH0=[M:ZRR0]ZRHNUM : Gosub CLE_GAUCHE
+[V]GREP=""
+Raz [M:ZRR0]ITMREF,[M:ZRR0]QTYADD,[M:ZRR0]ITMDES1,[M:ZRR0]ITMDES2,[M:ZRR0]PRI
+Affzo [ZRR0]
+Return
+
+# Abandon
+$AVANT_ABA
+If [V]GREP="C" : Gosub CLEAR : Else : Raz [M:ZRR0]ITMREF,[M:ZRR0]QTYADD,[M:ZRR0]ITMDES1,[M:ZRR0]ITMDES2,[M:ZRR0]PRI
+Affzo [ZRR0]
+Endif
+[V]GREP=""
+Raz [V]ZV_SESSID
+If [M:ZRR0]ZRHNUM<>"" : Read [ZRH]ZRH0=[M:ZRR0]ZRHNUM : Gosub CLE_GAUCHE : Endif
+Return
+
+$CLEAR
+Raz [ZRR0],[ZRR1],[ZRR2]
+Affzo [ZRR0]
+Affzo [ZRR1]
+Affzo [ZRR2]
+Return
+
+$APRES_MODIF
+If !find([V]GREP,"M","C")
+	If [M:ZRR0]ZRHNUM<>""
+		[V]GREP="M"
+	Else
+		Infbox "No grep"
+		mkstat=2
+	Endif
+Endif
+Return
+
+# Field modifications
+
+Subprog AM_SDHNUM(VALEUR)
+Variable Char    VALEUR()
+If [V]GREP<>"" or [M:ZRR0]ZRHNUM<>""
+    Read [ZSDH]SDH0=VALEUR
+    If ![S]fstat
+    	If [M:ZRR0]RECFCY=""
+        	[M:ZRR0]RECFCY=[F:ZSDH]PRHFCY
+        	[M:ZRR0]STOFCY=[F:ZSDH]STOFCY
+        	Affzo [M:ZRR0]RECFCY
+        	Affzo [M:ZRR0]STOFCY
+        Endif
+   		Look [ALK]LCKCLE='SDH'+[M:ZRR0]SDHNUM;0
+  		If [S]fstat : Lock ='SDH'+[M:ZRR1]SDHNUM:Endif
+		Filter [ZSDD] Where SDHNUM=VALEUR and QTYSTU-RCPQTYSTU>0
+		Local Shortint ZL_LINCNT : [L]ZL_LINCNT=0
+		Local Shortint ZL_LINNUM : [L]ZL_LINNUM=[M:ZRR1]NBLIG
+		Infbox num$([L]ZL_LINNUM)
+		For [ZSDD]
+			[M:ZRR1]SDHNUM([L]ZL_LINNUM)=[F:ZSDD]SDHNUM
+			[M:ZRR1]SDDLIN([L]ZL_LINNUM)=[F:ZSDD]SDDLIN
+			[M:ZRR1]ITMREF([L]ZL_LINNUM)=[F:ZSDD]ITMREF
+			[M:ZRR1]ITMDES1([L]ZL_LINNUM)=[F:ZSDD]ITMDES1
+			[M:ZRR1]QTYDLV([L]ZL_LINNUM)=[F:ZSDD]QTY-([F:ZSDD]RCPQTYSTU*[F:ZSDD]SAUSTUCOE)
+			[M:ZRR1]QTYUOM([L]ZL_LINNUM)=[F:ZSDD]SAU
+			[L]ZL_LINNUM+=1
+		Next
+		[M:ZRR1]NBLIG=[L]ZL_LINNUM
+		Affzo [ZRR1]
+    Else
+    	Call ERREURT("Delivery "+VALEUR+" does not exist!", 1) From GESECRAN : mkstat=2 : End
+    Endif
+Endif
+[M:ZRR0]SDHNUM=""
+Affzo [M:ZRR0]SDHNUM
+zonsui="[M:ZRR0]ITMREF"
+End
+
+Subprog AM_ITMREF(VALEUR)
+Variable Char VALEUR
+If VALEUR<>"" & (GREP<>"" or [M:ZRR0]ZRHNUM<>"")
+    [M:ZRR0]ITMDES1=func AFNC.INTFLD("ITMMASTER","ITMDES1",VALEUR)
+    [M:ZRR0]ITMDES2=func AFNC.INTFLD("ITMMASTER","ITMDES2",VALEUR)
+    If func AFNC.INTFLD("SPRICLIST","PRI","102"+"~"+VALEUR+"~"+num$(1000))=""
+        [M:ZRR0]PRI=val(func AFNC.INTFLD("SPRICLIST","PRI","10"+"~"+VALEUR+"~"+num$(1000)))
+    Else
+        [M:ZRR0]PRI=val(func AFNC.INTFLD("SPRICLIST","PRI","102"+"~"+VALEUR+"~"+num$(1000)))
+    Endif
+    Affzo [ZRR0]
+    zonsui="[M:ZRR0]QTYADD"
+Endif
+End
+
+Subprog AM_QTYADD(VALEUR)
+Variable Decimal VALEUR
+End
+
+# Field Controls
+
+Subprog C_SDHNUM(VALEUR)
+Variable Char    VALEUR()
+Read [ZSDH]SDH0=VALEUR
+If ![S]fstat
+	# Check existence in screen
+	If find (VALEUR,[M:ZRR1]SDHNUM)
+		Call ERREURT("Delivery "+VALEUR+" has already been added!", 1) From GESECRAN : mkstat=2 : End
+	Endif
+	# Check locks
+    Look [ALK]LCKCLE='SDH'+VALEUR;0
+    If !fstat
+        Call ERREURT("Delivery "+VALEUR+" is locked by another user!", 1) From GESECRAN : mkstat=2 : End
+    Endif
+	# Check sites
+	If [M:ZRH0]STOFCY<>""
+		If [F:ZSDH]STOFCY<>[M:ZRR0]STOFCY
+			Call ERREURT("Delivery "+VALEUR+" stock site mismatch!", 1) From GESECRAN : mkstat=2 : End
+		Endif
+		If [F:ZSDH]RECFCY<>[M:ZRR0]RECFCY
+			Call ERREURT("Delivery "+VALEUR+" receiving site mismatch!", 1) From GESECRAN : mkstat=2 : End
+		Endif
+	Endif
+Else
+	Call ERREURT("Unable to read delivery "+VALEUR, 1) From GESECRAN : mkstat=2 : End
+Endif
+End
+
+Subprog C_ITMREF(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog C_QTYADD(VALEUR)
+Variable Decimal VALEUR
+End
+
+
+
+
+######################################################################################
+
+
+

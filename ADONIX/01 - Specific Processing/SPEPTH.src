@@ -1,0 +1,248 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Receipts
+$ACTION
+Case ACTION
+	When "SETBOUT" : Gosub SETBOUT
+	When "VERIF_CRE" : Gosub VERIF_CRE
+	When "APRES_CRE" : Gosub APRES_CRE
+	When "AVANTBOUT" : Gosub AVANTBOUT
+    When Default
+Endcase
+Return
+
+$AVANTBOUT
+If BOUT="a"
+	Local Integer LOK : [L]LOK = 2
+	Local Char LINPUT : [L]LINPUT = "1"
+	Local Char ZTITLE : ZTITLE = "Print shipping label"
+	Local Char ZFLDTIT : ZFLDTIT = "Number of labels"
+	Local Char ZOBJ : ZOBJ = " "
+
+	Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50),ZL_PRNDES(240)
+    [L]ZL_PRNDES=func AFNC.INTFLD("APRTAUS", "PRT", GUSER+"~MONK-B2BLBL~")
+    TBPAR_BP(1) = "pthnum" : TBVAL_BP(1) = [M:PTH0]PTHNUM
+    If [L]ZL_PRNDES="" : [L]ZL_PRNDES="PREVIEW" : Endif
+    $RETRY
+    Call SAICAR (LINPUT, ZTITLE, ZFLDTIT, ZOBJ,0,0,"",LOK) From GESECRAN
+    If [L]LOK=2
+    	If val([L]LINPUT)>20 : Infbox "Maximum Labels: 20" : [L]LINPUT="20" : Goto RETRY : Endif
+    For I=1 To val([L]LINPUT)
+    	Call ETAT("MONK-B2BLBL",[L]ZL_PRNDES,"",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+    	Next
+    Endif
+Endif
+
+#-------------------------------------------------------------------------------
+# Action / Event: Button process (BOUT = "b")
+# Purpose: Programmatically update Stock Status, Location Type, and Location
+#          on Purchase Receipt lines [M:PTH1] with strict parameter type matching.
+#-------------------------------------------------------------------------------
+
+If BOUT = "b"
+	If GUSER = "MOZM"
+		# Variables
+		Local Decimal  ZL_LOCSEQ    : ZL_LOCSEQ = 0
+		Local Shortint ZL_TRSTYP   : ZL_TRSTYP = 3
+		Local Char     ZL_TRSCOD(240)   : ZL_TRSCOD = ""
+		Local Char     ZL_STADES(240)   : ZL_STADES = "A"
+		Local Char     ZL_LOCTYPDES(240): ZL_LOCTYPDES = "WHS2"
+		Local Char     ZL_LOCDES(240)   : ZL_LOCDES = "B2BRC"
+		Local Char     ZL_LOCTYP(30)    : ZL_LOCTYP = "WHS2"
+
+		# NBLIG loop
+		For I = 0 To [M:PTH1]NBLIG - 1
+			# Setup
+			nolign = I + 1
+			[M:PTH1]UPDFLG(nolign-1)=1
+			Affzo [M:PTH1]UPDFLG(nolign-1)
+			Call AVANT_NBLIG From SUBPTH
+
+			# Update Status
+				#1 Enable field entry
+			Call SAIZONENT("STA",nolign-1) From STKECR
+				#2 Pass the line check
+			GMODIF = 2
+				#3 Control the entry
+			[M:PTH1]STA(nolign-1) = "A"
+			Call STKCTRSTA(ZL_STADES,"A*,Q*,R*",1,0,[M:PTH1]QUAFRE(nolign-1),mkstat) From STKACT
+				#4 Check mkstat
+							Affzo [M:PTH1]STA(nolign-1)
+							Gosub APRES_MODIF From SUBPTHA
+			#Infbox num$(mkstat)
+
+			# Update Location Type
+			Call SAIZONENT("LOCTYP",nolign-1) From STKECR
+			GMODIF = 2
+			[M:PTH1]LOCTYP(nolign-1)="WHS2"
+			Affzo [M:PTH1]LOCTYP(nolign-1)
+			Call C_LOCTYP(ZL_LOCTYP) From SUBPTH
+			Call STKCTRTLO(
+&				[M:PTH1]WLOCSEQ(nolign-1),
+&				3,
+&				[M:PTH0]TRSCOD,
+&				[M:PTH0]PRHFCY,
+&				[M:PTH1]ITMREF(nolign-1),
+&				[M:PTH1]UOM(nolign-1),
+&				[M:PTH1]QTYUOM(nolign-1),
+&				ZL_STADES,
+&				0,
+&				ZL_LOCTYP,
+&				mkstat,
+&				"Q"+string$([M:PTH1]STA(nolign-1)="","S"),
+&				string$([F:PTR]SRGWAIFLG<>2,'[F:TLO]LOCCAT<>2'),
+&				string$(GWRHACT-1,num$(sigma(1,min(1,dim([M:PTH1]WRH)),[M:PTH1]WRH(nolign-1))))
+&			) From STKLOC
+						Affzo [M:PTH1]LOCTYP(nolign-1)
+						Gosub APRES_MODIF From SUBPTHA
+				#Infbox num$(mkstat)
+
+			# Assign location
+			Call SAIZONENT("LOC",nolign-1) From STKECR
+			GMODIF = 2
+			[M:PTH1]LOC(nolign-1) = "B2BRC"
+			# Execute stock location validation with correct data types
+			Call STKCTREMP(
+&				[M:PTH1]WLOCSEQ(nolign-1),
+&				ZL_TRSTYP,
+&				[M:PTH0]TRSCOD,
+&				[M:PTH0]PRHFCY,
+&				[M:PTH1]ITMREF(nolign-1),
+&				[M:PTH1]UOM(nolign-1),
+&				[M:PTH1]QTYUOM(nolign-1),
+&				ZL_STADES,
+&				ZL_LOCTYPDES,
+&				ZL_LOCDES,
+&				[M:PTH0]BPSNUM,
+&				0,
+&				mkstat,
+&				GBIDD1,
+&				string$([M:PTH1]STA(nolign-1)="","S"),
+&				string$([F:PTR]SRGWAIFLG<>2,'[F:TLO]LOCCAT<>2'),
+&				string$(GWRHACT-1,num$(sigma(1,min(1,dim([M:PTH1]WRH)),[M:PTH1]WRH(nolign-1))))
+&			) From STKLOC
+			Affzo [M:PTH1]LOC(nolign-1)
+			Gosub APRES_MODIF From SUBPTHA
+			Call AM_NBLIG From SUBPTH
+			Call APRES_NBLIG From SUBPTH
+			#Infbox num$(mkstat)
+		Next
+
+		# 3. Synchronize screen buffer & notify Object Supervisor of pending changes
+		[M:PTH1]NBLIG = [M:PTH1]NBLIG
+		Affzo [M:PTH1]0-999
+		mkstat = 1
+
+	Else
+		Infbox "That doesn't work yet..."
+	Endif
+Endif
+Return
+
+$VERIF_CRE
+If GFLAG="DC30"
+	If [M:PTH0]BPSNDE=""
+		[M:PTH0]BPSNDE=[M:PTH0]BPSNUM+"_"+format$("YYYYMMDDhhmmss",datetime$) : Affzo [M:PTH0]BPSNDE
+		[M:PTH0]NDEDAT=date$ : Affzo [M:PTH0]NDEDAT
+	Endif
+        If [M:PTH0]ZPOHNUM="" : [M:PTH0]ZPOHNUM=[M:PTH1]POHNUM(0) : Affzo [M:PTH0]ZPOHNUM : Endif
+        If [M:PTH0]ZORDREF="" : [M:PTH0]ZORDREF=func AFNC.INTFLD("PORDER","ORDREF",[M:PTH1]POHNUM(0)) : Affzo [M:PTH0]ZORDREF : Endif
+
+Endif
+Return
+
+$APRES_CRE
+If !clalev([ZPOH]): Local File PORDER [ZPOH] : Endif
+Local Char ZL_LASTPO(30) : [L]ZL_LASTPO=""
+For I=0 To [M:PTH1]NBLIG-1
+	If [M:PTH1]POHNUM(I)<>[L]ZL_LASTPO
+    	Read [ZPOH]POH0=[M:PTH1]POHNUM(I)
+    	If ![S]fstat
+    		#Infbox [F:ZPOH]POHNUM
+    		If [F:ZPOH]ZWRKFLG=2
+        		[L]ZL_LASTPO=[F:ZPOH]POHNUM
+        		Gosub $POH_WRKEML From ZS_PRINT
+        	Endif
+        Endif
+    Endif
+Next
+Return
+
+$SETBOUT
+If GFLAG="DC30"
+	Actzo [M:PTH0]ZLTEFLG
+	If [M:PTH1]POHNUM(0)="" : Raz [M:PTH0]ZPOHNUM : Affzo [M:PTH0]ZPOHNUM : Endif
+	If [M:PTH0]PTHNUM<>"" : Diszo [M:PTH0]BPSNDE : Diszo [M:PTH0]NDEDAT : Endif
+Else
+    Diszo [M:PTH0]ZLTEFLG
+    Diszo [M:PTH0]ZBOXEXP
+    Diszo [M:PTH0]ZBOXRCP
+    Diszo [M:PTH0]ZLTCOUR
+    Diszo [M:PTH0]ZLTENTE
+Endif
+If !clalev([ZVB2BSL]) : Local File ZVB2BSHIPL [ZVB2BSL] : Endif
+Filter [ZVB2BSL] Where PTHNUM=[M:PTH0]PTHNUM
+Read [ZVB2BSL] First
+If ![S]fstat
+	If [M:PTH0]ZPOHNUM<>"" : CHMEN+="Za" : Endif
+Endif
+If GUSER="MOZM"
+If [M:PTH1]ITMREF(0)<>"" : CHMEN+="Zb" : Endif
+Endif
+Return
+
+Subprog D_PRHFCY(VALEUR)
+Variable Char    VALEUR()
+#If GFLAG="DC30"
+#	[M:PTH0]PRHFCY="DC30" : Affzo [M:PTH0]PRHFCY
+#Endif
+End
+
+Subprog AM_ZERRQTY(VALEUR)
+Variable Decimal VALEUR
+#If GFLAG="DC30"
+#    If VALEUR>=[M:PTH1]QTYUOM(nolign-1)
+#    	[M:PTH1]STA(nolign-1)="R" : Affzo [M:PTH1]STA(nolign-1)
+#    Else
+#    	[M:PTH1]STA(nolign-1)="Q" : Affzo [M:PTH1]STA(nolign-1)
+#	Endif
+#Endif
+End
+
+Subprog AM_POHNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog C_BPSNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog D_BPSNDE(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog D_NDEDAT(VALEUR)
+Variable Date    VALEUR
+End
+
+Subprog AM_BPSNDE(VALEUR)
+Variable Char    VALEUR()
+If GFLAG="DC30"
+	If VALEUR<>""
+        If !clalev([ZPTH]) : Local File PRECEIPT [ZPTH] : Endif
+        Filter [ZPTH] Where BPSNDE=VALEUR
+        Read [ZPTH] First
+        If ![S]fstat
+        	[M:PTH0]NDEDAT=[F:ZPTH]NDEDAT
+        	Affzo [M:PTH0]NDEDAT
+        	If [M:PTH0]BPSNUM="" : [M:PTH0]BPSNUM=[F:ZPTH]BPSNUM : Affzo [M:PTH0]BPSNUM : Call AM_BPSNUM([F:ZPTH]BPSNUM) From SUBPTH : Endif
+        	Diszo [M:PTH0]BPSNUM
+        Else
+        	Call ERREURT(VALEUR+" not found. Modification of automatic packing slip not possible!",1) From GESECRAN
+        	#[M:PTH0]BPSNDE=""
+        	#Affzo [M:PTH0]BPSNDE
+        	mkstat=2
+        Endif
+     Else
+     	Actzo [M:PTH0]BPSNUM
+     Endif
+Endif
+End

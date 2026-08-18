@@ -1,0 +1,113 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+    case ACTION
+      WHEN "CTMFILTRE"  : gosub CTMFILTRE
+      WHEN "CTMFILTSOQ" : gosub CTMFILTSOQ
+      WHEN "SRTPURORD"  : gosub SRTPURORD
+      WHEN "CONTREMARQ" : gosub CONTREMARQ
+    endcase
+Return
+
+$CTMFILTRE # only process orders not on hold
+  SOHFILTRE='([F:SOH]HLDSTA=1 | [F:SOH]HLDSTA=0) & [F:SOH]CDTSTA=1'
+Return
+
+
+$CTMFILTSOQ # only process orders for given supplier
+  local char YDEFBPS
+ 
+  if dim([M:DIA]YSPLITPO)>0
+   if [M:DIA]YBPSNUM <> ''
+#if the screen field is blank check for the default supplier
+     if [F:SOQ]YB2BBPS <> '' 
+         YDEFBPS = [F:SOQ]YB2BBPS
+     else
+         if !clalev([F:YITP]) : local file ITMBPS [YITP] : endif
+         filter [YITP] where ITMREF=[F:SOQ]ITMREF & CTMBPSFLG=2 ORDER BY PIO
+         read [YITP] first
+         if fstat=0 
+            YDEFBPS = [F:YITP]BPSNUM
+         else
+            YDEFBPS = ""
+         endif 
+     endif
+     if  YDEFBPS=[M:DIA]YBPSNUM
+       WCDTSTA = 0
+     else
+       WCDTSTA = 1
+     endif
+   endif
+  endif
+Return
+
+
+
+$SRTPURORD #produce one purchase order per sales order
+#   if [M:DIA]YSPRORD = 2
+#     if [F:SOQ]YB2BBPS ="6500"
+#       WSOHFLG = 0
+#     else
+#       WSOHFLG = 1
+#     endif
+#   endif
+  if dim([M:DIA]YSPLITPO)>0
+   if [M:DIA]YSPLITPO = 2
+       WSOHFLG = 0
+   else
+       WSOHFLG = 1
+   endif
+  endif
+Return
+
+
+
+
+
+$CONTREMARQ
+    if [F:SOQ]YB2BBPS <> ''
+        NUMFOU=[F:SOQ]YB2BBPS
+    endif
+    if [F:SOP]YMONKCOST <> 0
+        PUNET=[F:SOP]YMONKCOST
+    endif
+Return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,20 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+
+ CASE ACTION
+   WHEN "ALIFMI" : gosub ALIFMI
+ Endcase
+Return
+
+$ALIFMI
+
+if left$(WSTOFCY,2)<>'DC' & left$([M:SOH0]SOHNUM,3)='STR' & WFMI<>1
+  WFMI=1
+endif
+
+Return
+
+
+
+
+

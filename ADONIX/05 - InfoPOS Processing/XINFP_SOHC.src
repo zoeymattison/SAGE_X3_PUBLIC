@@ -1,0 +1,153 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Sales order class
+###########################################################################################
+# Script            : XINFP_SOHC
+# Creation date     : 12/10/2017
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : SALES ORDERS
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When "OUVRE"    : Gosub OUVRE    From XINFP_SOHC
+        When "FERME"    : Gosub FERME    From XINFP_SOHC
+        When "CREATION" : Gosub CREATION From XINFP_SOHC
+        When Default
+    Endcase
+Return
+
+###########################################################################################
+# DECLARATION OF THE CLASS FOR CREATION
+###########################################################################################
+$OUVRE
+    Global Instance GIMPSOH Using C_SORDER
+
+    # ----------------------------------------------------------
+    # Hybrid part (begin)
+    ANOWRITE = 1
+    # Hybrid part (end)
+
+    Gosub SAUV_GLOB From TRTX3GLOB
+    Gosub OUVRE_SIHX From TRTVENFACC
+
+    Gosub CHARG_PARAM From SUBSOHA
+
+    Gosub DECLARE_FILES From XINFP_SOHC
+Return
+
+###########################################################################################
+# DECLARATION OF TABLES TO BE USED BY THE CLASS GENERATION
+###########################################################################################
+$DECLARE_FILES
+    #  If !clalev([F:LED]) : Local File GLED       [LED] : Endif
+    #  If !clalev([F:DIE]) : Local File GDIE       [DIE] : Endif
+    #  If !clalev([F:CCE]) : Local File CACCE      [CCE] : Endif
+    If !clalev([F:TCA])  : Local File TABCOUAFF  [F:TCA]  : Endif
+    If !clalev([F:GCM])  : Local File GACM       [F:GCM]  : Endif
+    If !clalev([F:ACV])  : Local File ACTIV      [F:ACV]  : Endif
+    If !clalev([F:SVIC]) : Local File SVCRINVCND [F:SVIC] : Endif
+Return
+
+###########################################################################################
+# CLOSING OF INSTANCE DECLARATION
+###########################################################################################
+$FERME
+  # HYBRID PART - BEGIN
+  If GIMPSOH <> null Then
+    FreeGroup GIMPSOH
+  Endif
+
+  Kill GIMPSOH
+  # HYBRID PART - END
+
+  Gosub REST_GLOB From TRTX3GLOB
+
+Return
+
+###########################################################################################
+# SETTING OF DEFAULTS FOR CREATION OF NEW RECORD
+###########################################################################################
+$RAZCRE
+    Local Integer XNI
+    Local Integer XMY_STATUS
+
+    # HYBRID PART BEGIN
+    If GIMPSOH <> null Then
+      FreeGroup GIMPSOH
+    Endif
+
+    GIMPSOH = NewInstance C_SORDER AllocGroup null
+    [L]MY_STATUS = fmet GIMPSOH.AINIT()
+
+    If [L]MY_STATUS <> [V]CST_AOK Then
+      Call RECOVERS_ERROR_IN_CLASSIC(GZINSPJM)
+      If GMESSAGE = AVOID.ACHAR Then
+        GMESSAGE = mess(372,2260,1)
+      Endif
+      If [L]MY_STATUS <> [V]CST_AWARNING Then
+        OK = 0
+        Return
+      Endif
+    Endif
+    # HYBRID PART - END
+Return
+
+###########################################################################################
+# SETTING OF DEFAULTS FOR CREATION OF NEW RECORD
+###########################################################################################
+Subprog COPY_SCREEN_TO_CLASS()
+    Local Integer XNI
+    Local Integer XILINE
+    Local Integer ASTATUS
+
+    # HYBRID - START
+    # HYBRID - END
+End
+
+##########################################################################################################
+Subprog RECOVERS_ERROR_IN_CLASSIC(GINSSOH)
+    Variable Instance GINSSOH Using C_SORDER
+
+    Local Integer NI
+    Local Char    SMESSAGE(type(GMESSAGE)-10)
+    Local Integer MY_STATUS
+    Local Integer IMESSAGE
+
+    # HYBRID - START
+    IMESSAGE = func SYRSTACKTOOLS.MSGSTACK_GET_FIRST_UPPER_MESSAGE(GINSSOH, SMESSAGE)
+    If IMESSAGE = [V]CST_AWARNING Then
+        GMESSAGE = SMESSAGE
+        GERR = 2
+    Elsif IMESSAGE = [V]CST_AERROR or IMESSAGE = [V]CST_AFATAL Then
+        GMESSAGE = SMESSAGE
+        GOK = 0
+        GERR = 1
+    Endif
+    # HYBRID - END
+
+    # TO HELP WITH THE DEBUG PROCESS - WRITE A CLASSIC LOG FILE
+    Call OUVRE_TRACE("MSGSTACK_DUMP_MESSAGES_INTO_CLASSIC_LOG" + GUSER) From LECFIC
+    Call ECR_TRACE("->", 0) From GESECRAN
+    Call MSGSTACK_DUMP_MESSAGES_INTO_CLASSIC_LOG(GINSSOH) From SYRSTACKTOOLS
+    Call FERME_TRACE From LECFIC
+End
+
+##########################################################################################################
+$CREATION
+    # HYBRID - START
+    # HYBRID - END
+Return
+
+
+
+

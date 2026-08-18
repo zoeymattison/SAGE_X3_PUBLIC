@@ -1,0 +1,227 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Lorry QA Maintenance
+# Mask management XQAM0 (Vertical)
+#<AdxTL>@(#)0.0.0.0 $Revision$ QA Question Maintenance
+#-------------------------------------------------------------------------------
+# Vertical Processes for WHM QA Question Maintenance (XQAM0)
+#     - Traitement : SPVXQAM       (Vertical File)                             #
+#                                                                              #
+# Created by GT SRAI 28DEC17 For QA Question Maintenance                       #
+#-------------------------------------------------------------------------------
+# History - (At end of Source)
+#
+# Last Change was :
+# 28/12/2017    GT Sweta Rai      S----   Original release
+#-------------------------------------------------------------------------------
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "03.05.00 28/12/2017 XM5"
+#-------------------------------------------------------------------------------
+# actions
+#
+$ACTION
+
+  If !func AFNC.ACTIV("XM5")
+    # Gosub ACTION From XMOXM5MP
+    mkstat = 2
+    GOK = 0
+    Return
+  Endif
+
+  Case ACTION
+    When "OUVRE"      : Gosub OUVRE
+    When "DEFLIG"     : Gosub DEFLIG
+    When "RAZCRE"     : Gosub RAZCRE
+    When "SETBOUT"    : Gosub SETBOUT
+    When "AVANTBOUT"  : Gosub AVANTBOUT
+    When "EXEBOUT"    : Gosub EXEBOUT
+    When "ANNULE"     : Gosub ANNULE
+    When "LIENS"      : Gosub LIENS
+    When "LIENS_LIG"  : Gosub LIENS_LIG
+    When "INICRE_LIG" : Gosub INICRE_LIG
+    When "VERIF_CRE" : Gosub VERIF_CRE
+    When "VERIF_MOD" : Gosub VERIF_MOD
+    When "CREATION"   : Gosub CREATION
+    When "MODIF"      : Gosub MODIF
+    When Default
+  Endcase
+
+# When "APRES_CRE"  : Gosub APRES_CRE
+Return
+######################################################################################
+## Label added by supervisor (screen XQAM0) 28/12/2017 16:15:11 (ADMIN)
+######################################################################################
+Subprog AM_QTTYPE1(VALEUR)
+Variable Integer VALEUR
+
+If VALEUR = 2
+  [M:XQAM0]QTTYPE = 1
+  [M:XQAM0]QTTYPE2 = 1
+Endif
+Affzo [M:XQAM0]QTTYPE2
+End
+
+Subprog AM_QTTYPE2(VALEUR)
+Variable Integer VALEUR
+If VALEUR = 2
+  [M:XQAM0]QTTYPE = 2
+  [M:XQAM0]QTTYPE1 = 1
+Else
+  [M:XQAM0]QTTYPE = 1
+Endif
+Affzo [M:XQAM0]QTTYPE1
+End
+
+################################################################################
+$OUVRE
+
+If !clalev ([F:XM2H]): Local File XM5RQAH[XM2H] : Endif
+If !clalev ([F:XM2]) : Local File XM5RQA [XM2]  : Endif
+If !clalev ([F:AST]) : Local File APLSTD [AST]  : Endif
+
+Gosub DECLARE From TABLEAUX
+Return
+####################################################################
+$DEFLIG
+#----------------------------------#
+# Définition du fichier des lignes #
+#----------------------------------#
+# Critère de lecture      (CRIT)   #
+# Nom du fichier          (FICLIG) #
+# Abréviation du fichier  (ABLIG)  #
+# Zone numéro de ligne    (ZONLIG) #
+#----------------------------------#
+Default Mask [XQAM1]
+
+Default File [XM2]
+
+CRIT = 'QTCODE="'+[M:XQAM0]QTCODE+'"'
+FICLIG = "XM5RQA" : ABLIG = "XM2"
+ZONLIG = "QTSEQ"
+Return
+
+################################################################################
+$RAZCRE
+
+  [M:XQAM0]QTTYPE = 1
+  [M:XQAM0]QTTYPE1 = 2
+  [M:XQAM0]QTTYPE2 = 1
+
+  Affzo [M:XQAM0]1-99
+Return
+################################################################################
+$SETBOUT
+Return
+################################################################################
+$AVANTBOUT
+
+Return
+################################################################################
+$VERIF_CRE
+  Gosub VERIF
+  If OK=0 Return Else OK=1 : Endif
+Return
+####################################################################
+$VERIF_MOD
+  Gosub VERIF
+  If OK=0 Return Else OK=1 : Endif
+Return
+################################################################################
+$VERIF
+  If [M:XQAM1]NBLIG = 0
+    GERR=1 : GMESSAGE = mess(61,199,1)
+    OK=0
+    Return
+  Endif
+
+Return
+################################################################################
+
+$EXEBOUT
+If GOK <> 1:Return: Endif
+
+Return
+################################################################################
+$ANNULE
+# Effacement des lignes
+Gosub ANNULE From TABLEAUX
+If GOK<1 : Return : Endif
+Return
+####################################################################
+$LIENS
+
+If [F:XM2H]QTTYPE = 2
+  [M:XQAM0]QTTYPE1 = 0
+  [M:XQAM0]QTTYPE2 = 2
+Else
+  [M:XQAM0]QTTYPE1 = 2
+  [M:XQAM0]QTTYPE2 = 0
+Endif
+
+# Chargement des lignes dans le tableau
+Gosub LIENS From TABLEAUX
+
+Return
+######################################################################################
+$MODIF
+
+Gosub MODIF From TABLEAUX
+If GOK<1 : Return : Endif
+
+Return
+######################################################################################
+$CREATION
+Gosub CREATION From TABLEAUX
+If GOK<1 : Return : Endif
+
+Return
+
+######################################################################################
+$INICRE_LIG
+Local Shortint NOL : NOL=nolign-1
+#--------------------------------#
+# Avant le Write de la ligne XM2 #
+#--------------------------------#
+[F:XM2]QTCODE =  [M:XQAM0]QTCODE
+
+Return
+######################################################################################
+$LIENS_LIG
+
+Local Shortint NOL, NLIG
+
+#-------------------------------------#
+# Lecture de l'enregistrement XM2     #
+#-------------------------------------#
+NOL=nolign-1
+
+[M:XQAM1] = [F:XM2]
+
+Return
+######################################################################################
+
+
+######################################################################################
+## Label added by supervisor (screen XQAM0) 28/12/2017 17:10:30 (ADMIN)
+######################################################################################
+Subprog AM_QTCODE(VALEUR)
+Variable Char    VALEUR()
+VALEUR = toupper(VALEUR)
+End
+
+
+######################################################################################
+
+######################################################################################
+## Label added by supervisor (screen XQAM1) 29/12/2017 13:16:25 (ADMIN)
+######################################################################################
+Subprog AM_QTMENU(VALEUR)
+Variable Decimal VALEUR
+
+  Look [F:AST]CLE=VALEUR
+  # Il n'y avait pas d'enr en ligne et la clé saisie n'existe pas --> Création interdite
+  If fstat : GMESSAGE=mess(178,199,1) : mkstat=2 : Endif
+End
+
+
+######################################################################################
+

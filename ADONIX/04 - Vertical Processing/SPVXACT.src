@@ -1,0 +1,54 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Logon User Logging Maintenance
+#-------------------------------------------------------------------------------------------------------------
+#
+#       SPVXACT - VerticalProcesses for WHM Logon User Logging Maintenance (XACT)
+#-------------------------------------------------------------------------------------------------------------
+#
+# History - (At end of Source)
+#
+# Last Change was :
+# 09/07/2018   Sweta Rai      V03.05.00   T----   original release
+#-------------------------------------------------------------------------------------------------------------
+#
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "03.05.00 09/07/2018 XM5"
+#-------------------------------------------------------------------------------------------------------------
+# actions
+#
+$ACTION
+
+  If !func AFNC.ACTIV("XM5")
+    # Gosub ACTION From XMOXM5MP
+    mkstat = 2
+    GOK = 0
+    Return
+  Endif
+
+  Case ACTION
+    When "RAZDUP": Gosub RAZDUP
+    When "SETBOUT" : Gosub SETBOUT
+    When Default
+  Endcase
+
+Return
+#-------------------------------------------------------------------------------------------------------------
+$SETBOUT
+
+If [M:XACT1]ACTNO > 0
+  #-- Disable delete/save button
+  Call VIREBOUT(CHAINE,"AM") From GOBJET
+Endif
+Return
+#-------------------------------------------------------------------------------------------------------------
+$RAZDUP
+
+[M:XACT1]ACTNO = 0
+Affzo [M:XACT1]ACTNO
+Return
+#-------------------------------------------------------------------------------------------------------------
+# History
+# ~~~~~~~
+# 09/07/2018   Sweta Rai      V03.05.00   T----   original release
+#------------------------# End of SPEXACT source #------------------------------------------------------------
+

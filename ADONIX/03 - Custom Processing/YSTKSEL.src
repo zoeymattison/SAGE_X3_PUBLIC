@@ -1,0 +1,2473 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#<AdxTL>@(#)8.0.0.0 $Revision$
+#########################################################################
+# Traitement STKSEL - Librairie d'actions de sélection stock            #
+#########################################################################
+
+#########################################################################
+# Actions de type sélection liste
+#------------------------------------------------------------------------
+# STKSELUOMN  : Sélection unite de mesure
+# STKSELLOCT  : Sélection emplacement pour terminaux portables
+# STKSELDBY   : Sélection d'un désassemblage
+# STKSELPRC   : Sélection code préparation
+#########################################################################
+
+#########################################################################
+# Actions de type sélection table
+#------------------------------------------------------------------------
+# STKSELTRS   : Sélection transaction stock
+# SELITMF     : Sélection article + filtres
+# SELITF      : Sélection article site avec filtres divers
+# SELITFITW   : Sélection article site article depot avec filtres divers
+# SELITP      : Sélection article fournisseur
+# STKSELSTO   : Sélection ligne de stock
+# STKSELSTOT  : Sélection ligne de stock pour terminaux portables
+# STKSELLOT   : Sélection lot
+# STKSELMAJS  : Sélection versions majeures pour sortie  : # TS 106217
+# STKSELMAJ   : Sélection historiques versions majeures
+# STKSELMIN   : Sélection historiques versions mineures
+# STKSELLOTO  : Sélection lot d'une pièce origine
+# STKSELLOTD  : Sélection lot destinataire
+# STKSELLOTS  : Sélection lot + filtre statut
+# STKSELLOTM  : Sélection lot sur bornes article
+# STKSELSLOM  : Sélection s/lot sur bornes article et bornes lot
+# STKSELBPLN  : Sélection lot fournisseur
+# STKSELSTA   : Sélection statut
+# STKSELSER   : Sélection numéros de série
+# STKSELSERN  : Sélection numéros de série
+# STKSELQLY   : Sélection demande d'analyse
+# STKSELBOML  : Sélection entête nomenclature avec restitution alternative
+# STKSELPRP   : Sélection paramétrage code préparation
+# STKSELSPH   : Sélection colis
+# STKSELADD   : Sélection adresse tiers pour terminaux portables
+#########################################################################
+
+$ACTION
+Case ACTION
+  When "SEL_LISTE"      : Gosub SEL_LISTE
+  When "VERF_LISTE"     : Gosub VERF_LISTE
+  When "SEL_TABLE"      : Gosub SEL_TABLE
+  When "BOUT_TABLE"     : Gosub BOUT_TABLE
+  When "VERF_TABLE"     : Gosub VERF_TABLE
+  When "FIN_TABLE"      : Gosub FIN_TABLE
+Endcase
+Return
+
+#########################################################################
+$SEL_LISTE
+Case LISTE
+  When "STKSELUOMN"    : Gosub STKSELUOMN
+  When "STKSELLOCT"    : Gosub STKSELLOCT
+  When "STKSELDBY"     : Gosub STKSELDBY
+  When "STKSELPRC"     : Gosub STKSELPRC
+Endcase
+Return
+
+#########################################################################
+$VERF_LISTE
+Case LISTE
+  When "STKSELDBY"     : Gosub VERF_STKSELDBY
+Endcase
+Return
+
+#########################################################################
+$SEL_TABLE
+Case TABLE
+  When "STKSELTRS"     : Gosub STKSELTRS
+  When "SELITMF"       : Gosub S_SELITMF
+  When "SELITF"        : Gosub S_SELITF
+  When "SELITFITW"     : Gosub S_SELITFITW
+  When "SELITP"        : Gosub S_SELITP
+  When "STKSELSTO"     : Gosub STKSELSTO
+  When "STKSELSTOT"    : Gosub STKSELSTOT
+  When "STKSELLOT"     : Gosub STKSELLOT
+  When "STKSELMAJS"    : Gosub STKSELMAJS   : # TS 106217
+  When "STKSELMAJ"     : Gosub STKSELMAJ      # hcb 71276
+  When "STKSELMIN"     : Gosub STKSELMIN      # hcb 71276
+  When "STKSELLOTO"    : Gosub STKSELLOTO
+  When "STKSELLOTS"    : Gosub STKSELLOTS
+  When "STKSELLOTD"    : Gosub STKSELLOTS
+  When "STKSELLOTM"    : Gosub STKSELLOTM
+  When "STKSELSLOM"    : Gosub STKSELSLOM
+  When "STKSELBPLN"    : Gosub STKSELBPLN
+  When "STKSELSTA"     : Gosub STKSELSTA
+  When "STKSELSER"     : Gosub STKSELSER
+  When "STKSELSERN"    : Gosub STKSELSERN
+  When "STKSELQLY"     : Gosub STKSELQLY
+  When "STKSELBOML"    : Gosub STKSELBOML
+  When "STKSELPRP"     : Gosub STKSELPRP
+  When "STKSELSPH"     : Gosub STKSELSPH
+  When "STKSELADD"     : Gosub STKSELADD
+Endcase
+Return
+
+#########################################################################
+$BOUT_TABLE
+Case TABLE
+  When "SELITMF"       : Gosub B_SELITMF
+  When "SELITF"        : Gosub B_SELITF
+  When "SELITFITW"     : Gosub B_SELITFITW
+  When "SELITP"        : Gosub B_SELITP
+Endcase
+Return
+
+#########################################################################
+$VERF_TABLE
+Case TABLE
+  When "STKSELSTO"     : Gosub VERF_STKSELSTO
+  When "STKSELSTOT"    : Gosub VERF_STKSELSTOT
+  When "STKSELLOT"     : Gosub VERF_STKSELLOT
+  When "STKSELMIN"     : Gosub VERF_STKSELMIN
+  When "STKSELMAJ"     : Gosub VERF_STKSELMAJ
+  When "STKSELMAJS"    : Gosub VERF_STKSELMAJS        : # TS 106217
+  When "STKSELLOTO"    : Gosub VERF_STKSELLOTO          # hcb 65496
+  When "STKSELLOTS"    : Gosub VERF_STKSELLOTO          # hcb 65496
+  When "STKSELLOTD"    : Gosub VERF_STKSELLOTD
+  When "STKSELQLY"     : Gosub VERF_STKSELQLY
+  When "STKSELBOML"    : Gosub VERF_STKSELBOML
+  When "STKSELSPH"     : Gosub VERF_STKSELSPH
+Endcase
+Return
+
+#########################################################################
+$FIN_TABLE
+Return
+
+#########################################################################
+
+#########################################################################
+# STKSELUOMN : Sélection unite de mesure
+#########################################################################
+# Paramètres E : LTYP = Type unite (2=vente, 3=achat )
+#                LITM = 1 : en complement de  l'US et des UC de l'article
+#
+# Prérequis    : Ces tables doivent être ouvertes   ITMMASTER
+#                                                   ITMBPC
+#                                                   ITMBPS
+#########################################################################
+$STKSELUOMN
+Local Integer  LTYP : LTYP = val(PARAM(1))
+Local Integer  LITM : LITM = val(PARAM(2))
+
+#
+Local Char     WUNI(GLONUOM)
+Local Decimal  WCOE
+Local Char     WUCV(GLONUOM)
+Local Integer  I, J, K, L
+#
+Local Char    W_PCU1(GLONUOM)(1..20)
+Local Char    W_COE (20)(1..20)
+Local Char    W_PCU2(GLONUOM)(1..20)
+#
+
+# Chargement unités article maitre
+If LITM = 1 & clalev([F:ITM]) <> 0
+  WUNI  = [F:ITM]STU     : WCOE  = 0                  : WUCV = ""
+  Gosub LOA_UNI
+     For I = 0 To dim([F:ITM]PCU)-1
+         WUNI = [F:ITM]PCU(I) : WCOE = [F:ITM]PCUSTUCOE(I) : WUCV = [F:ITM]STU
+         Gosub LOA_UNI
+     Next I
+Endif
+# Chargement unités ventes
+If LTYP = 2 & clalev([F:ITU]) <> 0
+  WUNI = [F:ITU]PCU1 : WCOE = [F:ITM]SAUSTUCOE*[F:ITU]PCUSAUCOE1 : WUCV = [F:ITM]STU
+  Gosub LOA_UNI
+  WUNI = [F:ITU]PCU2 : WCOE = [F:ITM]SAUSTUCOE*[F:ITU]PCUSAUCOE2 : WUCV = [F:ITM]STU
+  Gosub LOA_UNI
+Endif
+# Chargement unités achats
+If LTYP = 3 & clalev([F:ITP]) <> 0
+  WUNI = [F:ITP]PCU  : WCOE = arr([F:ITP]PCUPUUCOE*[F:ITP]PUUSTUCOE,10^-6) : WUCV = [F:ITM]STU
+  Gosub LOA_UNI
+  WUNI = [F:ITP]PUU  : WCOE = [F:ITP]PUUSTUCOE : WUCV = [F:ITM]STU
+  Gosub LOA_UNI
+Endif
+# Chargement unités achats article et article fournisseur
+If LTYP = 3 & clalev([F:ITP]) <> 0
+  WUNI = [F:ITM]PUU  : WCOE = [F:ITM]PUUSTUCOE : WUCV = [F:ITM]STU
+  Gosub LOA_UNI
+  If [F:ITM]PUU <> [F:ITP]PUU
+       WUNI = [F:ITP]PUU  : WCOE = [F:ITP]PUUSTUCOE : WUCV = [F:ITM]STU
+       Gosub LOA_UNI
+   Endif
+Endif
+
+TIT(0) = mess(43,195,1)
+Return
+
+#########################################################################
+$LOA_UNI
+If WUNI <> ""
+  If J < dim(W_PCU1)
+    L = 0
+    For K = 1 To J
+      If W_PCU1(K) = WUNI & W_COE(K) = num$(WCOE)
+        L = 1
+        Break
+      Elsif WUNI = WUCV
+        L = 1
+        Break
+      Endif
+    Next K
+    If L = 0
+      J += 1
+      W_PCU1(J) = WUNI
+      If WCOE = 0
+        W_COE(J) = ""
+      Else
+        W_COE (J) = num$(WCOE)
+      Endif
+      W_PCU2(J) = WUCV
+      NBTEX +=1
+      TEX(NBTEX) = [L]WUNI
+      If WUCV<>""  TEXTE(NBTEX) = TEX(NBTEX)-"="-W_COE(J)-WUCV : Endif
+    Endif
+  Endif
+Endif
+Return
+
+#########################################################################
+# STKSELLOCT : Sélection emplacement pour terminaux portables
+#########################################################################
+# Paramètres E : LFCY = Site
+#                LITM = Article
+#                PARAM(3) = Catégories emplacement autorisées
+#
+# Prérequis    : Ces tables doivent être ouvertes   STOCK
+#
+#########################################################################
+$STKSELLOCT
+Local Char  LFCY : LFCY = PARAM(1)
+Local Char  LITM : LITM = PARAM(2)
+
+Local Char     CRITERE(240)
+Local Char     WLOC(GLONLOC)
+Local Char     WTABLOC(GLONLOC)(1..50)
+Local Integer  I,J,WCAT
+
+If !clalev([F:STC]) Local File STOLOC [STC] Endif
+
+If PARAM(3)="" PARAM(3)="1234" Endif
+
+CRITERE  = "[F:STO]ITMREF=LITM&[F:STO]STOFCY=LFCY"
+CRITERE += "&[F:STO]CUNLOKFLG<>2"
+CRITERE += "&([F:STO]QTYSTU-[F:STO]CUMALLQTY-[F:STO]CUMWIPQTY)>0"
+If len(PARAM(3)) > 0
+  CRITERE += "&find([F:STO]LOCCAT"
+  For WCAT = 1 To len(PARAM(3))
+    CRITERE += ","
+    CRITERE += mid$(PARAM(3),WCAT,1)
+  Next WCAT
+  CRITERE += ")"
+Endif
+
+For [STO]STO4 Hint Key STO3 Where evalue(CRITERE)
+   WLOC = [F:STO]LOC
+   Gosub LOA_LOC
+Next
+
+TIT(0) = mess(22,123,1)
+
+Return
+
+#########################################################################
+$LOA_LOC
+
+If WLOC<>"" & J<dim(WTABLOC)
+   If J=0 | !find(WLOC,WTABLOC(1..J))
+      Read [STC]STC0=[F:STO]STOFCY;[F:STO]LOC
+      If !fstat
+         J += 1
+         WTABLOC(J) = WLOC
+         NBTEX +=1
+         TEX(NBTEX) = WLOC
+         TEXTE(NBTEX) = format$("K:10X",TEX(NBTEX))-format$("K:3X",[F:STC]LOCTYP)-mess([F:STC]LOCCAT,2710,1)
+      Endif
+   Endif
+Endif
+
+Return
+
+#########################################################################
+# STKSELDBY       Selection sur fichier SMVTH   numero de desassemblage
+#########################################################################
+$STKSELDBY
+Local Char    LFCY(GLONFCY)   : LFCY =      PARAM(1)
+Local Integer LTYP            : LTYP =      val(PARAM(2))
+Local Char    LVCR            : LVCR =      PARAM(3)
+Local Integer Z
+Local Char SZTIT
+Z = 0
+SZTIT = ""
+If clalev ([F:SMH1])=0 Local File SMVTH [SMH1] Endif
+
+Filter [SMH1] Where [F:SMH1]STOFCY = LFCY & [F:SMH1]VCRTYPORI = LTYP & [F:SMH1]VCRNUMORI = LVCR Order By [F:SMH1]VCRNUM Asc
+
+For [SMH1] With Nohint
+    If Z >= dim(TEX) - 1 : Break : Endif
+    Z += 1
+    TEX(Z)   = [F:SMH1]VCRNUM
+    TEXTE(Z) = [F:SMH1]VCRNUM
+$NEXTLIS
+Next
+
+Filter [SMH1]
+ORDRE   = "STOFCY;VCRNUM"
+
+NBTEX = Z
+SZTIT = mess(33,725,1) #desassemblage
+TIT = left$(SZTIT, 30)
+
+Return
+
+$VERF_STKSELDBY
+Local Char WVCRNUM
+GCONSULT = 2
+#WVCRNUM = VALEUR
+WVCRNUM = TEX(CHOIX)
+Call OBJET("DBY",WVCRNUM,"32") From GOBJET
+GCONSULT = 0
+
+Return
+
+#########################################################################
+# STKSELPRC                                   Selection Code préparation
+#########################################################################
+$STKSELPRC
+
+Local Char    LFCY   : LFCY=PARAM(1)
+Local Integer Z      : Z=0
+
+If clalev([F:PRC])  = 0 : Local File TABPRECOD [PRC] : Endif
+If clalev([F:ATZ])  = 0 : Local File ATABZON   [ATZ] : Endif
+
+For [PRC] Where STOFCY=LFCY & find(NUMCRIT,1,2,3,4,5)
+   If Z >= dim(TEX)-1 : Break : Endif
+   If !find([F:PRC]PRECOD,TEX(0..dim(TEX)-1))
+      Z += 1
+      TEX(Z)   = [F:PRC]PRECOD
+      TEXTE(Z) = format$("K:5X",TEX(Z))-[F:PRC]PREDES
+   Endif
+Next
+NBTEX  = Z
+ORDRE  = "PRECOD;PREDES"
+TIT(0) = mess(226,184,1)-LFCY
+Return
+
+#########################################################################
+# STKSELTRS                                  Selection Transaction Stock
+#########################################################################
+$STKSELTRS
+
+Local Integer LTYP
+Local Char    LFIC(10)
+LTYP = val(PARAM(1))
+LFIC = "STKTRS"
+
+If clalev([F:SRT])  = 0 : Local File STKTRS    [SRT] : Endif
+If clalev([F:ATZ])  = 0 : Local File ATABZON   [ATZ] : Endif
+If clalev([F:AXX])  = 0 : Local File ATEXTRA   [AXX] : Endif
+
+Link [SRT] With
+& [AXX]AXX0="STKTRS";"DESAXX";GLANGUE;[F:SRT]SRTTYPCAR;[F:SRT]SRTNUM
+& As [SRT_]
+
+TIT(0) = mess(209,184,1)+"  "+mess(LTYP,2721,1)
+
+NBCOL = 1 : COL(NBCOL) = "SRTNUM"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:AXX]TEXTE"
+Call TEXTFIC(LFIC,"DESAXX",2,TIT(NBCOL)) From OBJDIV
+
+ORDRE   = "SRTNUM;[F:AXX]TEXTE"
+CRITERE = "[F:SRT]SRTTYP=LTYP"
+START   = "SRTNUM"
+SIZLIG  = 100
+SIZCOL  = 200
+Default File [SRT_]
+Return
+
+##########################################################################
+# Action SELITMF : Sélection des articles avec filtres et options        #
+# ---------------------------------------------------------------------- #
+#   zone courante AZC  : Référence article                               #
+#   PARAM(1) = FILTRE  : Critères pour le filtre                         #
+#   PARAM(2) = OPTIONA : Options de l'objet ITM                          #
+##########################################################################
+$S_SELITMF
+If PARAM(1)="" PARAM(1)="1=1" : Endif
+CRITERE(1)=PARAM(1)
+OPTIONS=PARAM(2)
+OBJET="ITM"
+
+$B_SELITMF
+Return
+
+#########################################################################
+# SELITF : Sélection article site
+#          Particularité pour le parametre TCLCOD
+#             alimentation possible en associant les valeurs uivantes :
+#             les valeurs associées sont interpretrées avec
+#             l’opérateur logique « ou »)
+#          ex : valeur "12" -->  liste des articles Acheté ou Fabriqué
+#          Acheté         = 1
+#          Fabriqué       = 2
+#          Sous-traité    = 3
+#          Sous-traitance = 4
+#          Phantome       = 5
+#          Générique      = 6
+#          Outillage      = 7
+#          Livrable       = 8
+#          Vendu          = 9
+#          Intermédiaire  = I
+#########################################################################
+$S_SELITF
+Local Char    WFIC(10)
+Local Char    WITM(GLONITM) : WITM = VALEUR
+Local Char    WFCY(GLONFCY) : WFCY = PARAM(1)
+Local Char    WCAT(10)      : WCAT = PARAM(2)
+Local Char    WACT(10)      : WACT = PARAM(3)
+Local Char    WMGT(10)      : WMGT = PARAM(4)
+Local Char    WLOT(GLONLOT) : WLOT = PARAM(5)
+Local Date    WDAT          :
+Local Integer ICRITERE        :ICRITERE = 0
+If PARAM(6) = ""
+  WDAT = date$
+Else
+  WDAT = num$(PARAM(6) )
+Endif
+Local Char    WFILM(250), WFILF(250), WFILX(250)
+If PARAM(7) <> ""
+  WFILX = PARAM(7)
+Else
+  WFILX = "1=1"
+Endif
+#
+Local Char WI
+Local Char W_TYP(20)
+Local Char WTYPE(250)
+Raz W_TYP
+Raz WTYPE
+
+If clalev([F:FCY]) = 0 : Local File FACILITY   [FCY] : Endif
+If clalev([F:ATZ]) = 0 : Local File ATABZON    [ATZ] : Endif
+If clalev([F:ITM]) = 0 : Local File ITMMASTER  [ITM] : Endif
+If clalev([F:ITF]) = 0 : Local File ITMFACILIT [ITF] : Endif
+# FQ 53562 libellé traduisible
+If clalev([F:AXX]) = 0 : Local File ATEXTRA    [AXX] : Endif
+#
+TIT(0) = mess(4,198,1)
+If WFCY = ""
+    NBCOL += 1 : COL(NBCOL) = "[F:ITF]STOFCY"
+    Call TEXTFIC("ITMFACILIT","STOFCY",2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL += 1 : COL(NBCOL) = "[F:ITF]ITMREF"
+Call TEXTFIC("ITMFACILIT","ITMREF",2,TIT(NBCOL)) From OBJDIV
+
+# FQ 53562 libellé traduisible
+#NBCOL += 1 : COL(NBCOL) = "[F:ITM]ITMDES1"
+#Call TEXTFIC("ITMMASTER","ITMDES1",2,TIT(NBCOL)) From OBJDIV
+# FGR 05/10/2009 : X3SUIVI58372
+#NBCOL += 1 : COL(NBCOL) = "[F:AXX]TEXTE"
+NBCOL += 1 : COL(NBCOL) = "string$(1,[F:AXX]TEXTE)+string$(len([F:AXX]TEXTE)=0,[F:ITM]ITMDES1)"
+Call TEXTFIC("ITMMASTER","DES1AXX",2,TIT(NBCOL)) From OBJDIV
+COLTYP(NBCOL) = 30                        # hcb 62036
+
+#
+#\b TACCC - 202100310 - modified selection box to add additional columns
+NBCOL += 1 : COL(NBCOL) = "[F:ITM]ITMDES2" : TIT(NBCOL) = "Description 2"
+NBCOL += 1 : COL(NBCOL) = "[F:ITM]ITMDES3" : TIT(NBCOL) = "Description 3"
+NBCOL += 1 : COL(NBCOL) = "[F:ITM]SEAKEY" : TIT(NBCOL) = "BASICS no./Seakey"
+#\e TACCC
+
+NBCOL += 1 : COL(NBCOL) = "[F:ITM]TCLCOD"
+Call TEXTFIC("ITMMASTER","TCLCOD",2,TIT(NBCOL)) From OBJDIV
+
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]ITMSTA,246,1)"
+Call TEXTFIC("ITMMASTER","ITMSTA",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITF]STOMGTCOD,215,1)"
+Call TEXTFIC("ITMFACILIT","STOMGTCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]LOTMGTCOD,209,1)"
+Call TEXTFIC("ITMMASTER","LOTMGTCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]SERMGTCOD,210,1)"
+Call TEXTFIC("ITMMASTER","SERMGTCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:ITF]BUY"
+Call TEXTFIC("ITMFACILIT","BUY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITF]CUNFLG,1,1)"
+Call TEXTFIC("ITMFACILIT","CUNFLG",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITF]CUNCOD,216,1)"
+Call TEXTFIC("ITMFACILIT","CUNCOD",2,TIT(NBCOL)) From OBJDIV
+#
+#filtre Article maitre [ITM]
+# MAE 17/10/08 WFILM = "[F:ITF]ITMREF >= WITM"
+If WITM <> ""
+    CRITCAR = "[F:ITF]ITMREF >= '"+WITM + "'"
+Endif
+#filtre Article site [ITF]
+If WFCY <> ""
+  #WFILF = "&[F:ITF]STOFCY=WFCY"
+  Call ADDCRIT (WFILF,ICRITERE, "CRITERE","[F:ITF]STOFCY= '"+WFCY+"'", "&") From GOBJSUB
+Endif
+If WACT <> ""
+  #Call ADDCRIT(WFILM,ICRITERE,"CRITERE","find([F:ITM]ITMSTA", "&") From GOBJSUB
+  WFILM += "find([F:ITM]ITMSTA"
+  For I = 1 To len(WACT)
+    WFILM += ","+num$(mid$(WACT,I,1))
+  Next I
+  WFILM += ")"
+Endif
+If WMGT <> ""
+    If WFILM <> ""
+        WFILM +="&"
+    Endif
+  WFILM += "find([F:ITF]STOMGTCOD"
+  For I = 1 To len(WMGT)
+    WFILM += ","+num$(mid$(WMGT,I,1))
+  Next I
+  WFILM += ")"
+Endif
+If WLOT <> ""
+    If WFILM <> ""
+        WFILM +="&"
+    Endif
+  WFILM += "find([F:ITM]LOTMGTCOD"
+  For I = 1 To len(WLOT)
+    WFILM += ","+num$(mid$(WLOT,I,1))
+  Next I
+  WFILM += ")"
+Endif
+If WCAT <> ""
+      For I = 1 To len(WCAT)
+          WI =  num$(mid$(WCAT,I,1))
+          Case WI
+               When "1" :
+                W_TYP   = "[F:ITM]PURFLG = 2"
+                Gosub LOAD_WTYPE
+               When "2" :
+                W_TYP   = "[F:ITM]MFGFLG = 2"
+                Gosub LOAD_WTYPE
+               When "3" :
+                W_TYP   = "[F:ITM]SCPFLG = 2"
+                Gosub LOAD_WTYPE
+               When "4" :
+                W_TYP   = "[F:ITM]SCSFLG = 2"
+                Gosub LOAD_WTYPE
+               When "5" :
+                W_TYP   = "[F:ITM]PHAFLG = 2"
+                Gosub LOAD_WTYPE
+               When "6" :
+                W_TYP   = "[F:ITM]GENFLG = 2"
+                Gosub LOAD_WTYPE
+               When "7" :
+                W_TYP   = "[F:ITM]TOOFLG = 2"
+                Gosub LOAD_WTYPE
+               When "8" :
+                W_TYP   = "[F:ITM]DLVFLG = 2"
+                Gosub LOAD_WTYPE
+               When "9" :
+                W_TYP   = "[F:ITM]SALFLG = 2"
+                Gosub LOAD_WTYPE
+               When "I" :
+                W_TYP   = "[F:ITM]INTFLG = 2"
+                Gosub LOAD_WTYPE
+          Endcase
+      Next I
+Endif
+#
+If WTYPE = ""
+   WTYPE = "1=1"
+Endif
+If WFILM = ""
+   WFILM = "1=1"
+Endif
+If WFILF = ""
+   # FQ 53562 libellé traduisible
+   # Link [ITF] With [ITM]ITM0=[F:ITF]ITMREF As [LNK]
+    Link [ITF] With [ITM]ITM0=[F:ITF]ITMREF, [AXX]AXX0="ITMMASTER";"DES1AXX";GLANGUE;[F:ITF]ITMREF;"" As [LNK]
+&              Where evalue(WFILM) & evalue(WFILX)
+&              Order By Key ITF1
+Else
+   # FQ 53562 libellé traduisible
+   # Link [ITF] With [ITM]ITM0=[F:ITF]ITMREF As [LNK]
+    Link [ITF] With [ITM]ITM0=[F:ITF]ITMREF, [AXX]AXX0="ITMMASTER";"DES1AXX";GLANGUE;[F:ITF]ITMREF;"" As [LNK]
+&              Where evalue(WFILF) & evalue(WFILM) & evalue(WFILX)& evalue(WTYPE)
+&              Order By Key ITF1
+Endif
+#
+#CRITERE = ""
+START   = "ITMREF"
+ORDRE   = "ITMREF"   # FQ 56558
+VALEUR  = WITM
+#SIZLIG  = 120
+#SIZCOL  = 340
+Default File [LNK]
+DEFPAG=1
+Return
+
+$B_SELITF
+Return
+
+###########
+#########################################################################
+# SELITFITW : Sélection article site article depot
+#          Particularité pour le parametre TCLCOD
+#             alimentation possible en associant les valeurs uivantes :
+#             les valeurs associées sont interpretrées avec
+#             l’opérateur logique « ou »)
+#          ex : valeur "12" -->  liste des articles Acheté ou Fabriqué
+#          Acheté         = 1
+#          Fabriqué       = 2
+#          Sous-traité    = 3
+#          Sous-traitance = 4
+#          Phantome       = 5
+#          Générique      = 6
+#          Outillage      = 7
+#          Livrable       = 8
+#          Vendu          = 9
+#          Intermédiaire  = I
+#########################################################################
+$S_SELITFITW
+Local Char    WFIC(10)
+Local Char    WITM(GLONITM) : WITM     = VALEUR
+Local Char    WFCY(GLONFCY) : WFCY     = PARAM(1)
+Local Char    WCAT(10)      : WCAT     = PARAM(2)
+Local Char    WACT(10)      : WACT     = PARAM(3)
+Local Char    WMGT(10)      : WMGT     = PARAM(4)
+Local Char    WLOT(GLONLOT) : WLOT     = PARAM(5)
+Local Date    WDAT          :
+Local Integer ICRITERE      : ICRITERE = 0
+Local Integer WITMWRH       : WITMWRH  = val(PARAM(8))
+
+If WITMWRH <> 2 | !GWRHACT
+   Gosub S_SELITF
+   Return
+Endif
+
+
+If PARAM(6) = ""
+  WDAT = date$
+Else
+  WDAT = num$(PARAM(6) )
+Endif
+Local Char    WFILM(250), WFILF(250), WFILX(250)
+If PARAM(7) <> ""
+  WFILX = PARAM(7)
+Else
+  WFILX = "1=1"
+Endif
+#
+Local Char WI
+Local Char W_TYP(20)
+Local Char WTYPE(250)
+Raz W_TYP
+Raz WTYPE
+
+If clalev([F:FCY]) = 0 : Local File FACILITY   [FCY] : Endif
+If clalev([F:ATZ]) = 0 : Local File ATABZON    [ATZ] : Endif
+If clalev([F:ITM]) = 0 : Local File ITMMASTER  [ITM] : Endif
+If clalev([F:ITF]) = 0 : Local File ITMFACILIT [ITF] : Endif
+If clalev([F:ITW]) = 0 : Local File ITMWRH     [ITW] : Endif
+If clalev([F:AXX]) = 0 : Local File ATEXTRA    [AXX] : Endif
+#
+TIT(0) = mess(346,184,1)
+If WFCY = ""
+    NBCOL += 1 : COL(NBCOL) = "[F:ITF]STOFCY"
+    Call TEXTFIC("ITMFACILIT","STOFCY",2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL += 1 : COL(NBCOL) = "[F:ITF]ITMREF"
+Call TEXTFIC("ITMFACILIT","ITMREF",2,TIT(NBCOL)) From OBJDIV
+# FGR 05/10/2009 : X3SUIVI58372
+#NBCOL += 1 : COL(NBCOL) = "[F:AXX]TEXTE"
+NBCOL += 1 : COL(NBCOL) = "string$(1,[F:AXX]TEXTE)+string$(len([F:AXX]TEXTE)=0,[F:ITM]ITMDES1)"
+Call TEXTFIC("ITMMASTER","DES1AXX",2,TIT(NBCOL)) From OBJDIV
+COLTYP(NBCOL) = 30                        # hcb 62036
+
+#
+NBCOL += 1 : COL(NBCOL) = "[F:ITM]TCLCOD"
+Call TEXTFIC("ITMMASTER","TCLCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]ITMSTA,246,1)"
+Call TEXTFIC("ITMMASTER","ITMSTA",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITF]STOMGTCOD,215,1)"
+Call TEXTFIC("ITMFACILIT","STOMGTCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]LOTMGTCOD,209,1)"
+Call TEXTFIC("ITMMASTER","LOTMGTCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]SERMGTCOD,210,1)"
+Call TEXTFIC("ITMMASTER","SERMGTCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:ITF]BUY"
+Call TEXTFIC("ITMFACILIT","BUY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITF]CUNFLG,1,1)"
+Call TEXTFIC("ITMFACILIT","CUNFLG",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITF]CUNCOD,216,1)"
+Call TEXTFIC("ITMFACILIT","CUNCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:ITW]WRH"
+Call TEXTFIC("ITMWRH","WRH",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITW]CUNWRHFLG,1,1)"
+Call TEXTFIC("ITMWRH","CUNWRHFLG",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITW]CUNCOD,216,1)"
+Call TEXTFIC("ITMWRH","CUNCOD",2,TIT(NBCOL)) From OBJDIV
+
+#
+If WITM <> ""
+    CRITCAR = "[F:ITF]ITMREF >= '"+WITM + "'"
+Endif
+#filtre Article site [ITF]
+If WFCY <> ""
+   Call ADDCRIT (WFILF,ICRITERE, "CRITERE","[F:ITF]STOFCY= '"+WFCY+"'", "&") From GOBJSUB
+Endif
+If WACT <> ""
+   WFILM += "find([F:ITM]ITMSTA"
+   For I = 1 To len(WACT)
+       WFILM += ","+num$(mid$(WACT,I,1))
+   Next I
+   WFILM += ")"
+Endif
+If WMGT <> ""
+    If WFILM <> ""
+        WFILM +="&"
+    Endif
+    WFILM += "find([F:ITF]STOMGTCOD"
+    For I = 1 To len(WMGT)
+        WFILM += ","+num$(mid$(WMGT,I,1))
+    Next I
+    WFILM += ")"
+Endif
+If WLOT <> ""
+    If WFILM <> ""
+        WFILM +="&"
+    Endif
+    WFILM += "find([F:ITM]LOTMGTCOD"
+    For I = 1 To len(WLOT)
+        WFILM += ","+num$(mid$(WLOT,I,1))
+    Next I
+    WFILM += ")"
+Endif
+If WCAT <> ""
+      For I = 1 To len(WCAT)
+          WI =  num$(mid$(WCAT,I,1))
+          Case WI
+               When "1" :
+                W_TYP   = "[F:ITM]PURFLG = 2"
+                Gosub LOAD_WTYPE
+               When "2" :
+                W_TYP   = "[F:ITM]MFGFLG = 2"
+                Gosub LOAD_WTYPE
+               When "3" :
+                W_TYP   = "[F:ITM]SCPFLG = 2"
+                Gosub LOAD_WTYPE
+               When "4" :
+                W_TYP   = "[F:ITM]SCSFLG = 2"
+                Gosub LOAD_WTYPE
+               When "5" :
+                W_TYP   = "[F:ITM]PHAFLG = 2"
+                Gosub LOAD_WTYPE
+               When "6" :
+                W_TYP   = "[F:ITM]GENFLG = 2"
+                Gosub LOAD_WTYPE
+               When "7" :
+                W_TYP   = "[F:ITM]TOOFLG = 2"
+                Gosub LOAD_WTYPE
+               When "8" :
+                W_TYP   = "[F:ITM]DLVFLG = 2"
+                Gosub LOAD_WTYPE
+               When "9" :
+                W_TYP   = "[F:ITM]SALFLG = 2"
+                Gosub LOAD_WTYPE
+               When "I" :
+                W_TYP   = "[F:ITM]INTFLG = 2"
+                Gosub LOAD_WTYPE
+          Endcase
+      Next I
+Endif
+#
+If WTYPE = ""
+   WTYPE = "1=1"
+Endif
+If WFILM = ""
+   WFILM = "1=1"
+Endif
+If WFILF = ""
+   Link [ITW] With [ITM]ITM0=[F:ITW]ITMREF,[ITF]ITF0=[F:ITW]ITMREF;[F:ITW]STOFCY,[AXX]AXX0="ITMMASTER";"DES1AXX";GLANGUE;[F:ITW]ITMREF;""
+&              As [LNK]
+&              Where evalue(WFILM) & evalue(WFILX)
+&              Order By Key ITW1
+Else
+   Link [ITW] With [ITM]ITM0=[F:ITW]ITMREF,[ITF]ITF0=[F:ITW]ITMREF;[F:ITW]STOFCY,[AXX]AXX0="ITMMASTER";"DES1AXX";GLANGUE;[F:ITW]ITMREF;""
+&              As [LNK]
+&              Where evalue(WFILF) & evalue(WFILM) & evalue(WFILX)& evalue(WTYPE)
+&              Order By Key ITW1
+Endif
+#
+START   = "ITMREF"
+ORDRE   = "ITMREF"
+VALEUR  = WITM
+Default File [LNK]
+DEFPAG=1
+Return
+
+
+
+$B_SELITFITW
+Return
+
+########################################################################
+# LOAD_WTYPE                                   Concaténation W_TYP
+########################################################################
+$LOAD_WTYPE
+If WTYPE <> ""
+   WTYPE += "|"
+Endif
+WTYPE += W_TYP
+Return
+
+#########################################################################
+# SELITP : Sélection article fournisseur
+#########################################################################
+$S_SELITP
+Local Char    WFIC(10)
+Local Char    WITM(GLONITM) : WITM = VALEUR
+Local Char    WBPS(GLONBPS) : WBPS = PARAM(1)
+Local Char    WCAT(10)      : WCAT = PARAM(2)
+Local Char    WACT(10)      : WACT = PARAM(3)
+Local Char    WMGT(10)      : WMGT = PARAM(4)
+Local Char    WLOT(GLONLOT) : WLOT = PARAM(5)
+
+Local Char    WFILM(250), WFILF(250), WFILX(250)
+If PARAM(6) <> ""
+  WFILX = PARAM(6)
+Else
+  WFILX = "1=1"
+Endif
+
+Local Char WI
+Local Char W_TYP(20)
+Local Char WTYPE(250)
+Raz W_TYP
+Raz WTYPE
+
+If clalev([F:ATZ]) = 0 : Local File ATABZON    [ATZ] : Endif
+If clalev([F:ITM]) = 0 : Local File ITMMASTER  [ITM] : Endif
+If clalev([F:ITP]) = 0 : Local File ITMBPS     [ITP] : Endif
+# FQ 53562 libellé traduisible
+If clalev([F:AXX]) = 0 : Local File ATEXTRA    [AXX] : Endif
+
+TIT(0) = mess(23,198,1)
+If WBPS = ""
+    NBCOL += 1 : COL(NBCOL) = "[F:ITP]BPSNUM"
+    Call TEXTFIC("ITMBPS","BPSNUM",2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL += 1 : COL(NBCOL) = "[F:ITP]ITMREF"
+Call TEXTFIC("ITMBPS","ITMREF",2,TIT(NBCOL)) From OBJDIV
+# FQ 53562 libellé traduisible
+#NBCOL += 1 : COL(NBCOL) = "[F:ITM]ITMDES1"
+#Call TEXTFIC("ITMMASTER","ITMDES1",2,TIT(NBCOL)) From OBJDIV
+# FGR 05/10/2009 : X3SUIVI58372
+#NBCOL += 1 : COL(NBCOL) = "[F:AXX]TEXTE"
+NBCOL += 1 : COL(NBCOL) = "string$(1,[F:AXX]TEXTE)+string$(len([F:AXX]TEXTE)=0,[F:ITM]ITMDES1)"
+Call TEXTFIC("ITMMASTER","DES1AXX",2,TIT(NBCOL)) From OBJDIV
+COLTYP(NBCOL) = 30                        # hcb 62036
+
+#
+NBCOL += 1 : COL(NBCOL) = "[F:ITM]TCLCOD"
+Call TEXTFIC("ITMMASTER","TCLCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]ITMSTA,246,1)"
+Call TEXTFIC("ITMMASTER","ITMSTA",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]STOMGTCOD,215,1)"
+Call TEXTFIC("ITMFACILIT","STOMGTCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]LOTMGTCOD,209,1)"
+Call TEXTFIC("ITMMASTER","LOTMGTCOD",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "mess([F:ITM]SERMGTCOD,210,1)"
+Call TEXTFIC("ITMMASTER","SERMGTCOD",2,TIT(NBCOL)) From OBJDIV
+#
+#filtre Article site [ITP]
+If WBPS <> ""
+  WFILF = "[F:ITP]BPSNUM=WBPS"
+Endif
+#filtre Article maitre [ITM]
+WFILM = "[F:ITM]ITMREF >= WITM"
+If WACT <> ""
+  WFILM += "&find([F:ITM]ITMSTA"
+  For I = 1 To len(WACT)
+    WFILM += ","+num$(mid$(WACT,I,1))
+  Next I
+  WFILM += ")"
+Endif
+If WMGT <> ""
+  WFILM += "&find([F:ITF]STOMGTCOD"
+  For I = 1 To len(WMGT)
+    WFILM += ","+num$(mid$(WMGT,I,1))
+  Next I
+  WFILM += ")"
+Endif
+If WLOT <> ""
+  WFILM += "&find([F:ITM]LOTMGTCOD"
+  For I = 1 To len(WLOT)
+    WFILM += ","+num$(mid$(WLOT,I,1))
+  Next I
+  WFILM += ")"
+Endif
+If WCAT <> ""
+      For I = 1 To len(WCAT)
+          WI =  num$(mid$(WCAT,I,1))
+          Case WI
+               When "1" :
+                W_TYP   = "[F:ITM]PURFLG = 2"
+                Gosub LOAD_WTYPE
+               When "2" :
+                W_TYP   = "[F:ITM]MFGFLG = 2"
+                Gosub LOAD_WTYPE
+               When "3" :
+                W_TYP   = "[F:ITM]SCPFLG = 2"
+                Gosub LOAD_WTYPE
+               When "4" :
+                W_TYP   = "[F:ITM]SCSFLG = 2"
+                Gosub LOAD_WTYPE
+               When "5" :
+                W_TYP   = "[F:ITM]PHAFLG = 2"
+                Gosub LOAD_WTYPE
+               When "6" :
+                W_TYP   = "[F:ITM]GENFLG = 2"
+                Gosub LOAD_WTYPE
+               When "7" :
+                W_TYP   = "[F:ITM]TOOFLG = 2"
+                Gosub LOAD_WTYPE
+               When "8" :
+                W_TYP   = "[F:ITM]DLVFLG = 2"
+                Gosub LOAD_WTYPE
+               When "9" :
+                W_TYP   = "[F:ITM]SALFLG = 2"
+                Gosub LOAD_WTYPE
+               When "I" :
+                W_TYP   = "[F:ITM]INTFLG = 2"
+                Gosub LOAD_WTYPE
+          Endcase
+      Next I
+Endif
+
+If WTYPE = ""
+   WTYPE = "1=1"
+Endif
+
+If clalev([M:SMO1])
+    If WFILF = ""
+      # FQ 53562 libellé traduisible
+      # Link [ITP] With [ITM]ITM0~=GSOCIETE;[F:ITP]ITMREF,
+        Link [ITP] With [ITM]ITM0~=GSOCIETE;[F:ITP]ITMREF,
+&                       [AXX]AXX0="ITMMASTER";"DES1AXX";GLANGUE;[F:ITP]ITMREF;"",
+&                       [FCY]FCY1~=GSOCIETE;[F:ITF]STOFCY As [LNK]
+&                  Where evalue(WFILM) & evalue(WFILX)
+&                  Order By Key ITP2
+       ORDRE   = "ITMREF;BPSNUM"
+    Else
+      # FQ 53562 libellé traduisible
+      # Link [ITP] With [ITM]ITM0~=GSOCIETE;[F:ITP]ITMREF,
+        Link [ITP] With [ITM]ITM0~=GSOCIETE;[F:ITP]ITMREF,
+&                       [AXX]AXX0="ITMMASTER";"DES1AXX";GLANGUE;[F:ITP]ITMREF;"",
+&                       [FCY]FCY1~=GSOCIETE;[F:ITF]STOFCY As [LNK]
+&                  Where evalue(WFILF) & evalue(WFILM) & evalue(WFILX)& evalue(WTYPE)
+&                  Order By Key ITP2
+        ORDRE   = "ITMREF;BPSNUM"
+    Endif
+Else
+    If WFILF = ""
+      Link [ITP] With [ITM]ITM0=[F:ITP]ITMREF As [LNK]
+&                Where evalue(WFILM) & evalue(WFILX)
+&                Order By Key ITP2
+       ORDRE   = "ITMREF;BPSNUM"
+    Else
+      Link [ITP] With [ITM]ITM0=[F:ITP]ITMREF As [LNK]
+&                Where evalue(WFILF) & evalue(WFILM) & evalue(WFILX)& evalue(WTYPE)
+&                Order By Key ITP2
+       ORDRE   = "ITMREF;BPSNUM"
+    Endif
+Endif
+#
+CRITERE = ""
+START   = "ITMREF"
+VALEUR  = WITM
+SIZLIG  = 120
+SIZCOL  = 340
+Default File [LNK]
+DEFPAG=1
+Return
+
+$B_SELITP
+Return
+
+#########################################################################
+# STKSELSTO : Sélection ligne de stock
+#########################################################################
+$STKSELSTO
+Local Char    LFIC(10)        : LFIC = "STOCK"
+Local Char    LFCY(GLONFCY)   : LFCY = PARAM(1)
+Local Char    LITM(GLONITM)   : LITM = PARAM(2)
+Local Char    LLOT(GLONLOT)   : LLOT = PARAM(3)
+Local Char    LABR            : LABR = PARAM(4)
+Local Integer LLIG            : LLIG = val(PARAM(5))
+
+If clalev([F:STO]) = 0 : Local File STOCK      [STO] : Endif
+If clalev([F:ITM]) = 0 : Local File ITMMASTER  [ITM] : Endif
+If clalev([F:ITF]) = 0 : Local File ITMFACILIT [ITF] : Endif
+If clalev([F:ATZ]) = 0 : Local File ATABZON    [ATZ] : Endif
+If [F:ITM]ITMREF<>LITM
+    Read [ITM]ITM0=LITM
+Endif
+If [F:ITF]ITMREF<>LITM | [F:ITF]STOFCY<>LFCY
+    Read [ITF]ITF0=LITM;LFCY
+Endif
+
+TIT(0) = mess(145,198,1)-LITM-LLOT
+
+#NBCOL = 1 : COL(NBCOL) = "STOFCY"
+#Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "PCU"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+If [F:ITM]LOTMGTCOD > 1
+    NBCOL += 1 : COL(NBCOL) = "BPSLOT"
+    Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "LOT"
+    Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+    If [F:ITM]LOTMGTCOD = 4
+       NBCOL += 1 : COL(NBCOL) = "SLO"
+       Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+    Endif
+Endif
+NBCOL += 1 : COL(NBCOL) = "STA"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "LOCTYP"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "LOC"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+#NBCOL += 1 : COL(NBCOL) = "QTYSTU"
+#Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+#NBCOL += 1 : COL(NBCOL) = "STOCOU"
+#Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+
+If LLOT <> ""
+   CRITERE = "[F:STO]STOFCY=LFCY&[F:STO]ITMREF=LITM&[F:STO]LOT=LLOT&[F:STO]CUNLOKFLG<>2&[F:STO]QTYSTU>0"
+Else
+   CRITERE = "[F:STO]STOFCY=LFCY&[F:STO]ITMREF=LITM&[F:STO]CUNLOKFLG<>2&[F:STO]QTYSTU>0"
+Endif
+
+ORDRE   = "STOCOU"
+START   = "PCU"
+EXPSTART = "ITMREF=LITM"
+#VALEUR  = ""
+SIZLIG  = 100
+SIZCOL  = 200
+Default File [STO]
+
+Return
+
+$VERF_STKSELSTO
+Local     Char    LABRMSK
+LABRMSK  = "[M:"+LABR+"]"
+
+Read [STO]STO0=LFCY;[F:STO]STOCOU
+If fstat
+   Return
+Endif
+If evalue("dim([M:"+LABR+"]STA)")>0
+   Assign " [M:"+LABR+"]STA("+num$(LLIG)+")"  With [F:STO]STA
+Endif
+If [F:ITF]LOCMGTCOD=2
+    If evalue("dim([M:"+LABR+"]LOCTYP)")>0
+       Assign " [M:"+LABR+"]LOCTYP("+num$(LLIG)+")"  With [F:STO]LOCTYP
+    Endif
+    If evalue("dim([M:"+LABR+"]LOC)")>0
+       Assign " [M:"+LABR+"]LOC("+num$(LLIG)+")"  With [F:STO]LOC
+    Endif
+Endif
+If evalue("dim([M:"+LABR+"]PALNUM)")>0
+   Assign " [M:"+LABR+"]PALNUM("+num$(LLIG)+")"  With [F:STO]PALNUM
+Endif
+If evalue("dim([M:"+LABR+"]CTRNUM)")>0
+   Assign " [M:"+LABR+"]CTRNUM("+num$(LLIG)+")"  With [F:STO]CTRNUM
+Endif
+If evalue("dim([M:"+LABR+"]PCU)")>0
+   Assign " [M:"+LABR+"]PCU("+num$(LLIG)+")"  With [F:STO]PCU
+Endif
+If evalue("dim([M:"+LABR+"]PCUSTUCOE)")>0
+   Assign " [M:"+LABR+"]PCUSTUCOE("+num$(LLIG)+")"  With [F:STO]PCUSTUCOE
+Endif
+
+If evalue("dim([M:"+LABR+"]STOFLD1)")>0
+   Assign " [M:"+LABR+"]STOFLD1("+num$(LLIG)+")"  With [F:STO]STOFLD1
+Endif
+If evalue("dim([M:"+LABR+"]STOFLD2)")>0
+   Assign " [M:"+LABR+"]STOFLD2("+num$(LLIG)+")"  With [F:STO]STOFLD2
+Endif
+
+If [F:ITM]LOTMGTCOD>1
+    If evalue("dim([M:"+LABR+"]BPSLOTAFF)")>0
+       Assign " [M:"+LABR+"]BPSLOTAFF("+num$(LLIG)+")"  With [F:STO]BPSLOT
+    Endif
+    If evalue("dim([M:"+LABR+"]LOTAFF)")>0
+       Assign " [M:"+LABR+"]LOTAFF("+num$(LLIG)+")"     With [F:STO]LOT
+    Endif
+    If [F:ITM]LOTMGTCOD=4 & evalue("dim([M:"+LABR+"]SLOAFF)")>0
+       If [F:STO]SLO <> ""
+          Assign " [M:"+LABR+"]SLOAFF("+num$(LLIG)+")"  With [F:STO]SLO
+       Endif
+    Endif
+Endif
+
+Default Mask "["+LABR+"]"
+Affzo [M]
+
+Return
+
+#########################################################################
+# STKSELSTOT : Sélection ligne de stock pour terminaux portables
+#########################################################################
+$STKSELSTOT
+Local Char    LFIC(10)        : LFIC = "STOCK"
+Local Char    LFCY(GLONFCY)   : LFCY = PARAM(1)
+Local Char    LITM(GLONITM)   : LITM = PARAM(2)
+Local Char    LLOT(GLONLOT)   : LLOT = PARAM(3)
+Local Char    LSLO(GLONSLO)   : LSLO = PARAM(4)
+Local Char    LLOC(GLONLOC)   : LLOC = PARAM(5)
+Local Char    LSTA(GLONSTA)   : LSTA = PARAM(6)
+Local Char    LABR            : LABR = PARAM(7)
+
+If clalev([F:STO]) = 0 : Local File STOCK      [STO] : Endif
+If clalev([F:ITM]) = 0 : Local File ITMMASTER  [ITM] : Endif
+If clalev([F:ITF]) = 0 : Local File ITMFACILIT [ITF] : Endif
+If clalev([F:ATZ]) = 0 : Local File ATABZON    [ATZ] : Endif
+
+If [F:ITM]ITMREF<>LITM
+   Read [ITM]ITM0=LITM
+Endif
+If [F:ITF]ITMREF<>LITM | [F:ITF]STOFCY<>LFCY
+   Read [ITF]ITF0=LITM;LFCY
+Endif
+
+TIT(0) = mess(145,198,1)
+
+CRITERE = "[F:STO]STOFCY=LFCY&[F:STO]ITMREF=LITM"
+
+Case zoncou
+ When "LOT"       : If [F:ITM]SERMGTCOD=3
+                       NBCOL += 1 : COL(NBCOL) = "SERNUM"
+                       Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+                    Endif
+                   NBCOL += 1 : COL(NBCOL) = "LOT"
+                    Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+                    If [F:ITM]LOTMGTCOD = 4
+                       NBCOL += 1 : COL(NBCOL) = "SLO"
+                       Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+                    Endif
+ When "SLO"       : If LLOT<>""
+                       CRITERE += "&[F:STO]LOT=LLOT"
+                    Endif
+                    If [F:ITM]SERMGTCOD=3
+                       NBCOL += 1 : COL(NBCOL) = "SERNUM"
+                       Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+                    Endif
+                    NBCOL += 1 : COL(NBCOL) = "LOT"
+                    Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+                    NBCOL += 1 : COL(NBCOL) = "SLO"
+                    Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+ When "SERNUM"    : NBCOL += 1 : COL(NBCOL) = "SERNUM"
+                    Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+                    If LLOT<>""
+                       CRITERE += "&[F:STO]LOT=LLOT"
+                       If [F:ITM]LOTMGTCOD=4 & LSLO<>""
+                          CRITERE += "&[F:STO]SLO=LSLO"
+                       Endif
+                    Else
+                       NBCOL += 1 : COL(NBCOL) = "LOT"
+                       Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+                       If [F:ITM]LOTMGTCOD = 4
+                          NBCOL += 1 : COL(NBCOL) = "SLO"
+                          Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+                       Endif
+                    Endif
+Endcase
+
+If LSTA<>""
+   CRITERE += "&[F:STO]STA=LSTA"
+Else
+   NBCOL += 1 : COL(NBCOL) = "STA"
+   Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+Endif
+
+If [F:ITF]LOCMGTCOD=2
+   If LLOC<>""
+      CRITERE += "&[F:STO]LOC=LLOC"
+   Else
+      NBCOL += 1 : COL(NBCOL) = "LOC"
+      Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+   Endif
+Endif
+
+CRITERE += "&[F:STO]CUNLOKFLG<>2&([F:STO]QTYSTU-[F:STO]CUMALLQTY-[F:STO]CUMWIPQTY)>0"
+
+START  = zoncou
+ORDRE  = "STOCOU"
+SIZLIG = 100
+SIZCOL = 100
+Default File [STO]
+Return
+
+$VERF_STKSELSTOT
+Local     Char    LABRMSK
+LABRMSK  = "[M:"+LABR+"]"
+
+Read [STO]STO0=LFCY;[F:STO]STOCOU
+If fstat
+   Return
+Endif
+If evalue("dim([M:"+LABR+"]STA)")>0
+   Assign "[M:"+LABR+"]STA" With [F:STO]STA
+Endif
+If [F:ITF]LOCMGTCOD=2
+   If evalue("dim([M:"+LABR+"]LOC)")>0
+      Assign "[M:"+LABR+"]LOC" With [F:STO]LOC
+   Endif
+Endif
+If [F:ITM]LOTMGTCOD>1
+   If evalue("dim([M:"+LABR+"]LOT)")>0
+      Assign "[M:"+LABR+"]LOT" With [F:STO]LOT
+   Endif
+   If [F:ITM]LOTMGTCOD=4 & evalue("dim([M:"+LABR+"]SLO)")>0
+      If [F:STO]SLO <> ""
+         Assign "[M:"+LABR+"]SLO" With [F:STO]SLO
+      Endif
+   Endif
+Endif
+If [F:ITM]SERMGTCOD=3
+   If evalue("dim([M:"+LABR+"]SERNUM)")>0
+      Assign "[M:"+LABR+"]SERNUM" With [F:STO]SERNUM
+   Endif
+Endif
+
+Default Mask "["+LABR+"]"
+Affzo [M]
+
+Return
+
+########################################################################
+# STKSELLOT : Sélection lot
+########################################################################
+# Paramètres E : LITM = article
+#                LLOT = lot
+#
+########################################################################
+$STKSELLOT
+Local Char    LFIC(10)        : LFIC = "STOLOT"
+Local Char    LITM(GLONITM)   : LITM = PARAM(1)
+Local Char    LFCY(GLONFCY)   : LFCY = PARAM(2)
+Local Char    LABR            : LABR = PARAM(3)
+Local Integer LLIG            : LLIG = val(PARAM(4))
+Local Integer LQTYFLG         : If dim(PARAM)>5 : LQTYFLG = val(PARAM(5)) : Endif
+Local Char    LLOT(GLONLOT)   : LLOT = VALEUR
+Local Integer ISTL
+Raz ISTL
+
+#--- Bug 65496
+# Si le niveau des caractéristiques est le lot, alors la sélection
+# est limitée à 30 lots (au delà, il y a un problème mémoire).
+# De plus on ne sait pas filtrer sur, et afficher les cumuls quantités.
+If GFEALOTLEV<>1
+   #--- Issue 114228
+   Local Integer NBLOT : NBLOT=30
+   GPOINT="DIM_TABLOT" : Gosub ENTREE From EXEFNC
+   #---
+   LQTYFLG=2
+   Local  Integer I
+   #--- Issue 114228 Remplacement de 30 par NBLOT
+   Global Char    GTABLOT(GLONLOT)(NBLOT)
+   Global Char    GTABSLO(GLONSLO)(NBLOT)
+   #---
+Endif
+#---
+If clalev([F:STL1]) = 0 : Local File STOLOT    [STL1] : ISTL = 1 : Endif
+If clalev([F:SLF1]) = 0 : Local File STOLOTFCY [SLF1] : ISLF = 1 : Endif
+If clalev([F:ATZ])  = 0 : Local File ATABZON   [ATZ]  : Endif
+
+#                                                     # hcb 71276 deb
+If LITM <> ""
+   If [F:ITM]ITMREF<>LITM
+      Read [ITM]ITM0=LITM
+      If fstat
+         Raz [F:ITM]
+      Endif
+   Endif
+Else
+  Raz [F:ITM]
+Endif
+#                                                     # hcb 71276 fin
+
+TIT(0) = mess(2,723,1)
+NBCOL=0
+If GVTMOD=0
+  NBCOL =1 : COL(NBCOL)="[F:SLF1]ITMREF"    : Call TEXTFIC(LFIC,"ITMREF",2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL+=1   : COL(NBCOL)="[F:SLF1]LOT"       : Call TEXTFIC(LFIC,"LOT",2,TIT(NBCOL)) From OBJDIV
+#--- Bug 65496
+If GFEALOTLEV = 1
+  NBCOL+=1 : COL(NBCOL)="[F:SLF1]SLO"       : Call TEXTFIC(LFIC,"SLO",2,TIT(NBCOL)) From OBJDIV
+Endif
+#                                                     # hcb 71276 deb
+If dim([F:ITM]ECCSTO) > 0
+   Case [F:ITM]ECCSTO
+        When  2
+          NBCOL+=1 : COL(NBCOL)="[F:STL1]ECCVALMAJ" : Call TEXTFIC("STOLOT","ECCVALMAJ",2,TIT(NBCOL)) From OBJDIV
+        When  3
+          NBCOL+=1 : COL(NBCOL)="[F:STL1]ECCVALMAJ" : Call TEXTFIC("STOLOT","ECCVALMAJ",2,TIT(NBCOL)) From OBJDIV
+          NBCOL+=1 : COL(NBCOL)="[F:STL1]ECCVALMIN" : Call TEXTFIC("STOLOT","ECCVALMIN",2,TIT(NBCOL)) From OBJDIV
+        When Default
+   Endcase
+Endif
+#                                                     # hcb 71276 fin
+
+If LFCY=""
+  NBCOL+=1 : COL(NBCOL)="[F:SLF1]STOFCY"    : Call TEXTFIC(LFIC,"STOFCY",2,TIT(NBCOL)) From OBJDIV
+Endif
+#--- Bug 65496
+If GFEALOTLEV = 1
+  NBCOL+=1 : COL(NBCOL)="[F:SLF1]AAACUMQTY" : Call TEXTFIC("STOLOTFCY","AAACUMQTY",2,TIT(NBCOL)) From OBJDIV
+  NBCOL+=1 : COL(NBCOL)="[F:SLF1]QQQCUMQTY" : Call TEXTFIC("STOLOTFCY","QQQCUMQTY",2,TIT(NBCOL)) From OBJDIV
+  NBCOL+=1 : COL(NBCOL)="[F:SLF1]RRRCUMQTY" : Call TEXTFIC("STOLOTFCY","RRRCUMQTY",2,TIT(NBCOL)) From OBJDIV
+Endif
+
+NBCOL+=1 : COL(NBCOL)="[F:STL1]SHLDAT"      : Call TEXTFIC("STOLOT","SHLDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL+=1 : COL(NBCOL)="[F:STL1]DLUDAT"      : Call TEXTFIC("STOLOT","DLUDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL+=1 : COL(NBCOL)="[F:STL1]POT"         : Call TEXTFIC("STOLOT","POT",2,TIT(NBCOL)) From OBJDIV
+
+#--- Bug 77117
+CRITERE  = "[F:SLF1]ITMREF='"+LITM+"'"
+If LFCY<>""
+  CRITERE +="&[F:SLF1]STOFCY='"+LFCY+"'"
+Endif
+#---
+
+If dim(GFONCTION)>0 & GFONCTION= "CONSSTK"
+  Goto S_SELLOT1
+Endif
+Case LQTYFLG
+  When 0 : CRITERE += "&([F:SLF1]AAACUMQTY = 0 & [F:SLF1]QQQCUMQTY = 0 & [F:SLF1]RRRCUMQTY = 0)"
+  When 1 : CRITERE += "&([F:SLF1]AAACUMQTY <> 0 | [F:SLF1]QQQCUMQTY <> 0 | [F:SLF1]RRRCUMQTY <> 0)"
+  When 2 : # Pas de critère sur la quantité
+Endcase
+
+#--- Bug 65496
+If GFEALOTLEV<>1
+  I=0
+  Filter [SLF1] Where evalue(CRITERE) Order By Key SLF0(2)
+  For [SLF1]
+    GTABLOT(I)=[F:SLF1]LOT
+    GTABSLO(I)=[F:SLF1]SLO
+    I+=1
+    #--- Issue 114228 Remplacement de 30 par NBLOT
+    If I>=NBLOT Break Endif
+  Next
+  Filter [SLF1]
+  #--- Issue 114228 Remplacement de 29 par NBLOT-1
+  CRITERE += "&find([F:SLF1]LOT,GTABLOT(0..NBLOT-1))<>0"
+  CRITERE += "&find([F:SLF1]SLO,GTABSLO(0..NBLOT-1))<>0"
+  #---
+Endif
+#---
+
+Link [SLF1] With [STL1]STL0=[F:SLF1]ITMREF;[F:SLF1]LOT;[F:SLF1]SLO As [LNK]
+
+$S_SELLOT1
+
+ORDRE   = "ITMREF;LOT;SLO"
+START   = "LOT"
+VALEUR  = LLOT
+SIZLIG  = 150
+SIZCOL  = 280
+
+#--- Bug 77117
+If GFEALOTLEV=1 DEFPAG=1 Endif
+
+Default File [LNK]
+Return
+
+
+#--- TS 106217
+########################################################################
+# STKSELMAJS Sélection version majeure en sortie
+########################################################################
+# Paramètres E : LECCVAL = Version majeure
+#                LFCY    = Site stock
+#                LITM    = Article
+#                LTRSTYP = Type mouvement (ML 704)
+#                          Si devis, commande ou préparation,
+#                          mettre comme pour une livraison
+#                LTRSCOD = Code mouvement
+#                LABR    = Masque
+#                LLIG    = Ligne si selection depuis un tableau
+########################################################################
+$STKSELMAJS
+
+Local Char    LFIC(10)          : LFIC    = "ECCSTA"
+Local Char    LECCVAL(GLONECS)  : LECCVAL = VALEUR
+Local Char    LFCY(GLONFCY)     : LFCY    = PARAM(1)
+Local Char    LITM(GLONITM)     : LITM    = PARAM(2)
+Local Integer LTRSTYP           : LTRSTYP = val(PARAM(3))
+Local Char    LTRSCOD           : LTRSCOD = PARAM(4)
+Local Char    LABR              : LABR    = PARAM(5)
+Local Integer LLIG              : LLIG    = val(PARAM(6))
+Local Integer LRET
+
+If clalev([F:ECS1]) = 0 : Local File ECCSTA    [ECS1] : Endif
+If clalev([F:ATZ])  = 0 : Local File ATABZON   [ATZ]  : Endif
+If clalev([F:AXX])  = 0 : Local File ATEXTRA   [AXX]  : Endif
+If clalev([F:SRU])  = 0 : Local File TABSTORUL [SRU]  : Endif
+
+TIT(0) = mess(20,723,1)
+
+If LITM="" : OK=0 : Return : Endif
+
+If [F:ITM]ITMREF<>LITM
+  Read [ITM]ITM0=LITM
+  If fstat
+    Call RSTA("ITM",LITM) From GLOCK
+    OK=0 : Return
+  Endif
+Endif
+
+# Lecture de la règle de gestion à utiliser
+Call LECSRU(LFCY,[F:ITM]TCLCOD,LTRSTYP,LTRSCOD,"",LRET) From STKLIB
+If LRET<>0
+  OK=0 : Return
+Endif
+
+Link [ECS1] With [AXX]AXX0="ECCSTA";"ECCDESAXX";GLANGUE;[F:ECS1]ITMREF;[F:ECS1]ECCVALMAJ
+&           As [SRT_]
+
+If [F:AXX]CODFIC<>"ECCSTA"
+  Raz [F:AXX]TEXTE
+Endif
+NBCOL=0
+NBCOL+=1 : COL(NBCOL)="[F:ECS1]ECCVALMAJ"           : Call TEXTFIC(LFIC,"ECCVALMAJ",2,TIT(NBCOL)) From OBJDIV
+NBCOL+=1 : COL(NBCOL)="[F:AXX]TEXTE"                : Call TEXTFIC(LFIC,"ECCDESAXX",2,TIT(NBCOL)) From OBJDIV
+NBCOL+=1 : COL(NBCOL)="mess([F:ECS1]ECCSTA,2776,1)" : Call TEXTFIC(LFIC,"ECCSTA",2,TIT(NBCOL))    From OBJDIV
+NBCOL+=1 : COL(NBCOL)="[F:ECS1]EXNDAT"              : Call TEXTFIC(LFIC,"EXNDAT",2,TIT(NBCOL))    From OBJDIV
+NBCOL+=1 : COL(NBCOL)="mess([F:ECS1]SPSFLG,1,1)"    : Call TEXTFIC(LFIC,"SPSFLG",2,TIT(NBCOL))    From OBJDIV
+
+CRITERE(1) ="[F:ECS1]ITMREF='"+LITM+"'"
+# FGR 21/07/2015 : X3SUIVI105605 : vu avec TS : ne pas faire ça (début)
+#If LECCVAL <> ""
+#  CRITERE(1) +="&[F:ECS1]ECCVALMAJ>='"+LECCVAL+"'"
+#Endif
+# FGR 21/07/2015 : X3SUIVI105605 : vu avec TS : ne pas faire ça (fin)
+
+CRITERE(2)  ="&([F:ECS1]ECCSTA<4)"
+
+#--- La sélection n'est volontairement pas filtrée selon la règle de gestion
+#CRITERE(2) +="([F:ECS1]ECCSTA=1&([F:SRU]AUZPRO=3|[F:SRU]AUZPRO=2&[F:ECS1]SPSFLG=1))"
+#CRITERE(2) +="|"
+#CRITERE(2) +="([F:ECS1]ECCSTA=2&([F:SRU]AUZACT=3|[F:SRU]AUZACT=2&[F:ECS1]SPSFLG=1))"
+#CRITERE(2) +="|"
+#CRITERE(2) +="([F:ECS1]ECCSTA=3&([F:SRU]AUZSTP=3|[F:SRU]AUZSTP=2&[F:ECS1]EXNFLG=2))"
+#CRITERE(2) +=")"
+
+ORDRE  = "ITMREF;ECCVALMAJ desc"
+START  = "ECCVALMAJ"
+EXPSTART = "[F:ECS1]ECCVALMAJ" + ">''"  # FGR 21/07/2015 : X3SUIVI105605 : vu avec TS
+VALEUR = LECCVAL
+SIZLIG = 150
+SIZCOL = 280
+DEFPAG = 1
+Default File [SRT_]
+Return
+
+$VERF_STKSELMAJS
+If LABR<>""
+  Local     Char    LABRMSK
+  LABRMSK  = "[M:"+LABR+"]"
+  If evalue("dim("+LABRMSK+"ECCVALMAJ)")>0
+    If LLIG <> 0
+      Assign LABRMSK+"ECCVALMAJ(LLIG)"  With [F:ECS1]ECCVALMAJ
+      #Default Mask "["+LABR+"]"
+      #Affzo [M]ECCVALMAJ(LLIG)
+    Else
+      Assign LABRMSK+"ECCVALMAJ"  With [F:ECS1]ECCVALMAJ
+      #Default Mask "["+LABR+"]"
+      #Affzo [M]ECCVALMAJ
+    Endif
+  Endif
+Endif
+Return
+#--- End TS 106217
+
+########################################################################
+# STKSELMAJ Sélection version majeure
+########################################################################
+# Paramètres E : LITM = article
+#                LFCY = site
+#                LMAJ = version majeure
+#                LACT = statut : "" tout statut; "1" = prototype; "23" = active + fermée   etc etc .....
+#                LABR = masque
+#                LLIG = ligne si selection depuis un tableau
+########################################################################
+$STKSELMAJ
+
+Local Char    LFIC(10)        : LFIC = "ECCSTA"
+Local Char    LMAJ(GLONECS)   : LMAJ = VALEUR
+Local Char    LITM(GLONITM)   : LITM = PARAM(1)
+Local Char    LSTA            : LSTA = PARAM(2)
+Local Char    LABR            : LABR = PARAM(3)
+Local Integer LLIG            : LLIG = val(PARAM(4))
+
+#---
+If clalev([F:ECS1]) = 0 : Local File ECCSTA    [ECS1] : Endif
+If clalev([F:ATZ])  = 0 : Local File ATABZON   [ATZ]  : Endif
+If clalev([F:AXX])  = 0 : Local File ATEXTRA   [AXX]  : Endif
+
+TIT(0) = mess(20,723,1)
+
+
+Link [ECS1] With
+& [AXX]AXX0="ECCSTA";"ECCDESAXX";GLANGUE;[F:ECS1]ITMREF;[F:ECS1]ECCVALMAJ
+& As [SRT_]
+
+If [F:AXX]CODFIC <> "ECCSTA"
+   Raz [F:AXX]TEXTE
+Endif
+NBCOL=0
+NBCOL+=1 : COL(NBCOL)="[F:ECS1]ECCVALMAJ"           : Call TEXTFIC(LFIC,"ECCVALMAJ",2,TIT(NBCOL)) From OBJDIV
+NBCOL+=1 : COL(NBCOL)="[F:AXX]TEXTE"                : Call TEXTFIC(LFIC,"ECCDESAXX",2,TIT(NBCOL)) From OBJDIV
+NBCOL+=1 : COL(NBCOL)="mess([F:ECS1]ECCSTA,2776,1)" : Call TEXTFIC(LFIC,"ECCSTA",2,TIT(NBCOL))    From OBJDIV
+NBCOL+=1 : COL(NBCOL)="[F:ECS1]EXNDAT"              : Call TEXTFIC(LFIC,"EXNDAT",2,TIT(NBCOL))    From OBJDIV
+NBCOL+=1 : COL(NBCOL)="mess([F:ECS1]SPSFLG,1,1)"    : Call TEXTFIC(LFIC,"SPSFLG",2,TIT(NBCOL))    From OBJDIV
+
+CRITERE = "1=1"
+CRITERE +="&[F:ECS1]ITMREF='"+LITM+"'"
+If LMAJ <> ""
+   CRITERE +="&[F:ECS1]ECCVALMAJ>='"+LMAJ+"'"
+Endif
+
+CRITERE +="&([F:ECS1]ECCSTA<4)"
+
+If LSTA <> ""
+   CRITERE += "&find([F:ECS1]ECCSTA"
+   For I = 1 To len(LSTA)
+       CRITERE += ","+num$(mid$(LSTA,I,1))
+   Next I
+   CRITERE += ")"
+Endif
+
+#---
+ORDRE  = "ITMREF;ECCVALMAJ desc"
+START  = "ECCVALMAJ"
+
+VALEUR = LMAJ
+SIZLIG = 150
+SIZCOL = 280
+DEFPAG = 1
+Default File [SRT_]
+
+Return
+
+########################################################################
+# STKSELMIN Sélection version mineure
+########################################################################
+# Paramètres E : LITM = article
+#                LMAJ = version majeure
+#                LMIN = version mineure
+#                LABR = masque
+#                LLIG = ligne si sélection depuis un tableau
+#                LTYP = type de flux  (ECCTYP de la table ECCVAL)
+########################################################################
+$STKSELMIN
+Local Char    LFIC(10)         : LFIC = "ECCVAL"
+Local Char    LMIN(GLONICVVAL) : LMIN = VALEUR
+Local Char    LITM(GLONITM)    : LITM = PARAM(1)
+Local Char    LMAJ(GLONECS)    : LMAJ = PARAM(2)
+Local Char    LABR             : LABR = PARAM(3)
+Local Integer LLIG             : LLIG = val(PARAM(4))
+Global Integer LTYP             : LTYP = val(PARAM(5))
+
+#---
+If clalev([F:EVL1]) = 0 : Local File ECCVAL    [EVL1] : Endif
+If clalev([F:ATZ])  = 0 : Local File ATABZON   [ATZ]  : Endif
+
+TIT(0) = mess(21,723,1)
+If LTYP = 0
+   Return
+Endif
+NBCOL=0
+NBCOL+=1 : COL(NBCOL)="[F:EVL1]ECCVALMIN" : Call TEXTFIC(LFIC,"ECCVALMIN",2,TIT(NBCOL)) From OBJDIV
+CRITERE = "1=1"
+CRITERE +="&[F:EVL1]ECCTYP=LTYP"
+CRITERE +="&[F:EVL1]ITMREF='"+LITM+"'"
+CRITERE +="&[F:EVL1]ECCVALMAJ='"+LMAJ+"'"
+# FGR 21/07/2015 : X3SUIVI105605 : vu avec TS : ne pas faire ça (début)
+#If LMIN <> ""
+#   CRITERE +="&[F:EVL1]ECCVALMIN>='"+LMIN+"'"
+#Endif
+# FGR 21/07/2015 : X3SUIVI105605 : vu avec TS : ne pas faire ça (fin)
+
+#---
+ORDRE  = "ITMREF;ECCVALMAJ desc;ECCVALMIN desc"
+START = "ECCVALMIN"
+EXPSTART = "[F:EVL1]ECCVALMIN" + ">''"  # FGR 21/07/2015 : X3SUIVI105605 : vu avec TS
+
+VALEUR = LMIN
+SIZLIG = 150
+SIZCOL = 280
+DEFPAG = 1
+Default File [EVL1]
+
+Return
+
+#                                                                                                   # hcb 71276  fin
+
+
+########################################################################
+# STKSELLOTO : Sélection lot d'une pièce origine
+########################################################################
+# Paramètres E : LITM = article
+#                LLOT = lot
+#
+########################################################################
+$STKSELLOTO
+Local Char    LITM(GLONITM)       : LITM = PARAM(1)
+Local Char    LABR                : LABR = PARAM(2)
+Local Integer LLIG                : LLIG = val(PARAM(3))
+Local Char    LFCY(GLONFCY)       : LFCY = PARAM(4)
+Local Integer LVCRTYPORI          : LVCRTYPORI = val(PARAM(5))
+Local Char    LVCRNUMORI(GLONVCR) : LVCRNUMORI = PARAM(6)
+Local Integer LVCRLINORI          : LVCRLINORI = val(PARAM(7))
+
+Global Char   GTABLOTORI(GLONLOT)(50)
+
+Local Char    LLOT(GLONLOT)   : LLOT = VALEUR
+
+Local Integer ISTL, I, ISLF
+Raz ISTL, I
+If clalev([F:STL]) = 0 : Local File STOLOT   [STL] : ISTL = 1 : Endif
+If clalev([F:SLF]) = 0 : Local File STOLOTFCY[SLF] : ISLF = 1 : Endif
+If clalev([F:ATZ]) = 0 : Local File ATABZON  [ATZ] : Endif
+If clalev([F:STJ]) = 0 : Local File STOJOU   [STJ] : Endif
+#
+Raz GTABLOTORI
+If LVCRNUMORI<>""
+   For [STJ]STJ1 Where STOFCY=LFCY & VCRTYP=LVCRTYPORI &
+&                      VCRNUM=LVCRNUMORI & VCRLIN=LVCRLINORI & ITMREF = LITM
+      If [F:STJ]LOT<>""
+         If I=0
+            GTABLOTORI(0)=[F:STJ]LOT
+            I+=1
+         Elsif !find([F:STJ]LOT,GTABLOTORI(0..I-1))
+            GTABLOTORI(I)=[F:STJ]LOT
+            I+=1
+         Endif
+      Endif
+   Next
+Endif
+#
+TIT(0) = mess(2,723,1)
+NBCOL  = 1 : COL(NBCOL) = "[F:SLF]ITMREF" : Call TEXTFIC("STOLOTFCY","ITMREF",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]LOT"    : Call TEXTFIC("STOLOTFCY","LOT",2,TIT(NBCOL)) From OBJDIV
+If [F:ITM]LOTMGTCOD = 4
+   NBCOL += 1 : COL(NBCOL) = "[F:SLF]SLO" : Call TEXTFIC("STOLOTFCY","SLO",2,TIT(NBCOL)) From OBJDIV
+Endif
+If LFCY=""
+    NBCOL += 1 : COL(NBCOL) = "[F:SLF]STOFCY" :  Call TEXTFIC("STOLOTFCY","STOFCY",2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]AAACUMQTY"  : Call TEXTFIC("STOLOTFCY","AAACUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]QQQCUMQTY"  : Call TEXTFIC("STOLOTFCY","QQQCUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]RRRCUMQTY"  : Call TEXTFIC("STOLOTFCY","RRRCUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]SHLDAT"     : Call TEXTFIC("STOLOT","SHLDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]DLUDAT"     : Call TEXTFIC("STOLOT","DLUDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]POT"        : Call TEXTFIC("STOLOT","POT",2,TIT(NBCOL)) From OBJDIV
+#
+If GTABLOTORI(0)=""
+   CRITERE  = "[F:STL]ITMREF=LITM"
+Else
+   CRITERE  = "[F:STL]ITMREF=LITM&find([F:STL]LOT,GTABLOTORI(0..49))<>0"
+Endif
+CRITERE+="&[F:SLF]STOFCY=LFCY"
+
+Link [SLF] With [STL]STL0=[F:SLF]ITMREF;[F:SLF]LOT;[F:SLF]SLO
+&          As [LNK]
+
+ORDRE    = "[F:STL]ITMREF;LOT;SLO"
+START    = "LOT"
+VALEUR   = LLOT
+SIZLIG   = 150
+SIZCOL   = 280
+Default File [LNK]
+
+Return
+
+########################################################################
+# STKSELLOTS : Sélection lot    + statut
+########################################################################
+# Paramètres E : LITM = article
+#                LLOT = lot
+#
+########################################################################
+$STKSELLOTS
+Local Char    LITM(GLONITM)   : LITM = PARAM(1)
+Local Char    LFCY(GLONFCY)   : LFCY = PARAM(2)
+Local Char    LABR            : LABR = PARAM(3)
+Local Integer LLIG            : LLIG = val(PARAM(4))
+Local Integer LASTA           : LASTA = val(PARAM(5))
+Local Integer LQSTA           : LQSTA = val(PARAM(6))
+Local Integer LRSTA           : LRSTA = val(PARAM(7))
+Local Char    LLOT(GLONLOT)   : LLOT = VALEUR
+Local Integer XSTA
+#
+Local Integer ISTL, ISLF
+Raz ISTL
+If clalev([F:STL]) = 0 : Local File STOLOT     [STL] : ISTL = 1 : Endif
+If clalev([F:SLF]) = 0 : Local File STOLOTFCY  [SLF] : ISLF = 1 : Endif
+If clalev([F:ATZ])  = 0 : Local File ATABZON   [ATZ]  : Endif
+#
+TIT(0) = mess(2,723,1)
+NBCOL  = 1 : COL(NBCOL) = "[F:SLF]ITMREF"    : Call TEXTFIC("STOLOTFCY","ITMREF",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]LOT"       : Call TEXTFIC("STOLOTFCY","LOT",2,TIT(NBCOL)) From OBJDIV
+If [F:ITM]LOTMGTCOD = 4
+   NBCOL += 1 : COL(NBCOL) = "[F:SLF]SLO"    : Call TEXTFIC("STOLOTFCY","SLO",2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]STOFCY"    : Call TEXTFIC("STOLOTFCY","STOFCY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]AAACUMQTY" : Call TEXTFIC("STOLOTFCY","AAACUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]QQQCUMQTY" : Call TEXTFIC("STOLOTFCY","QQQCUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]RRRCUMQTY" : Call TEXTFIC("STOLOTFCY","RRRCUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]SHLDAT"    : Call TEXTFIC("STOLOT","SHLDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]DLUDAT"    : Call TEXTFIC("STOLOT","DLUDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]POT"       : Call TEXTFIC("STOLOT","POT",2,TIT(NBCOL)) From OBJDIV
+#
+CRITERE  = "[F:SLF]ITMREF=LITM&[F:SLF]STOFCY=LFCY"
+XSTA = 0
+If LASTA = 2 : XSTA += 1 : Endif
+If LQSTA = 2 : XSTA += 2 : Endif
+If LRSTA = 2 : XSTA += 4 : Endif
+Case XSTA
+    When 1: CRITERE += "&[F:SLF]AAACUMQTY<>0&[F:SLF]QQQCUMQTY=0&[F:SLF]RRRCUMQTY=0"
+    When 2: CRITERE += "&[F:SLF]QQQCUMQTY<>0&[F:SLF]AAACUMQTY=0&[F:SLF]RRRCUMQTY=0"
+    When 3: CRITERE += "&([F:SLF]AAACUMQTY<>0|[F:SLF]QQQCUMQTY<>0)&[F:SLF]RRRCUMQTY=0"
+    When 4: CRITERE += "&[F:SLF]RRRCUMQTY<>0&[F:SLF]AAACUMQTY=0&[F:SLF]QQQCUMQTY=0"
+    When 5: CRITERE += "&([F:SLF]AAACUMQTY<>0|[F:SLF]RRRCUMQTY<>0)&[F:SLF]QQQCUMQTY=0"
+    When 6: CRITERE += "&([F:SLF]QQQCUMQTY<>0|[F:SLF]RRRCUMQTY<>0)&[F:SLF]AAACUMQTY=0"
+    When 7: CRITERE += "&([F:SLF]AAACUMQTY<>0|[F:SLF]QQQCUMQTY<>0|[F:SLF]RRRCUMQTY<>0)"
+Endcase
+
+Link [SLF] With [STL]STL0=[F:SLF]ITMREF;[F:SLF]LOT;[F:SLF]SLO
+&          As [LNK]
+
+ORDRE   = "[F:SLF]ITMREF;LOT;SLO"
+START   = "LOT"
+VALEUR  = LLOT
+SIZLIG  = 150
+SIZCOL  = 280
+Default File [LNK]
+Return
+
+#########################################################################
+# STKSELLOTM : Sélection lot sur des bornes articles
+# Paramètres E :
+#                LITMSTR = article début
+#                LITMEND = article fin
+#########################################################################
+$STKSELLOTM
+Local Char    LITMSTR(GLONITM): LITMSTR   =     PARAM(1)
+Local Char    LITMEND(GLONITM): LITMEND   =     PARAM(2)
+Local Char    LFCY   (GLONFCY): LFCY      =     PARAM(3)
+Local Integer LQTYFLG         : LQTYFLG   = val(PARAM(4))
+Local Char    LLOT(GLONLOT)   : LOT = VALEUR
+
+If clalev([F:STL])        = 0 : Local File STOLOT      [STL] : Endif
+If clalev([F:SLF])        = 0 : Local File STOLOTFCY   [SLF] : Endif
+If clalev([F:ATZ])        = 0 : Local File ATABZON     [ATZ] : Endif
+
+TIT(0) = mess(2,723,1)
+NBCOL  = 1 : COL(NBCOL) = "[F:SLF]ITMREF"     : Call TEXTFIC("STOLOTFCY","ITMREF",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]LOT"        : Call TEXTFIC("STOLOTFCY","LOT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]SLO"        : Call TEXTFIC("STOLOTFCY","SLO",2,TIT(NBCOL)) From OBJDIV
+If LFCY=""
+    NBCOL += 1 : COL(NBCOL) = "[F:SLF]STOFCY" :  Call TEXTFIC("STOLOTFCY","STOFCY",2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]AAACUMQTY"  : Call TEXTFIC("STOLOTFCY","AAACUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]QQQCUMQTY"  : Call TEXTFIC("STOLOTFCY","QQQCUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]RRRCUMQTY"  : Call TEXTFIC("STOLOTFCY","RRRCUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]SHLDAT"     : Call TEXTFIC("STOLOT","SHLDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]DLUDAT"     : Call TEXTFIC("STOLOT","DLUDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]POT"        : Call TEXTFIC("STOLOT","POT",2,TIT(NBCOL)) From OBJDIV
+CRITERE = "1=1"
+If LITMSTR <> ""  : CRITERE += "&[F:SLF]ITMREF>=LITMSTR"    : Endif
+If LITMEND <> ""  : CRITERE += "&[F:SLF]ITMREF<=LITMEND"    : Endif
+If LFCY <> ""  : CRITERE += "&[F:SLF]STOFCY=LFCY"    : Endif
+Case LQTYFLG
+    When 0 : CRITERE += "&([F:SLF]AAACUMQTY = 0 & [F:SLF]QQQCUMQTY = 0 & [F:SLF]RRRCUMQTY = 0)"
+    When 1 : CRITERE += "&([F:SLF]AAACUMQTY <> 0 | [F:SLF]QQQCUMQTY <> 0 | [F:SLF]RRRCUMQTY <> 0)"
+    When 2 : # Pas de critère sur la quantité
+Endcase
+
+Link [SLF] With [STL]STL0=[F:SLF]ITMREF;[F:SLF]LOT;[F:SLF]SLO
+&          As [LNK]
+
+ORDRE   = "[F:SLF]ITMREF;LOT;SLO;STOFCY"
+START   = "LOT"
+VALEUR  = LLOT
+SIZLIG  = 150
+SIZCOL  = 280
+Default File [LNK]
+
+Return
+
+
+$VERF_STKSELLOT
+If LABR<>""
+    Local     Char    LABRMSK
+    LABRMSK  = "[M:"+LABR+"]"
+    If evalue("dim("+LABRMSK+"SLO)")>0
+       Assign LABRMSK+"SLO(LLIG)"  With [F:STL1]SLO    # hcb 65496
+       Default Mask "["+LABR+"]"
+       Affzo [M]SLO(LLIG)
+    Endif
+Endif
+
+Return
+
+#                                                                   # hcb 71276 deb
+$VERF_STKSELMAJ
+If LABR<>""
+  Local     Char    LABRMSK
+  LABRMSK  = "[M:"+LABR+"]"
+  If evalue("dim("+LABRMSK+"ECCVALMAJ)")>0
+     If LLIG <> 0
+        Assign LABRMSK+"ECCVALMAJ(LLIG)"  With [F:ECS1]ECCVALMAJ
+        Default Mask "["+LABR+"]"
+        Affzo [M]ECCVALMAJ(LLIG)
+     Else
+        Assign LABRMSK+"ECCVALMAJ"  With [F:ECS1]ECCVALMAJ
+        Default Mask "["+LABR+"]"
+        Affzo [M]ECCVALMAJ
+     Endif
+  Endif
+Endif
+
+Return
+
+$VERF_STKSELMIN
+
+If LABR<>""
+  Local     Char    LABRMSK
+  LABRMSK  = "[M:"+LABR+"]"
+  If evalue("dim("+LABRMSK+"ECCVALMIN)")>0
+     If LLIG <> 0
+        Assign LABRMSK+"ECCVALMIN(LLIG)"  With [F:EVL1]ECCVALMIN
+        Default Mask "["+LABR+"]"
+        Affzo [M]ECCVALMIN(LLIG)
+     Else
+        Assign LABRMSK+"ECCVALMIN"  With [F:EVL1]ECCVALMIN
+        Default Mask "["+LABR+"]"
+        Affzo [M]ECCVALMIN
+     Endif
+  Endif
+Endif
+Return
+#                                                                   # hcb 71276 fin
+
+
+
+#                                                        hcb 65496 deb
+$VERF_STKSELLOTO
+If LABR<>""
+    Local     Char    LABRMSK
+    LABRMSK  = "[M:"+LABR+"]"
+    If evalue("dim("+LABRMSK+"SLO)")>0
+       Assign LABRMSK+"SLO(LLIG)"  With [F:STL]SLO
+       Default Mask "["+LABR+"]"
+       Affzo [M]SLO(LLIG)
+    Endif
+Endif
+
+Return
+#                                                         hcb 65496 fin
+$VERF_STKSELLOTD
+If LABR<>""
+    Local     Char    LABRMSK
+    LABRMSK  = "[M:"+LABR+"]"
+    If evalue("dim("+LABRMSK+"SLODES)")>0
+       Assign LABRMSK+"SLODES(LLIG)"  With [F:STL]SLO
+       Default Mask "["+LABR+"]"
+       Affzo [M]SLODES(LLIG)
+    Endif
+Endif
+
+Return
+
+#########################################################################
+# STKSELSLOM : Sélection s/lot sur des bornes articles/lot
+# Paramètres E :
+#                LITMSTR = article début
+#                LITMEND = article fin
+#                LLOTSTR = lot début
+#                LLOTEND = lot fin
+#########################################################################
+$STKSELSLOM
+Local Char    LITMSTR(GLONITM): LITMSTR   =     PARAM(1)
+Local Char    LITMEND(GLONITM): LITMEND   =     PARAM(2)
+Local Char    LLOTSTR(GLONLOT): LLOTSTR   =     PARAM(3)
+Local Char    LLOTEND(GLONLOT): LLOTEND   =     PARAM(4)
+Local Char    LFCY   (GLONFCY): LFCY      =     PARAM(5)
+Local Char    LSLO(GLONSLO)   : LSLO = VALEUR
+Local Char    LFIC(10)        : LFIC = "STOLOT"
+
+If clalev([F:STL])        = 0 : Local File STOLOT      [STL] : Endif
+If clalev([F:SLF])        = 0 : Local File STOLOTFCY   [SLF] : Endif
+If clalev([F:ATZ])        = 0 : Local File ATABZON     [ATZ] : Endif
+
+TIT(0) = mess(2,723,1)
+NBCOL=0
+If GVTMOD=0
+   NBCOL  = 1 : COL(NBCOL) = "[F:SLF]ITMREF"  : Call TEXTFIC("STOLOTFCY","ITMREF",2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]LOT"        : Call TEXTFIC("STOLOTFCY","LOT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]SLO"        : Call TEXTFIC("STOLOTFCY","SLO",2,TIT(NBCOL)) From OBJDIV
+If LFCY=""
+    NBCOL += 1 : COL(NBCOL) = "[F:SLF]STOFCY" : Call TEXTFIC("STOLOTFCY","STOFCY",2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]AAACUMQTY"  : Call TEXTFIC("STOLOTFCY","AAACUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]QQQCUMQTY"  : Call TEXTFIC("STOLOTFCY","QQQCUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:SLF]RRRCUMQTY"  : Call TEXTFIC("STOLOTFCY","RRRCUMQTY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]SHLDAT"     : Call TEXTFIC("STOLOT","SHLDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]DLUDAT"     : Call TEXTFIC("STOLOT","DLUDAT",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:STL]POT"        : Call TEXTFIC("STOLOT","POT",2,TIT(NBCOL)) From OBJDIV
+CRITERE = "1=1"
+If LITMSTR <> ""  : CRITERE += "&[F:STL]ITMREF>=LITMSTR"    : Endif
+If LITMEND <> ""  : CRITERE += "&[F:STL]ITMREF<=LITMEND"    : Endif
+If LLOTSTR <> ""  : CRITERE += "&[F:STL]LOT>=LLOTSTR"       : Endif
+If LLOTEND <> ""  : CRITERE += "&[F:STL]LOT<=LLOTEND"       : Endif
+If LFCY<>""
+    CRITERE+="&[F:SLF]STOFCY=LFCY"
+Endif
+
+Link [SLF] With [STL]STL0=[F:SLF]ITMREF;[F:SLF]LOT;[F:SLF]SLO
+&          As [LNK]
+
+ORDRE   = "[F:SLF]ITMREF;LOT;SLO;STOFCY"
+START   = "SLO"
+VALEUR  = LSLO
+SIZLIG  = 150
+SIZCOL  = 280
+Default File [LNK]
+
+Return
+
+########################################################################
+# STKSELBPLN : Sélection lot FOURNISSEUR
+########################################################################
+# Paramètres E : LITM = article
+#                LLOT = lot
+#
+########################################################################
+$STKSELBPLN
+Local Char    LFIC(10)        : LFIC = "STOCK"
+Local Char    LFCY(GLONFCY)   : LFCY = PARAM(1)
+Local Char    LITM(GLONITM)   : LITM = PARAM(2)
+#
+If clalev([F:STO0]) = 0 : Local File STOCK     [STO0] : Endif
+If clalev([F:ATZ])  = 0 : Local File ATABZON   [ATZ]  : Endif
+#
+TIT(0) = mess(3,706,1)-LITM-LFCY
+NBCOL  = 1 : COL(NBCOL) = "BPSLOT"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "LOT"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+If [F:ITM]LOTMGTCOD = 4
+   NBCOL += 1 : COL(NBCOL) = "SLO"
+   Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+Endif
+NBCOL += 1 : COL(NBCOL) = "STA"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "LOC"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "QTYSTU"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+#
+CRITERE = "[F:STO0]STOFCY=LFCY&[F:STO0]ITMREF=LITM&[F:STO0]BPSLOT<>''"
+ORDRE   = ""
+START   = ""
+VALEUR  = ""
+SIZLIG  = 100
+SIZCOL  = 200
+Default File [STO0]
+Return
+
+#########################################################################
+# STKSELSTA : Sélection statut stock
+#########################################################################
+$STKSELSTA
+Local Char    WFIC(10)        : WFIC = "TABSTASTO"
+Local Integer I, J, K
+# Modifie la liste des sous statuts autorisés suivant la valeur de PARAM(2)
+Call STKAUZSTA(PARAM(1),val(PARAM(2))) From STKACT
+
+If clalev([F:TST]) = 0 : Local File TABSTASTO [TST] : Endif
+If clalev([F:ATZ]) = 0 : Local File ATABZON   [ATZ] : Endif
+If clalev([F:AXX]) = 0 : Local File ATEXTRA   [AXX] : Endif
+#
+TIT(0) = mess(138,198,1)
+NBCOL  = 1 : COL(NBCOL) = "STASTO"
+Call TEXTFIC(WFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:AXX]TEXTE"
+Call TEXTE(8,TIT(NBCOL)) From OBJDIV
+#
+If PARAM(1) = ""
+  CRITERE += "[F:TST]STASTO=''"
+Else
+  I = 1
+  J = instr(I,PARAM(1),",")
+  K = 0
+  CRITERE = "1=1 &("
+  While J <> 0
+    If K <> 0
+      CRITERE += "|"
+    Endif
+    CRITERE += "pat([F:TST]STASTO,'"+seg$(PARAM(1),I,J-1)+"')"
+    I = J + 1
+    J = instr(I,PARAM(1),",")
+    K = 1
+  Wend
+  If K <> 0
+    CRITERE += "|"
+  Endif
+  CRITERE += "pat([F:TST]STASTO,'"+seg$(PARAM(1),I,len(PARAM(1)))+"'))"
+Endif
+Link [TST] With [AXX]AXX0="TABSTASTO";"STAAXX";GLANGUE;[F:TST]STASTO;""
+&          As [LNK]
+ORDRE   = "STASTO"
+START   = ""
+#VALEUR  = ""
+SIZLIG  = 100
+SIZCOL  = 140
+Default File [LNK]
+Return
+
+############################################################
+# Sélection numéro de série
+############################################################
+$STKSELSER
+Local Char    WFCY(GLONFCY)       : WFCY       = PARAM(1)
+Local Char    WITM(GLONITM)       : WITM       = PARAM(2)
+#Local Date    WISSDAT             : WISSDAT    = PARAM(3)
+Local Integer WVCRTYPORI          : WVCRTYPORI = val(PARAM(4))
+Local Char    WVCRNUMORI(GLONVCR) : WVCRNUMORI = PARAM(5)
+Local Integer WVCRLINORI          : WVCRLINORI = val(PARAM(6))
+#
+Local Integer LSENS
+LSENS = func STKLIB.SENSVCR(WVCRTYPORI)
+#
+If clalev([F:ATZ]) = 0 : Local File ATABZON   [ATZ]  : Endif
+If clalev([F:STS]) = 0 : Local File STOSER    [STS] : Endif
+#
+
+CRITERE = "[F:STS]ITMREF=WITM & [F:STS]STOFCY=WFCY"
+#
+TIT(0) = mess(47,197,1)-WITM
+NBCOL  = 1 : COL(NBCOL) = "SERNUM"
+Call TEXTFIC("STOSER","SERNUM",2,TIT(NBCOL)) From OBJDIV
+If find(LSENS,-1,2)
+    NBCOL += 1 : COL(NBCOL) = "ISSDAT"
+    Call TEXTFIC("STOSER","ISSDAT",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "SDHTYP"
+    Call TEXTFIC("STOSER","SDHTYP",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "SDHNUM"
+    Call TEXTFIC("STOSER","SDHNUM",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "SDDLIN"
+    Call TEXTFIC("STOSER","SDDLIN",2,TIT(NBCOL)) From OBJDIV
+
+#    CRITERE += "&[F:STS]ISSDAT=WISSDAT"
+    If WVCRNUMORI<>""
+        CRITERE += "&[F:STS]SDHTYP=WVCRTYPORI"
+        CRITERE += "&[F:STS]SDHNUM=WVCRNUMORI"
+        CRITERE += "&[F:STS]SDDLIN=WVCRLINORI"
+    Else
+        CRITERE += "&[F:STS]SDHNUM<>WVCRNUMORI"
+    Endif
+Else
+    NBCOL += 1 : COL(NBCOL) = "RCPVCRTYP"
+    Call TEXTFIC("STOSER","RCPVCRTYP",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "RCPVCRNUM"
+    Call TEXTFIC("STOSER","RCPVCRNUM",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "RCPVCRLIN"
+    Call TEXTFIC("STOSER","RCPVCRLIN",2,TIT(NBCOL)) From OBJDIV
+    If WVCRNUMORI<>""
+        CRITERE += "&[F:STS]RCPVCRTYP=WVCRTYPORI"
+        CRITERE += "&[F:STS]RCPVCRNUM=WVCRNUMORI"
+        CRITERE += "&[F:STS]RCPVCRLIN=WVCRLINORI"
+    Endif
+    #-- On ne sélectionne que les n° pas encore sortis
+    CRITERE += "&[F:STS]SDHNUM=''"
+Endif
+ORDRE   = "ITMREF;SERNUM"
+START   = ""
+VALEUR  = ""
+SIZLIG  = 100
+SIZCOL  = 200
+Default File [STS]
+Return
+
+############################################################
+# Sélection numéro de série
+############################################################
+$STKSELSERN
+Local Char    WITM(GLONITM)       : WITM       = PARAM(1)
+Local Char    WFCY(GLONFCY)       : WFCY       = PARAM(2)
+Local Integer WSERSOR             : WSERSOR    = val(PARAM(3))
+Local Char    WCTLORI(1)          : WCTLORI    = PARAM(4)
+Local Integer WVCRTYPORI          : WVCRTYPORI = val(PARAM(5))
+Local Char    WVCRNUMORI(GLONVCR) : WVCRNUMORI = PARAM(6)
+Local Integer WVCRLINORI          : WVCRLINORI = val(PARAM(7))
+Local Char    WFILTRE             : WFILTRE    = PARAM(8)
+
+If clalev([F:ATZ]) = 0 : Local File ATABZON   [ATZ]  : Endif
+If clalev([F:STS]) = 0 : Local File STOSER    [STS] : Endif
+
+CRITERE = "[F:STS]ITMREF=WITM"
+If WFCY<>"" CRITERE+="&[F:STS]STOFCY=WFCY" Endif
+TIT(0) = mess(47,197,1)-WITM
+NBCOL  = 1 : COL(NBCOL) = "SERNUM"
+Call TEXTFIC("STOSER","SERNUM",2,TIT(NBCOL)) From OBJDIV
+
+If WCTLORI="E"
+    NBCOL += 1 : COL(NBCOL) = "RCPVCRTYP"
+    Call TEXTFIC("STOSER","RCPVCRTYP",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "RCPVCRNUM"
+    Call TEXTFIC("STOSER","RCPVCRNUM",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "RCPVCRLIN"
+    Call TEXTFIC("STOSER","RCPVCRLIN",2,TIT(NBCOL)) From OBJDIV
+Else
+    NBCOL += 1 : COL(NBCOL) = "ISSDAT"
+    Call TEXTFIC("STOSER","ISSDAT",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "SDHTYP"
+    Call TEXTFIC("STOSER","SDHTYP",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "SDHNUM"
+    Call TEXTFIC("STOSER","SDHNUM",2,TIT(NBCOL)) From OBJDIV
+    NBCOL += 1 : COL(NBCOL) = "SDDLIN"
+    Call TEXTFIC("STOSER","SDDLIN",2,TIT(NBCOL)) From OBJDIV
+Endif
+# No série sortis
+If WSERSOR=1
+   CRITERE+="&[F:STS]ISSDAT<>[0/0/0]"
+# No série non sortis
+Else
+   CRITERE+="&[F:STS]ISSDAT=[0/0/0]"
+Endif
+
+If WVCRNUMORI<>""
+   # No série entrés avec la pièce origine renseignée
+   If WCTLORI="E"
+      CRITERE += "&[F:STS]RCPVCRTYP=WVCRTYPORI"
+      CRITERE += "&[F:STS]RCPVCRNUM=WVCRNUMORI"
+      CRITERE += "&[F:STS]RCPVCRLIN=WVCRLINORI"
+   # No série sortis avec la pièce origine renseignée
+   Else
+      CRITERE += "&[F:STS]SDHTYP=WVCRTYPORI"
+      CRITERE += "&[F:STS]SDHNUM=WVCRNUMORI"
+      CRITERE += "&[F:STS]SDDLIN=WVCRLINORI"
+   Endif
+Endif
+
+# Prise ne compte du filtre renseigné
+If WFILTRE<>"" CRITERE+="&"+WFILTRE Endif
+
+ORDRE   = "ITMREF;SERNUM"
+START   = ""
+EXPSTART = ""
+VALEUR  = ""
+SIZLIG  = 100
+SIZCOL  = 200
+Default File [STS]
+Return
+
+############################################################
+# Sélection analyse qualité
+############################################################
+$STKSELQLY
+Local Char    WFCY(GLONFCY)   : WFCY = PARAM(1)
+Local Char    WITM(GLONITM)   : WITM = PARAM(2)
+Local Char    WFILTRE(100)    : WFILTRE=PARAM(3)
+
+CRITERE(1)="1=1"
+If WFCY<>""
+# Issue 112726 - 2015-11-24 by MAE
+    #CRITERE(1)+=" & [F:QLH]STOFCY=[L]WFCY"
+    CRITERE(1)+=" & [F:QLH]STOFCY='"+[L]WFCY+"'"
+Endif
+If WITM<>""
+    # Issue 112726 - 2015-11-24 by MAE
+    #CRITERE(1)+=" & [F:QLH]ITMREF=[L]WITM"
+    CRITERE(1)+=" & [F:QLH]ITMREF='"+[L]WITM+"'"
+Endif
+If WFILTRE<>""
+    CRITERE(1)+=" & "+WFILTRE
+Endif
+If dim([M]VALFLGO)>0 & dim([M]VALFLGN)>0
+    If [M]VALFLGO=1
+        CRITERE(1)+=" & [F:QLH]VALFLG<>2"
+    If [M]VALFLGN=1
+        CRITERE(1)+=" & [F:QLH]VALFLG<>1"
+    Endif
+Endif
+Endif
+START="VCRNUM"
+OBJET ="STQ"
+OPTIONS="#"
+Return
+
+$VERF_STKSELQLY
+Return
+
+#########################################################################
+# STKSELBOML : Sélection entete nomenclature
+#              Avec restitution et affichage de l alternative
+# Paramètres E : LITM = Compose
+#                LALT = Alternative
+#                LALTT= Type Alternative
+#                LABR = Abreviation de l ecran
+#                LZON = Zone ecran qui contient le numéro d alternative
+#                LLIG = Numero de ligne du tableau ecran
+#
+#########################################################################
+$STKSELBOML
+Local Char    LITM(GLONITM)   : LITM  =     PARAM(1)
+Local Integer LALT            : LALT  = val(PARAM(2))
+Local Integer LALTT           : LALTT = val(PARAM(3))
+Local Char    LABR            : LABR  =     PARAM(4)
+Local Char    LZON            : LZON  =     PARAM(5)
+Local Integer LLIG            : LLIG  = val(PARAM(6))
+Local Char    LFCY            : LFCY  =     PARAM(7)
+Local Char    WFCY
+Raz WFCY
+#
+If clalev([F:BOH]) = 0 : Local File BOM         [BOH] : Endif
+If clalev([F:ATZ]) = 0 : Local File ATABZON     [ATZ] : Endif
+If clalev([F:TBO]) = 0 : Local File TABBOMALT   [TBO] : Endif
+If clalev([F:ITF]) = 0 : Local File ITMFACILIT  [ITF] : Endif
+If clalev([F:ITM]) = 0 : Local File ITMMASTER   [ITM] : Endif
+If clalev([F:AXX]) = 0 : Local File ATEXTRA     [AXX] : Endif  # FGR 02/10/2009 : X3SUIVI57935
+
+If clalev([M:SMO1])
+# FGR 02/10/2009 : X3SUIVI57935
+#    Link [BOH] With [TBO]TBO0 = [F:BOH]BOMALTTYP;[BOH]BOMALT,
+#&                   [ITF]ITF0 = [BOH]ITMREF;LFCY,
+#&                   [ITM]ITM0 = GSOCIETE;[BOH]ITMREF
+#&              As [NEW]
+#&              Where ([TBO]FCY = LFCY | [TBO]FCY = WFCY) &
+#&                    [ITF]STOFCY = LFCY &
+#&                    [ITM]PHAFLG <> 2
+# FGR 16/12/2009 X3SUIVI60964 manquait GLANGUE
+    Link [BOH] With [TBO]TBO0 = [F:BOH]BOMALTTYP;[BOH]BOMALT,
+&                   [ITF]ITF0 = [BOH]ITMREF;LFCY,
+&                   [ITM]ITM0 = GSOCIETE;[BOH]ITMREF,
+&                   [AXX]AXX0="BOM";"BOMDESAXX";GLANGUE;[F:BOH]IDENT1;num$([F:BOH]BOMALTTYP)
+&              As [NEW]
+&              Where ([TBO]FCY = LFCY | [TBO]FCY = WFCY) &
+&                    [ITF]STOFCY = LFCY
+#&                    [ITM]PHAFLG <> 2 #MAE, bg 85393
+Else
+# FGR 02/10/2009 : X3SUIVI57935
+#    Link [BOH] With [TBO]TBO0 = [F:BOH]BOMALTTYP;[BOH]BOMALT ,
+#&                   [ITF]ITF0 = [BOH]ITMREF;LFCY ,
+#&                   [ITM]ITM0 = [BOH]ITMREF
+#&              As [NEW]
+#&              Where ([TBO]FCY = LFCY | [TBO]FCY = WFCY) &
+#&                    [ITF]STOFCY = LFCY &
+#&                    [ITM]PHAFLG <> 2
+# FGR 16/12/2009 X3SUIVI60964 manquait GLANGUE
+    Link [BOH] With [TBO]TBO0 = [F:BOH]BOMALTTYP;[BOH]BOMALT ,
+&                   [ITF]ITF0 = [BOH]ITMREF;LFCY ,
+&                   [ITM]ITM0 = [BOH]ITMREF,
+&                   [AXX]AXX0="BOM";"BOMDESAXX";GLANGUE;[F:BOH]IDENT1;num$([F:BOH]BOMALTTYP)
+&              As [NEW]
+&              Where ([TBO]FCY = LFCY | [TBO]FCY = WFCY) &
+&                    [ITF]STOFCY = LFCY
+#&                    [ITM]PHAFLG <> 2 #MAE, bg 85393
+Endif
+
+Default File [NEW]
+
+TIT(0) = mess(414,198,1) # Sélection entête nomenclature
+
+NBCOL  += 1 : COL(NBCOL) = "ITMREF"
+Call TEXTFIC("BOM",COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL  += 1 : COL(NBCOL) = "BOMALT"
+Call TEXTFIC("BOM",COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+# FGR 02/10/2009 : X3SUIVI57935
+#NBCOL += 1 : COL(NBCOL) = "BOMDES"
+#Call TEXTFIC("BOM",COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "BOMDESAXX"
+Call TEXTFIC("BOM",COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+COL(NBCOL) = "[F:AXX]TEXTE"
+
+SIZLIG  = 140
+SIZCOL  = 180
+If LITM <> ""
+   CRITERE = "ITMREF >= LITM"
+Endif
+
+If LALT <> 0
+   If CRITERE <> ""
+      CRITERE = CRITERE + "& BOMALT >= LALT"
+   Else
+      CRITERE = "BOMALT >= LALT"
+   Endif
+Endif
+If LALTT  <> 0
+   If CRITERE <> ""
+      CRITERE = CRITERE + "& BOMALTTYP=LALTT"
+   Else
+      CRITERE = "BOMALTTYP=LALTT"
+   Endif
+Endif
+
+ORDRE   = "ITMREF;BOMALT"
+START  = "ITMREF"
+EXPSTART = "ITMREF=LITM"
+VALEUR = LITM
+
+Default File [NEW]
+# Issue 56194 - 2017-10-10 by MAE : ajout de la pagination
+DEFPAG = 1
+Return
+
+$VERF_STKSELBOML
+
+If evalue("dim([M:"+LABR+"]"+LZON+")")>0
+   Assign " [M:"+LABR+"]"+LZON+"("+num$(LLIG)+")"  With [F:BOH]BOMALT
+Endif
+# ligne rajoutée car bug moteur
+If LABR = "BBY0" | LABR = "DBY0"
+   If evalue("dim([M:"+LABR+"]ITMREF)")>0
+      Assign " [M:"+LABR+"]ITMREF("+num$(LLIG)+")"    With [F:BOH]ITMREF
+   Endif
+Endif
+Default Mask "["+LABR+"]"
+Affzo [M]
+
+Return
+
+#########################################################################
+# STKSELPRP                       Selection paramétrage code préparation
+#########################################################################
+$STKSELPRP
+
+Local Char LFIC(10)
+LFIC = "TABPRECOD"
+
+If clalev([F:PRC])  = 0 : Local File TABPRECOD [PRC] : Endif
+If clalev([F:FCY])  = 0 : Local File FACILITY  [FCY] : Endif
+
+TIT(0) = mess(349,184,1)
+
+NBCOL = 1 : COL(NBCOL) = "[F:PRC]STOFCY"
+Call TEXTFIC(LFIC,"STOFCY",2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "[F:FCY]FCYNAM"
+Call TEXTFIC("FACILITY","FCYNAM",2,TIT(NBCOL)) From OBJDIV
+
+Link [PRC] With [FCY]FCY0=[F:PRC]STOFCY
+&          As [LNK]
+
+ORDRE   = "STOFCY"
+CRITERE = "[F:PRC]NUMCRIT=0&[F:PRC]PRECOD=''"
+START   = "STOFCY"
+SIZLIG  = 100
+SIZCOL  = 200
+Default File [LNK]
+Return
+
+#########################################################################
+# STKSELSPH                                               Sélection Colis
+#########################################################################
+$STKSELSPH
+Local Integer LTYP         : LTYP  =  val(PARAM(1))
+Local Char    LNUM         : LNUM  =      PARAM(2)
+Local Char    LNUME        : LNUME =      PARAM(3)
+Local Char    LFCY         : LFCY  =      PARAM(4)
+Local Char LFIC(10)
+LFIC = "SPACK"
+If clalev([F:SPH])  = 0 : Local File SPACK     [SPH]  : Endif
+If clalev([F:ATZ])  = 0 : Local File ATABZON   [ATZ]  : Endif
+
+TIT(0) = mess(294,195,1)
+
+NBCOL = 1  : COL(NBCOL) = "PACNUM"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "PCK"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "BPCORD"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "PREUSR"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "SCCCOD"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "VCRTYP"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "VCRNUM"
+Call TEXTFIC(LFIC,COL(NBCOL),2,TIT(NBCOL)) From OBJDIV
+
+Local Char WLISTE(15)
+WLISTE = ""
+
+ORDRE   = "VCRNUM;PACNUM"
+CRITERE = "[F:SPH]STOFCY=LFCY"
+If LTYP <> 0
+   CRITERE = CRITERE+"&[F:SPH]VCRTYP=LTYP"
+Endif
+If LNUM <> ""
+   CRITERE = CRITERE+"&[F:SPH]VCRNUM>=LNUM"
+Endif
+If LNUME <> ""
+   CRITERE = CRITERE+"&[F:SPH]VCRNUM<=LNUME"
+Endif
+START   = "PACNUM"
+SIZLIG  = 100
+SIZCOL  = 200
+Default File [SPH]
+Return
+
+$VERF_STKSELSPH
+Return
+
+############################################################
+# STKSELADD                        Sélection adresses tiers
+############################################################
+# - AZC      = Code adresse
+# - PARAM(1) = Tiers
+# - PARAM(2) = Type adresse
+############################################################
+$STKSELADD
+Local Char    LADD(GLONADR)
+LADD = VALEUR
+
+If !clalev([F:ATZ])  Local File ATABZON  [ATZ] : Endif
+
+CRITERE="BPATYP="+PARAM(2)+"&BPANUM=PARAM(1)"
+OBJET=""
+TIT(0) = mess(10,195,1)
+NBCOL  = 0
+NBCOL += 1 : COL(NBCOL) = "BPANUM"
+Call TEXTFIC("BPSUPPLIER","BPSNUM",1,TIT(NBCOL)) From OBJDIV
+NBCOL += 1 : COL(NBCOL) = "BPAADD"
+Call TEXTFIC("BPADDRESS","BPAADD",1,TIT(NBCOL)) From OBJDIV
+START   = "BPAADD"
+VALEUR  = LADD
+Default File [BPA]
+
+Return
+
+
+
+
+
+
+
+
+
+
+
+
+

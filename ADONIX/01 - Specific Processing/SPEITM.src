@@ -1,0 +1,117 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Products
+$ACTION
+Gosub ACTION From YSPEITM
+Case ACTION
+    When "VERIF_MOD" : Gosub VERIF_MOD
+    When "VERIF_CRE" : Gosub VERIF_CRE
+    When "SETBOUT" : Gosub SETBOUT
+    When "STYLE" : Gosub STYLE
+    When Default
+Endcase
+Return
+
+$SETBOUT
+If [M:ITM0]ITMSTA=6
+    Chgstl [M:ITM0]ITMSTA With "BACKRED"
+Else
+    Chgstl [M:ITM0]ITMSTA With "NORMAL"
+Endif
+Return
+
+$VERIF_CRE
+Gosub ITM_GET_PRIO_COUNT
+If find([M:ITM1]TSICOD(0),"DM","DS") & num$([M:YITM]YDISDAT)="00/00/0000"
+	[M:YITM]YDISDAT=date$
+	Affzo [M:YITM]YDISDAT
+Endif
+Return
+
+$VERIF_MOD
+If find([M]TSICOD(0),"DM","DS") & num$([M:YITM]YDISDAT)="00/00/0000"
+	[M:YITM]YDISDAT=date$
+	Affzo [M:YITM]YDISDAT
+Endif
+If !clalev([ZZZITM]) : Local File ITMMASTER [ZZZITM] : Endif
+Read [ZZZITM]ITM0=[M:ITM0]ITMREF
+If ![S]fstat
+	If find([F:ZZZITM]TSICOD(0),"DM","DS") and !find([M:ITM1]TSICOD(0),"DM","DS")
+		Raz [M:YITM]YDISDAT
+		Affzo [M:YITM]YDISDAT
+	Endif
+Endif
+Gosub ITM_GET_PRIO_COUNT
+Local File ITMMASTER[ZIP]
+Columns [ZIP] (ITMREF, TSICOD(0))
+Read [ZIP]ITM0=[M:ITM0]ITMREF
+If [F:ZIP]TSICOD(0)="DS" or [F:ZIP]TSICOD(0)="DM" or [F:ZIP]TSICOD(0)="SO" : Columns [ZIP] : LogicClose File [ZIP] : Return : Endif
+If ([M:ITM1]TSICOD(0)="DM" | [M:ITM1]TSICOD(0)="DS" | [M:ITM1]TSICOD(0)="SO")
+    Local File ITMFACILIT[ZIF]
+    Columns [ZIF] (ITMREF, STOFCY, SAFSTO)
+    Global Char ZG_DISREC(150)
+    Global Char ZG_DISFCY(150)
+    Global Char ZG_DISITM(150)
+    Global Integer ZG_DISSFT
+    Local Integer TYPEVT : [L]TYPEVT=1
+    Local Char CODEVT(150) : [L]CODEVT="ZDC"
+    Local Char OPERAT(150) : [L]OPERAT=""
+    Local Char CLEOBJ(150) : [L]CLEOBJ=[F:ZIF]ITMREF
+    Filter [ZIF] Where ITMREF=[M:ITM0]ITMREF and SAFSTO > 0 and !pat(STOFCY, "CR*")
+    For [ZIF]
+        If pat([F:ZIF]STOFCY, "DC*")
+            [V]ZG_DISREC="email@example.com"
+        Else
+            [V]ZG_DISREC="store"+left$([F:ZIF]STOFCY,2)+"@example.com"
+        Endif
+        [V]ZG_DISFCY=[F:ZIF]STOFCY
+        [V]ZG_DISITM=[F:ZIF]ITMREF
+        [V]ZG_DISSFT=[F:ZIF]SAFSTO
+        Call WORKFLOW(TYPEVT,CODEVT,OPERAT,CLEOBJ) From AWRK
+        Raz ZG_DISFCY, ZG_DISITM, ZG_DISREC, ZG_DISSFT
+        Update [ZIF] Where ITMREF=[F:ZIF]ITMREF and STOFCY=[F:ZIF]STOFCY With SAFSTO=0
+    Next
+    Columns [ZIF]
+    Filter [ZIF]
+    LogicClose File [ZIF]
+Endif
+Columns [ZIP]
+LogicClose File [ZIP]
+Return
+
+$ITM_GET_PRIO_COUNT
+Local Integer ZL_PQ : [L]ZL_PQ = 0
+For I = 0 To [M:ITP]NBITP-1
+    If [M:ITP]PIO(I) = 0
+        [L]ZL_PQ += 1
+    Endif
+Next
+If ZL_PQ > 1
+    Gosub GET_PRIO_COUNT From ZS_PRINT
+Endif
+Return
+######################################################################################
+## Section automatically added (screen ITM0) 05/05/2026 11:29:25 (MOZM)
+######################################################################################
+Subprog C_ZNOVEXCO(VALEUR)
+Variable Char    VALEUR()
+
+End
+
+
+######################################################################################
+######################################################################################
+## Section automatically added (screen YITM) 05/05/2026 14:17:42 (MOZM)
+######################################################################################
+Subprog AM_ZQTYNVX(VALEUR)
+Variable Decimal VALEUR
+
+End
+
+
+######################################################################################
+
+$STYLE
+[M:YITM]ZQTYMNK=val(func AFNC.INTFLD("ITMMVT","PHYSTO",[M:ITM0]ITMREF+"~"+"DC30"))
+Affzo [M:YITM]ZQTYMNK
+[M:YITM]ZQTYTOT=val(func AFNC.INTFLD("ITMMVT","ZQTYNVX",[M:ITM0]ITMREF+"~"+"DC30"))
+Affzo [M:YITM]ZQTYTOT
+Return

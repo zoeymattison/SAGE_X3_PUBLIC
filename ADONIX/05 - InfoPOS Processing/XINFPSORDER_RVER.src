@@ -1,0 +1,75 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+###########################################################################################
+# Script            : XINFPSORDER_RVER
+# Creation date     : 16/08/2018
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : SALES
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : SALES ORDER DOWNLOAD REPRESENTATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+$EVENTS
+ #[L]ASTATUS = fmet this.ASETERROR("SORDER", "e" - [L]CURPTH -":"-mess(94,139,1),[V]CST_AERROR)
+#Case [L]CURPTH
+#   When ""
+#    Case [L]AEVENT
+#    Endcase
+#Endcase
+Return
+
+
+#**
+#* Label for coding action on INIT, GET, CONTROL and PROPAGATE
+#* @param CURPRO Local Char(50), contains the property code
+#* @param ARULE Local Char(20), contains the action code requested
+#* @return ASTATUS Local Integer
+#*!
+$PROPERTIES
+ #[L]ASTATUS = fmet this.ASETERROR("SORDER", "p" - [L]CURPRO -":"-mess(94,139,1),[V]CST_AERROR)
+#Case [L]CURPRO
+#   Case [L]ARULE
+#   Endcase
+#Endcase
+Return
+
+
+#**
+#* Label for coding your methods
+#* @param AMETHOD Local Char(20), contains the method code
+#* @return ARET_VALUE (the type of the return value is declared in the method)
+#*!
+$METHODS
+    #[L]ASTATUS = fmet this.ASETERROR("SORDER", "m" - [L]AMETHOD -":"-mess(94,139,1),[V]CST_AERROR)
+    Case [L]AMETHOD
+        When ""
+            Case ACTION
+              When "AREAD"  : #Gosub AREAD
+        Endcase
+        When "SOPSOQ"
+        Case ACTION
+            When "ADDLINE_AFTER" : Infbox "test" - ACTION
+        Endcase
+    Endcase
+Return
+
+
+#**
+#* Label for coding your operations
+#* @param AOPERATION Local Char(20), contains the operation code
+#* @return ARET_VALUE (the type of the return value is declared in the method)
+#*!
+$OPERATIONS
+#[L]ASTATUS = fmet this.ASETERROR("SORDER", "o" - [L]AOPERATION -":"-mess(94,139,1),[V]CST_AERROR)
+#Case [L]AOPERATION
+#Endcase
+Return
+
+
+
+

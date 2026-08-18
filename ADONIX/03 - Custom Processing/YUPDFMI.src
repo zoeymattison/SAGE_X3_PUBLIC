@@ -1,0 +1,44 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Subprog UPDFMI(VALEUR)
+   value integer VALEUR
+   local integer i
+   local integer tmp
+   tmp = nolign 
+   if VALEUR > 1
+      for i = 0 to [M:SOH4]NBLIG - 1
+         nolign=i+1
+         if [M:SOH4]FMINUM(i) = ""            
+            if [M:SOH4]FMI(i) <> VALEUR & ([M:SOH4]FMI(i) = 2 | [M:SOH4]FMI(i)=3) 
+               [M:SOH4]FMI(i) = VALEUR  
+               affzo [M:SOH4]FMI(i) 
+               # infbox num$(nolign)
+              
+            endif
+          endif           
+      next
+   endif
+   nolign = tmp
+End
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

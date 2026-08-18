@@ -1,0 +1,98 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+	When "DEBUT" : Gosub DEBUT
+	When Default
+Endcase
+Return
+
+$DEBUT
+If !clalev([ZPTD]) : Local File PRECEIPTD [ZPTD] : Endif
+Columns [ZPTD] (PTHNUM, PTDLIN, ITMREF, ITMDES1, QTYUOM, ZERRQTY, ZERRDES, ZERRFLG, ZERRCMP, ZERRSIG, ZERRACT)
+Local Shortint ZL_NOL : [L]ZL_NOL=0
+Filter [ZPTD] Where ZERRQTY>0
+For [ZPTD]
+	[M:ZPTH0]PTHNUM([L]ZL_NOL)=[F:ZPTD]PTHNUM
+	[M:ZPTH0]PTDLIN([L]ZL_NOL)=[F:ZPTD]PTDLIN
+	[M:ZPTH0]ITMREF([L]ZL_NOL)=[F:ZPTD]ITMREF
+	[M:ZPTH0]ITMDES1([L]ZL_NOL)=[F:ZPTD]ITMDES1
+	If [F:ZPTD]ZERRQTY=[F:ZPTD]QTYUOM
+		[M:ZPTH0]QTY([L]ZL_NOL)=[F:ZPTD]QTYUOM
+	Else
+		[M:ZPTH0]QTY([L]ZL_NOL)=[F:ZPTD]QTYUOM+[F:ZPTD]ZERRQTY
+	Endif
+	[M:ZPTH0]ZERRQTY([L]ZL_NOL)=[F:ZPTD]ZERRQTY
+	[M:ZPTH0]ZERRDES([L]ZL_NOL)=[F:ZPTD]ZERRDES
+	[M:ZPTH0]ZERRACT([L]ZL_NOL)=[F:ZPTD]ZERRACT
+	[M:ZPTH0]ZERRSIG([L]ZL_NOL)=[F:ZPTD]ZERRSIG
+	[L]ZL_NOL+=1
+Next
+Columns [ZPTD]
+[M:ZPTH0]NBLIG = [L]ZL_NOL
+If [M:ZPTH0]NBLIG=0
+    Infbox "No more records available for current selection!"
+Endif
+Affzo [ZPTH0]
+Columns [ZPTD]
+If clalev([ZPTD]) : Close File [ZPTD] : Endif
+Return
+
+$READ_LINE
+If !clalev([ZPTD]) : Local File PRECEIPTD [ZPTD] : Endif
+If adxlog <> 1 : Trbegin [ZPTD] : Else : Gosub TRANS_IN_PROG : mkstat=2 : Return : Endif
+Read [ZPTD]PTD0 = [M:ZPTH0]PTHNUM(nolign-1);[M:ZPTH0]PTDLIN(nolign-1)
+Return
+
+Subprog AM_ZERRACT(VALEUR)
+Variable Char    VALEUR()
+Gosub READ_LINE
+[F:ZPTD]ZERRACT=VALEUR
+Gosub REWRITE_TABLE
+End
+
+Subprog AM_ZERRSIG(VALEUR)
+Variable Char    VALEUR()
+Gosub READ_LINE
+[F:ZPTD]ZERRSIG=VALEUR
+Gosub REWRITE_TABLE
+End
+
+Subprog AM_ZERRCMP(VALEUR)
+Variable Integer VALEUR
+Gosub READ_LINE
+[F:ZPTD]ZERRCMP=VALEUR
+Gosub REWRITE_TABLE
+End
+
+$TRANS_IN_PROG
+Call ERREURT([M:ZPTH0]PTHNUM(nolign-1)+" is locked by another user.",0) From GESECRAN
+Return
+
+$REWRITE_TABLE
+Rewrite [ZPTD]
+If ![S]fstat
+	Commit
+Else
+	Gosub TRANS_IN_PROG
+	Rollback
+Endif
+If clalev([ZPTD]) : Close File [ZPTD] : Endif
+Return
+
+Subprog C_ZERRCMP(VALEUR)
+Variable Integer VALEUR
+If [M:ZPTH0]ZERRACT="" & VALEUR=2
+	Call ERREURT("Description of actions taken is required!",0) From GESECRAN : VALEUR=1
+	zonsui="[M:ZPTH0]ZERRACT"
+Endif
+If [M:ZPTH0]ZERRSIG="" & VALEUR=2
+	Call ERREURT("Signature is required!",0) From GESECRAN : VALEUR=1
+	zonsui="[M:ZPTH0]ZERRSIG"
+Endif
+End
+
+
+
+
+
+

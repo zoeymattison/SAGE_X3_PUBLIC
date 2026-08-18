@@ -1,0 +1,45 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+  case ACTION
+     WHEN "INIT" : Gosub INIT
+     WHEN "EXEC" : Gosub EXEC
+  endcase
+ 
+Return
+
+$INIT
+ #  infbox "Init update"
+Return
+
+
+$EXEC
+#  infbox "Executing update" 
+  local char YBPCNUM
+  YBPCNUM=PARAM(1) 
+  if !clalev([YSEB]) : local file SEBPC [YSEB] : endif
+  update [YSEB] where BPCNUM=[L]YBPCNUM and FLDEF=2 with FLDEF=1  
+
+Return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

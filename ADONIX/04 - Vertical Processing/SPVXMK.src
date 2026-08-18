@@ -1,0 +1,50 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#-------------------------------------------------------------------------------
+#
+# Vertical Processes Remove WHM Locks (XMK0)
+#-------------------------------------------------------------------------------
+# History
+# ~~~~~~~
+# 25/11/2016    Tim Wilcox      V03.05.00   T2531   original release
+# 02/12/2016    Tim Wilcox      V03.05.01   T----   cosmetic changes
+# 12/04/2017    Tim Wilcox      V03.05.02   T----   moved to XMOXM5MK
+#-------------------------------------------------------------------------------
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "03.05.02 12/04/2017 XM5"
+#-------------------------------------------------------------------------------
+
+################################################################################
+## Main Process
+## ~~~~~~~~~~~~
+##
+##  Called for each ACTION.
+##  In here we call additional processing for specific ACTION codes.
+################################################################################
+
+$ACTION
+
+    If func AFNC.ACTIV("XM5")
+        Gosub ACTION From XMOXM5MK
+    Endif
+
+Return
+
+#-------------------------------------------------------------------------------
+# delete record
+#
+Subprog XMKDEL
+
+    Call XMKDEL From XMOXM5MK
+
+End
+
+#-------------------------------------------------------------------------------
+# delete all lock records
+#
+Subprog XMKDELALL
+
+    Call XMKDELALL From XMOXM5MK
+
+End
+

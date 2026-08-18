@@ -1,0 +1,50 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+######################################################################################
+# Mask management TPA1 (Vertical)
+# XM5 16SEP17 Added by GT SRAI for Tote Maintenance
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#-------------------------------------------------------------------------------
+#
+# Vertical Processes for Package Screen Changes (TPA1)
+#-------------------------------------------------------------------------------
+# History
+# ~~~~~~~
+# Created by GT SRAI 16/09/2017    Sweta Rai      original release
+#-------------------------------------------------------------------------------
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "03.05.00 16/09/2017 XM5"
+#-------------------------------------------------------------------------------
+################################################################################
+## Main Process
+## ~~~~~~~~~~~~
+##
+##  Called for each ACTION.
+##  In here we call additional processing for specific ACTION codes.
+################################################################################
+$ACTION
+Case ACTION
+ When Default
+Endcase
+Return
+################################################################################
+Subprog AM_XM5_TOTE(VALEUR)
+Variable Integer VALEUR
+  If VALEUR = 2
+    If !clalev([F:TPA2]): Local File TABPACKAGE[TPA2] : Endif: Filter [TPA2]
+
+    Read [TPA2]XM5_TPA1 = VALEUR
+    If !fstat and [TPA2]PCK <> [M:TPA1]PCK
+      mkstat = 2
+      GMESSAGE = mess(1,20120,1) + ' ' + [F:TPA2]PCK + mess(6,20120,1) + "\" +
+&                mess(7,20120,1) + ' ' + [F:TPA2]PCK  ##To make current package as Tote uncheck Tote from Package
+      End
+    Endif
+    Close Local File [TPA2]
+  Else
+    Raz XM5_USEPCENT
+    Affzo XM5_USEPCENT
+  Endif
+End
+######################################################################################
+

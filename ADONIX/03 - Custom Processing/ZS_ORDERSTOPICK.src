@@ -1,0 +1,16 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Funprog ZFUNC_TOPICK(ZL_SOHNUM)
+Value Char ZL_SOHNUM
+Local Char RETVAL(6)
+If !clalev([ZSOH]) : Local File SORDER [ZSOH] : Endif
+Read [ZSOH]SOH0=[L]ZL_SOHNUM
+If ![S]fstat
+    If ([F:ZSOH]BETFCY=1or([F:ZSOH]BETFCY=2&left$([F:ZSOH]BPCORD,3)="ICR"&[F:ZSOH]ZACKNOW=2))&(([F:ZSOH]ALLSTA=3&[F:ZSOH]DME=3)or[F:ZSOH]DME=1)&([F:ZSOH]ORDSTA=1)&(!find([F:ZSOH]REP,"37","88","2221",
+& "85","49")
+& )&!find([F:ZSOH]DRN,19,20,21,22)&[F:ZSOH]CDTSTA=1
+RETVAL="1"
+Else
+RETVAL="0"
+Endif
+End RETVAL
+Endif

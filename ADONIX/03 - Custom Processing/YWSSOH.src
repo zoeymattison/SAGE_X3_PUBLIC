@@ -1,0 +1,34 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+
+
+Funprog READSOH(YSOHNUM, SHOWMSG)
+value char YSOHNUM
+value integer SHOWMSG
+Local Char    TEXTE(20)
+Local Integer I , J , K
+Call OUVRE_TRACE("") From LECFIC
+Gosub DEFVAR from WJECMSOH
+WW_ACTION = "READ"      : # READ, CREATE, MODIFY, DELETE, SUPLIG, INSLIG
+WW_IDENT  = YSOHNUM          : # Clé de l Objet Val1~Val2 
+
+Onerrgo ERREURWS from WJECMSOH
+Gosub INITMAJ From ZZWSSOH
+Onerrgo 
+
+Gosub WEBSERV from WJECMSOH
+Gosub ANALRESOBJ from WJECMSOH
+
+Onerrgo ERREURWS from WJECMSOH
+Gosub RESMAJ From ZZWSSOH
+Onerrgo
+
+#Gosub DETAILRES      : # Pour afficher le détail des variables lues ou écrites
+Call FERME_TRACE From LECFIC
+if SHOWMSG = 2 : Call LEC_TRACE From LECFIC : endif
+End "Finished reading "+YSOHNUM
+
+
+
+
+
+

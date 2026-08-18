@@ -1,0 +1,183 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Invoices
+
+######################################################################################
+## Modified: 2023-10-05                                                             ##
+## Author (Company): TAC                                                            ##
+## Notes: ACTION modifications made in YSPESIH                                      ##
+######################################################################################
+## APRES_CRE in YSPESIH                                                             ##
+## VERIF_CRE in YSPESIH                                                             ##
+## VERIF_MOD in YSPESIH                                                             ##
+######################################################################################
+
+$ACTION
+  Case ACTION
+    When "APRES_CRE" : Gosub ZMAIL : Gosub APRES_CRE From YSPESIH : Gosub APRES_CRE
+    When "VERIF_CRE" : Gosub BPCINV : Gosub VERIF_CRE From YSPESIH : Gosub REP_FIL : Gosub MS_PTE
+    When "VERIF_MOD" : Gosub VERIF_MOD From YSPESIH
+    When "SETBOUT" : Gosub SETBOUT
+    When "AVANTBOUT" : Gosub AVANTBOUT
+  Endcase
+Return
+
+$APRES_CRE
+    Call ZSUB_PRNSIH()
+Return
+
+Subprog ZSUB_PRNSIH
+Local Char FONCTION(30)
+Local Char TBPAR(150)(150)
+Local Char TBVAL(150)(150)
+Global Clbfile ZG_SIHMES(0)
+Global Char ZG_SIHEML(80)
+Global Char ZG_SIHECC(80)
+Global Char ZG_SIHSBJ(250)
+Global Char ZG_SIHSND(250)
+
+TBPAR(0) = "vcrdeb"	: TBVAL(0) = [M:SIH0]NUM
+TBPAR(1) = "vcrfin"	: TBVAL(1) = [M:SIH0]NUM
+TBPAR(2) = "datedeb"	: TBVAL(2) = format$("MM[/]DD[/]YYYY",date$-365*10)
+TBPAR(3) = "datefin"	: TBVAL(3) = format$("MM[/]DD[/]YYYY",date$+365*10)
+TBPAR(4) = "bpdeb"	: TBVAL(4) = [M:SIH0]BPCINV
+TBPAR(5) = "bpfin"	: TBVAL(5) = [M:SIH0]BPCINV
+TBPAR(6) = "balance"	: TBVAL(6) = "3"
+TBPAR(7) = "edd"	: TBVAL(7) = "1"
+TBPAR(8) = "duddeb"	: TBVAL(8) = format$("MM[/]DD[/]YYYY",date$-365*10)
+TBPAR(9) = "dudfin"	: TBVAL(9) = format$("MM[/]DD[/]YYYY",date$+365*10)
+
+Local Integer ZL_PROPAY : [L]ZL_PROPAY=0
+For I=0 To [M:SIH4]NBLIG-1
+    If left$([M:SIH4]ITMREF(I),12)="/PROGRESSPAY" : [L]ZL_PROPAY+=1 : Endif
+Next
+If [L]ZL_PROPAY>0
+    [V]ZG_SIHSND="email@example.com"
+    [V]ZG_SIHEML="email@example.com;email@example.com"
+    [V]ZG_SIHECC="email@example.com"
+    [V]ZG_SIHSBJ="NOTICE - PROGRESS PAYMENT MADE - "+[F:SIH]NUM
+    [V]ZG_SIHMES+="Hello,"+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="Please find attached a new progress payment for:"+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="Ship-to: "+[F:SIV]BPDNAM+chr$(10)
+    [V]ZG_SIHMES+="Bill-to: "+[F:SIV]BPINAM+chr$(10)
+    [V]ZG_SIHMES+="Email: "+func AFNC.INTFLD("BPADDRESS","WEB(0)","1~"+[F:SIV]BPCINV+"~ADDR")+chr$(10)
+    [V]ZG_SIHMES+="Phone: "+func AFNC.INTFLD("BPADDRESS","TEL(0)","1~"+[F:SIV]BPCINV+"~ADDR")+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="Thank you,"+chr$(10)+chr$(10)
+    [V]ZG_SIHMES+="IT Department"
+    Call ETAT("MONK-INVOICE", "EMAILX3" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+    Raz [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND
+Endif
+Kill [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND
+
+Local Char BPCORD_PAYBY(50) : [L]BPCORD_PAYBY=func AFNC.INTFLD("BPCUSTOMER","BPCPYR",[F:SIV]BPCORD)
+Local Char SENDSIH : SENDSIH = func AFNC.INTFLD("BPCUSTOMER", "YSENDPRINT", [F:SIV]BPCINV)
+Local Char ETAT(240) : ETAT="MONK-PACKSLIP"
+Local Char PRNDEST(240) : PRNDEST = func AFNC.INTFLD("APRTAUS", "PRT", GUSER+"~"+ETAT+"~")
+If PRNDEST = ""
+   PRNDEST = "PREVIEW"
+Endif
+
+# Print packing slip to printer x2
+If GFLAG<>"AAL" and GUSER<>"YMIRA" and PRNDEST<>"PREVIEW"
+Call ETAT(ETAT, PRNDEST, "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+Call ETAT(ETAT, PRNDEST, "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+Endif
+
+
+If [L]BPCORD_PAYBY=[F:SIV]BPCINV
+	If SENDSIH="2" & !GIMPORT
+    	Local Char ETAT(240) : ETAT="MONK-INVOICE"
+		Call ETAT(ETAT, PRNDEST, "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+    Endif
+Endif
+Raz ETAT
+End
+
+$BPCINV
+Local Integer OKCAN : OKCAN = 1
+If !GWEBSERV
+  If (pat([M:SIH0]BPCINV, '*-*') & !pat([M:SIH0]BPCINV, 'GAIN*')) | pat([M:SIH0]BPCINV, 'GAIN-*-*')
+    Call AVERTIR('Warning! A dash account may not be used in the bill-to.'+chr$(10)+'Click cancel to go back.', OKCAN) From GESECRAN
+      If OKCAN = 1
+        OK = 0 : Return
+      Endif
+  Endif
+Endif
+Return
+
+$ZMAIL
+If !GWEBSERV
+  If (pat([M:SIH0]BPCINV, '*-*') & !pat([M:SIH0]BPCINV, 'GAIN*')) | pat([M:SIH0]BPCINV, 'GAIN-*-*')
+    Local Char ZIDENT(30) : ZIDENT = "BPCINV"
+    Call ZMAIL(ZIDENT) From ZMAIL
+  Endif
+Endif
+
+Return
+
+$REP_FIL
+If GUSER = 'YMIRA' and [M:SIH1]REP = ''
+[M:SIH1]REP(0) = '90'
+Affzo [M:SIH1]REP(0)
+  For I = 0 To [M:SIH4]NBLIG-1
+    [M:SIH4]REP1(I) = '90'
+    Affzo [M:SIH4]REP1(I)
+  Next
+Endif
+Return
+
+$SETBOUT
+If func AFNC.INTFLD("AUTILIS","ZFINAUT",GUSER)<>"2"
+    Diszo [M:SIH1]VACBPR
+Endif
+If [M:SIH0]NUM<>""
+    CHMEN+="Za"
+    CHMEN+="Zb"
+Endif
+Return
+
+$AVANTBOUT
+If find(BOUT,"a","b")
+    Local Char FONCTION(30)
+    Local Char TBPAR(150)(150)
+    Local Char TBVAL(150)(150)
+
+TBPAR(0) = "vcrdeb"	: TBVAL(0) = [M:SIH0]NUM
+TBPAR(1) = "vcrfin"	: TBVAL(1) = [M:SIH0]NUM
+TBPAR(2) = "datedeb"	: TBVAL(2) = format$("MM[/]DD[/]YYYY",date$-365*10)
+TBPAR(3) = "datefin"	: TBVAL(3) = format$("MM[/]DD[/]YYYY",date$+365*10)
+TBPAR(4) = "bpdeb"	: TBVAL(4) = [M:SIH1]BPRPAY
+TBPAR(5) = "bpfin"	: TBVAL(5) = [M:SIH1]BPRPAY
+TBPAR(6) = "balance"	: TBVAL(6) = "3"
+TBPAR(7) = "edd"	: TBVAL(7) = "1"
+TBPAR(8) = "duddeb"	: TBVAL(8) = format$("MM[/]DD[/]YYYY",date$-365*10)
+TBPAR(9) = "dudfin"	: TBVAL(9) = format$("MM[/]DD[/]YYYY",date$+365*10)
+
+If BOUT="a" : Call ETAT("MONK-INVOICE", "PREVIEW" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3 : Endif
+If BOUT="b" : Call ETAT("MONK-PACKSLIP", "PREVIEW" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3 : Endif
+Endif
+
+## Testing for POS functions ##
+#If BOUT="3" and GUSER="MOZM"
+#Infbox BOUT
+#  Local Integer LOK : [L]OK=2
+#  Local Char LINPUT(3) : [L]LINPUT="1"
+#  Local Char ZTITLE(240) : ZTITLE = "Transaction Selection"
+#  Local Char ZFLDTIT(240) : ZFLDTIT = "Test field"
+#  Local Char ZOBJ : ZOBJ = " "
+#  Call SAICAR (LINPUT, ZTITLE, ZFLDTIT, ZOBJ,0,0,"",LOK) From GESECRAN
+#OK=0
+#Endif
+Return
+
+$MS_PTE
+If GUSER="YMIRA"
+	Local Decimal GROSS_PRICE : [L]GROSS_PRICE=0
+    Local Char SCREEN_PTE(30),BPC_PTE(30)
+    [L]SCREEN_PTE=[M:SIH2]PTE
+    [L]BPC_PTE=func AFNC.INTFLD("BPCUSTOMER","PTE",[M:SIH1]BPCORD)
+	For I=0 To [M:SIH4]NBLIG-1
+		[L]GROSS_PRICE+=[M:SIH4]GROPRI(I)
+	Next
+    If [L]SCREEN_PTE<>[L]BPC_PTE and [L]GROSS_PRICE>0 : [M:SIH2]PTE=[L]BPC_PTE : Affzo [M:SIH2]PTE : Endif
+    Raz [L]SCREEN_PTE,[L]BPC_PTE
+Endif
+Return

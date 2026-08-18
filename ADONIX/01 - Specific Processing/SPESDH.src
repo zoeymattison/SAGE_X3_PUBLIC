@@ -1,0 +1,75 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Deliveries
+$ACTION
+  Case ACTION
+    When "APRES_CRE": Gosub APRES_CRE
+    When "SETBOUT" : Gosub SETBOUT
+    When "APRES_CHOI" : Gosub APRES_CHOI
+    When "VERIF_CRE" : Gosub VERIF_CRE
+  Endcase
+Return
+
+$VERIF_CRE
+	If left$([M:SDH1]XSOHNUM(0),3)="STR"
+		If func AFNC.INTFLD("SORDER","ORDDAT",[M:SDH1]XSOHNUM(0))<>""
+			If !clalev([ZSOH]) : Local File SORDER [ZSOH] : Endif
+			Read [ZSOH]SOH0=[M:SDH1]XSOHNUM(0)
+			If ![S]fstat
+    			#Infbox [M:SDH1]XSOHNUM(0)
+    			[M:SDH1]SHIDAT=[F:ZSOH]ORDDAT
+    			[M:SDH1]DLVDAT=[F:ZSOH]ORDDAT
+    			Affzo [M:SDH1]SHIDAT
+    			Affzo [M:SDH1]DLVDAT
+    		Endif
+		Endif
+	Endif
+Return
+
+$APRES_CHOI
+Case num$(REPONSE)
+  When "2005" : Gosub PRINT_SDH
+Endcase
+Return
+
+$PRINT_SDH
+    Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+    Local Char PRNDEST : [L]PRNDEST=func AFNC.INTFLD("APRTAUS", "PRT", GUSER+"~"+"ZRPT-DELIVERY"+"~")
+    If PRNDEST = ""
+      PRNDEST = "PREVIEW"
+    Endif
+    TBPAR_BP(1) = "vcrdeb" : TBVAL_BP(1) = [M:SDH0]SDHNUM
+    TBPAR_BP(2) = "vcrfin" : TBVAL_BP(2) = [M:SDH0]SDHNUM
+    Call ETAT("ZRPT-DELIVERY",PRNDEST,"",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+Return
+
+$SETBOUT
+If [F:SDH]BETFCY=2
+  CHMEN+="3a"
+Endif
+If func AFNC.INTFLD("AUTILIS","ZFINAUT",GUSER)<>"2"
+    Diszo [M:SDH2]VACBPR
+Endif
+Return
+
+$APRES_CRE
+If [F:SDH]BETFCY = 2
+    Gosub PRINT_SDH
+Endif
+If left$([F:SDH]BPCORD,3)="ICR"
+	Local Char TBPAR(15)(1..50),TBVAL(30)(1..50)
+    Local Char ZL_DEST(50) : [L]ZL_DEST=""
+	If !clalev([ZSDD]) : Local File SDELIVERYD [ZSDD] : Endif
+	Filter [ZSDD] Where SDHNUM=[F:SDH]SDHNUM
+	Read [ZSDD] First
+	If ![S]fstat
+		If [F:ZSDD]PRHNUM<>""
+    		[L]ZL_DEST = func AFNC.INTFLD("APRTAUS", "PRT", GUSER+"~MONK-PICKTICK~")
+    		If [L]ZL_DEST = ""
+    			[L]ZL_DEST = "PREVIEW"
+            Endif
+            TBPAR(1) = "picktick" : TBVAL(1) = [F:ZSDD]PRHNUM
+            TBPAR(2) = "prepplan" : TBVAL(2) = ""
+            Call ETAT("MONK-PICKTICK",[L]ZL_DEST,"",0,"",TBPAR,TBVAL) From AIMP3
+       	Endif
+	Endif
+Endif
+Return

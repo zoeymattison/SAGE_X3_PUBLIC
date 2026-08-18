@@ -1,0 +1,705 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+  When "CONTPRT" : Gosub CONTPRT
+  When "EXEC"    : Gosub EXEC
+  When "AFTARC"  : Gosub AFTARC #NIBOW ZAF LEGISLATION JIRA# X3-1579
+  When "FICHIER" : Gosub FICHIER # Epic X3-64474 _ US X3-85220 Attachment file management in EDI (JUCON 04/06/2018)
+Endcase
+Return
+
+$CONTPRT
+If GFONCTION="GESSIH" & clalev([M:SIH0])
+  If !find([M:RPT]IMPRIME,0,1,3,4)
+    If [M:SIH0]BPCINV<>[F:BPC]BPCNUM
+     Read [F:BPC]BPC0=[M:SIH0]BPCINV
+    Endif
+    If find([M:SIH0]INVTYP,2,4)
+     If [F:BPC]TPMCOD<>""
+       [M:RPT]NBRCPY=max([M:SIH0]COPNBE,1) : # Nombre de copies
+       Affzo [M:RPT]NBRCPY # Issue 97827 - 2015-09-08 by CPO : C/S vs Syracuse SBONFAC number of print
+     Endif
+    Else
+     If [F:BPC]TPMCOD<>""
+       [M:RPT]NBRCPY=max([M:SIH0]COPNBR,1) : # Nombre de copies
+       Affzo [M:RPT]NBRCPY # Issue 97827 - 2015-09-08 by CPO : C/S vs Syracuse SBONFAC number of print
+     Endif
+    Endif
+  Else
+    [M:RPT]NBRCPY=0 : # pas de copie pour prévisu, message, fichier
+    Grizo [M:RPT]NBRCPY : Affzo [M:RPT]NBRCPY #Fq73266
+  Endif
+Endif
+Return
+
+
+$EXEC
+If dim([V]GWNUMREQ)<1 | dim([V]GWSEQREQ)<1 | dim([V]GWTRTAUTO)<1 | [V]GWTRTAUTO<>1
+  Return
+Endif
+
+If dim(I)<1       Local Integer I             : Endif
+If dim(J)<1       Local Integer J             : Endif
+If dim([L]ETAT)<1 Local Char    ETAT(GLONARP) : Endif
+
+For I=1 To [L]NBPAR
+  J=instr(1,[L]PARAMETRE(I),"=")
+  If J
+    [L]PARAM=left$([L]PARAMETRE(I),J-1)
+    Case [L]PARAM
+      When "X3ETA"          : Call GETPARAM([L]PARAM,[L]NBPAR,[L]PARAMETRE,[L]ETAT) From ETAT
+      When "__REQUETE"      : [L]PARAMETRE(I) = "__REQUETE="+num$([V]GWNUMREQ)
+      When "_PrinterCopies" : [L]PARAMETRE(I) = "_PrinterCopies="+chr$(1)+"1"
+      When "numedt"         : [L]PARAMETRE(I) = "numedt="+num$([V]GWNUMREQ)
+      When "seqedt"         : [L]PARAMETRE(I) = "seqedt="+num$([V]GWSEQREQ)
+      When "usr"            : [L]PARAMETRE(I) = "usr="+GUSER
+      When "etat"           : [L]PARAMETRE(I) = "etat="+[L]ETAT
+      When "euro"           : [L]PARAMETRE(I) = "euro="+GEURO
+      When "traitauto"      : [L]PARAMETRE(I) = "traitauto=1"
+    Endcase
+  Endif
+Next I
+Return
+
+
+Subprog IMPRIME(NBPAR,PARAMETRE)
+Value    Integer NBPAR
+Variable Char    PARAMETRE()()
+
+If dim([V]GWTRTAUTO)>0 & [V]GWTRTAUTO=1  End : Endif
+Local File AREPORTM   [ARM]
+Local File SINVOICE   [SIH]
+Local File SINVOICEV  [SIV]
+Local File SINVOICEV  [SIVV]  :#--CPO 83064
+Local File SINVOICE   [SIHH]  :#--CPO 83064
+Local File GACCDUDATE [DUD]   :#--CPO 83064
+Local File PAYORDER   [PYO]   :#--CPO 83064
+Local File TMPSRPT    [TRPT]  :#--CPO 83064
+Local Char    CRITERE(255)(2), PARAM(30) , VALEUR(30) , ETAT(GLONARP)
+Local Integer NUMREQ, IMPR, DUPLIC, I, J
+Local Date    DATREF
+Local Char MULCOPPAR
+Local Char WREXNUM(30) #jcc
+
+Local Decimal WMTTREGLE,WREGLEMENTS
+Local Decimal WINSATI,WINSATI_PREV
+Local Decimal WMTTREPRISFACT
+Local Decimal WACPTDDES,WACPTVERSES
+Local Decimal WMTTACPTECH
+Local Integer WSTAT, WSTAT_PREV
+
+Local Decimal WACPTDDES_ECH
+Local Decimal WACPTVERSES_ECH
+
+[L]CRITERE(0) = "1=1" #Gbn-83537
+[L]CRITERE(1) = "1=1" #Gbn-83537
+
+For I=1 To [L]NBPAR
+  J=instr(1,[L]PARAMETRE(I),"=")
+  If J
+    [L]PARAM  = left$([L]PARAMETRE(I),J-1)
+    Call GETPARAM ([L]PARAM,[L]NBPAR,[L]PARAMETRE,VALEUR) From ETAT
+
+    Case [L]PARAM
+      When "X3ETA"       : [L]ETAT     = [L]VALEUR
+      When "__REQUETE"   : [L]NUMREQ   = val([L]VALEUR)
+      When "sitedeb"     : [L]CRITERE(0) -= "& SALFCY>='"+[L]VALEUR+"'"
+      When "sitefin"     : [L]CRITERE(0) -= "& SALFCY<='"+[L]VALEUR+"'"
+      When "clientdeb"   : [L]CRITERE(0) -= "& BPCINV>='"+[L]VALEUR+"'"
+      When "clientfin"   : [L]CRITERE(0) -= "& BPCINV<='"+[L]VALEUR+"'"
+      When "facturedeb"  : [L]CRITERE(0) -= "& NUM>='"+[L]VALEUR+"'"
+      When "facturefin"  : [L]CRITERE(0) -= "& NUM<='"+[L]VALEUR+"'"
+      When "typedeb"     : [L]CRITERE(0) -= "& INVTYP>="+num$([L]VALEUR)
+      When "typefin"     : [L]CRITERE(0) -= "& INVTYP<="+num$([L]VALEUR)
+      When "datedeb"     : [L]DATREF   = gdat$(val(right$([L]VALEUR,7)),
+&                                        val(seg$([L]VALEUR,5,6)),val(left$([L]VALEUR,4)))
+                           [L]CRITERE(0) -= "& INVDAT >=["+format$(GFMD,[L]DATREF)+']'
+      When "datefin"     : [L]DATREF   = gdat$(val(right$([L]VALEUR,7)),
+&                                        val(seg$([L]VALEUR,5,6)),val(left$([L]VALEUR,4)))
+                           [L]CRITERE(0) -= "& INVDAT <=["+format$(GFMD,[L]DATREF)+']'
+
+      When "devdeb"      : [L]CRITERE(1) -= "& CUR>='"+[L]VALEUR+"'"
+      When "devfin"      : [L]CRITERE(1) -= "& CUR<='"+[L]VALEUR+"'"
+
+      When "codimp"         : [L]IMPR     = val([L]VALEUR)
+                              If [L]IMPR=1
+                                [L]CRITERE(0) -= "& YSTARPT<2 " # Impression -> ne doit pas etre imprimé
+                              Else
+                                [L]CRITERE(0) -= "& YSTARPT=2" # Ré-impression -> doit être déjà imprimé
+                              Endif
+      When "duplicata"      : [L]DUPLIC    = val([L]VALEUR)
+      When "numedt"         : [L]PARAMETRE(I) = "numedt="+num$([L]NUMREQ)
+      When "seqedt"         : [L]PARAMETRE(I) = "seqedt=0"
+      When "usr"            : [L]PARAMETRE(I) = "usr="+GUSER
+      When "etat"           : [L]PARAMETRE(I) = "etat="+[L]ETAT
+      When "euro"           : [L]PARAMETRE(I) = "euro="+GEURO
+      When "_PrinterCopies" : [L]PARAMETRE(I) = "_PrinterCopies="+chr$(1)+"1" #Gbn-Fq75916
+
+    Endcase
+  Endif
+Next
+
+Call DEBTRANS From GLOCK
+
+Trbegin [ARM], [SIV], [SIH],[TRPT]
+
+Look [ARM]ARM0 = [L]NUMREQ;GUSER;[F:ARP]RPTCOD;1
+If !fstat
+  CRITERE="1=2"
+Endif
+
+Raz [F:ARM]
+[F:ARM]USR    = GUSER
+[F:ARM]RPTCOD = [F:ARP]RPTCOD
+[F:ARM]NUMREQ = [L]NUMREQ
+[F:ARM]CREDAT = date$
+
+Local Integer YSTARPT # 1=Non imprimé, 2=Imprimé
+Local Integer TYPRPT # 1=Définitif, 2=Duplicata, 3=Provisoire
+
+Local Char WSDDPRN, WDEPMGTMOD
+Local Integer WACTIVSDD
+WACTIVSDD = func AFNC.ACTIV("SDD")
+
+infbox CRITERE(0)
+infbox CRITERE(1)
+For [SIV] SIV0 Where evalue([L]CRITERE(0)) & evalue([L]CRITERE(1))
+
+  Call PARAML([F:SIV]CPY,"MULCOPRINT",MULCOPPAR) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+
+
+  If [F:SIH]NUM <> [F:SIV]NUM
+    Read [F:SIH]SIH0 = [F:SIV]NUM
+    If [F:SIH]NUM = [F:SIV]NUM
+      Gosub FILL_BVRREFNUM_INVTOTAL_PAYBAN From SWILIB0
+    Endif
+  Endif
+
+  Local Integer INBCOP, LNBCOP : Raz [F:ARM]NUMCOP
+  If MULCOPPAR="2"
+
+   Local Integer WCOPNB : WCOPNB=0
+   If find([F:SIV]INVTYP,2,4)
+     WCOPNB=[F:SIV]COPNBE
+   Else
+     WCOPNB=[F:SIV]COPNBR
+   Endif
+   LNBCOP = max(1,[M:RPT]NBRCPY, WCOPNB)
+
+  Else
+   LNBCOP = max(1,[M:RPT]NBRCPY)
+  Endif
+
+  For INBCOP=1 To LNBCOP
+   [F:ARM]NUMLIG+= 1
+   If MULCOPPAR="2" : [F:ARM]NUMCOP+= 1 : Else : [F:ARM]NUMCOP = 0 : Endif #RMA * 75916
+   [F:ARM]CLEA1  = [F:SIV]NUM
+   Gosub ALIMETAT_PE From ETAT
+   Write [ARM]
+   If fstat  GOK=0 : Call FSTA("ARM") From GLOCK : Break : Endif
+  Next
+
+  Gosub ALIM_TMPSRPT
+  If fstat>0 or GOK=0 : Break : Endif
+
+
+  Local Char CTYPRPT
+  Gosub STATYPRPT
+  CTYPRPT = num$([L]TYPRPT)
+
+  Call SETPARAM ("mention",[L]NBPAR,[L]PARAMETRE,CTYPRPT) From ETAT
+  Update [ARM] Where NUMREQ= [L]NUMREQ  and USR=GUSER and RPTCOD=[F:ARP]RPTCOD and CLEA1=[F:SIV]NUM
+&              With  CLEA11 = [L]CTYPRPT
+
+
+  Update [SIV] Where NUM=[F:ARM]CLEA1 and YSTARPT<>[L]YSTARPT With YSTARPT=[L]YSTARPT, STARPT=[L]YSTARPT
+
+  If fstat  GOK=0 : Call FSTA("SIV") From GLOCK : Break : Endif
+
+  Update [SIH] Where NUM=[F:ARM]CLEA1 and YSTARPT<>[L]YSTARPT With YSTARPT=[L]YSTARPT, STARPT=[L]YSTARPT
+  If fstat  GOK=0 : Call FSTA("SIH") From GLOCK : Break : Endif
+
+  Gosub GET_REXNUM
+
+  If WREXNUM<>""
+    Update [ARM] Where NUMREQ= [L]NUMREQ  and USR=GUSER and RPTCOD=[F:ARP]RPTCOD and CLEA1=[F:SIV]NUM
+&              With  CLEA2 = WREXNUM
+  Endif
+
+Next
+If GOK<1  
+   infbox "Rollback 1" 
+   Rollback  
+Else  
+   Commit  
+Endif
+
+End
+
+$STATYPRPT
+  [L]YSTARPT = [F:SIV]YSTARPT
+
+  If dim([L]DUPLIC)>0 :# 72218
+    If [L]DUPLIC=1 # Duplicata demandée
+      [L]TYPRPT = 2
+    Else : # Duplicata non demandée
+      [L]TYPRPT = 1
+    Endif
+  Endif
+  If [L]YSTARPT<>2
+    If dim(SVALSIVCFM) < 0 Then
+      Local Char SVALSIVCFM(10)
+    Endif
+    If [F:SIV]INVTYP = 5 Then
+      SVALSIVCFM = "1"
+    Else
+      SVALSIVCFM = func AFNC.PARAM("SIVCFM",[F:SIV]SALFCY)
+    Endif
+    Case SVALSIVCFM                                # FGR 07/08/2014 : X3SUIVI96843
+      When "1" : #Non
+        [L]YSTARPT = 2
+        [L]TYPRPT = 1 : #Définitive
+      When "2" : #Oui
+        [L]YSTARPT = 2
+        [L]TYPRPT = 1 : #Définitive
+      When "3" : #Oui après validation
+        If [F:SIV]INVSTA=3 : #Facture validée
+          [L]YSTARPT = 2
+          [L]TYPRPT = 1 : #Facture Définitive
+        Else
+          [L]YSTARPT = 1
+          [L]TYPRPT = 3 : #Facture Provisoire
+        Endif
+    Endcase
+  Elsif [L]YSTARPT=2 and dim([L]DUPLIC)<=0
+    [L]TYPRPT=2 :# Pas de duplicata avec la fact définitive
+  Endif
+
+  If [F:SIV]INVSTA<>3 & [F:SIV]INVTYP <> 5 & [L]TYPRPT <> 3 & func AFNC.ACTIV("KPO") = 1
+    If func PORLEGLIB.PORLEG("",[F:SIV]CPY) = 1
+      [L]TYPRPT = 3 : #Temporary invoice
+    Endif
+  Endif
+
+Return
+
+$ALIM_ETAT
+If clalev([F:SIVV])=0 : Local File SINVOICEV  [SIVV] : Endif
+If clalev([F:SIHH])=0 : Local File SINVOICE   [SIHH] : Endif
+If clalev([F:TRPT])=0 : Local File TMPSRPT    [TRPT] : Endif
+If clalev([F:DUD])=0  : Local File GACCDUDATE [DUD]  : Endif
+If clalev([F:PYO])=0  : Local File PAYORDER   [PYO]  : Endif
+
+Local Decimal WMTTREGLE,WREGLEMENTS
+Local Decimal WINSATI,WINSATI_PREV
+Local Decimal WMTTREPRISFACT
+Local Decimal WACPTDDES,WACPTVERSES
+Local Decimal WMTTACPTECH
+Local Integer WSTAT, WSTAT_PREV
+
+Local Decimal WACPTDDES_ECH
+Local Decimal WACPTVERSES_ECH
+Local Char WSDDPRN, WDEPMGTMOD
+Local Integer WACTIVSDD
+WACTIVSDD = func AFNC.ACTIV("SDD")
+
+Local Char MULCOPPAR
+Call PARAML([F:SIV]CPY,"MULCOPRINT",MULCOPPAR) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+If [L]WADXLOG=0
+  GOK=1
+  Trbegin [ARM], [SIV], [SIH]
+Endif
+Raz [F:ARM]
+[F:ARM]NUMREQ = REQUETE
+[F:ARM]USR    = GUSER
+[F:ARM]RPTCOD = ETAT
+[F:ARM]NUMLIG = LIGNE
+[F:ARM]SEQREQ = SEQUENCE
+[F:ARM]CLEA1  = [F:SIH]NUM
+[F:ARM]CREDAT = date$
+
+  Gosub FILL_BVRREFNUM_INVTOTAL_PAYBAN From SWILIB0
+
+For I=1 To max(NBRCOPIE,1)
+  [F:ARM]NUMLIG+=1
+  If MULCOPPAR="2" : [F:ARM]NUMCOP+= 1 : Else : [F:ARM]NUMCOP = 0 : Endif
+  Gosub ALIMETAT_PE From ETAT
+  Write [ARM]
+  If fstat  GOK=0 : Call FSTA("ARM") From GLOCK : Break : Endif
+Next I
+
+If fstat  Goto AB_ALIM_ETAT : Endif
+
+Gosub ALIM_TMPSRPT
+If fstat or GOK=0 : Goto AB_ALIM_ETAT : Endif
+
+LIGNE   =[F:ARM]NUMLIG
+SEQUENCE=[F:ARM]SEQREQ
+
+Local Integer YSTARPT # 1=Non imprimé, 2=Imprimé
+Local Integer TYPRPT # 1=Définitif, 2=Duplicata, 3=Provisoire
+Gosub STATYPRPT
+
+Update [SIV] Where NUM=[F:ARM]CLEA1 and YSTARPT<>[L]YSTARPT With YSTARPT=[L]YSTARPT, STARPT=[L]YSTARPT
+
+If fstat  GOK=0 : Call FSTA("SIV") From GLOCK : Goto AB_ALIM_ETAT : Endif
+
+Update [SIH] Where NUM=[F:ARM]CLEA1 and YSTARPT<>[L]YSTARPT With YSTARPT=[L]YSTARPT, STARPT=[L]YSTARPT
+
+If fstat  GOK=0 : Call FSTA("SIH") From GLOCK : Goto AB_ALIM_ETAT : Endif
+
+
+If [F:SIV]YSTARPT<>[L]YSTARPT or [F:SIH]YSTARPT<>[L]YSTARPT # Issue X3-38393 - 2017-09-25 by CPO : 118736_Systematic_update_on_SIV_SIH_when_printing_an_invoice
+  [F:SIV]YSTARPT=[L]YSTARPT : # La classe [F] n'est pas màj par l'Update
+  [F:SIH]YSTARPT=[L]YSTARPT : # La classe [F] n'est pas màj par l'Update
+Endif # Issue X3-38393 - 2017-09-25 by CPO : 118736_Systematic_update_on_SIV_SIH_when_printing_an_invoice
+
+If [L]WADXLOG=0
+  Commit
+Endif
+Return
+
+$AB_ALIM_ETAT
+If [L]WADXLOG=0
+  Rollback
+Endif
+Return
+
+
+
+$FIND_ORDER_DISCOUNT
+Local Integer I,IA,IB
+Local Decimal WMTT_ACPT_VER_PREV
+
+Raz WACPTDDES,WACPTVERSES
+Raz WINSATI,WSTAT,WREGLEMENTS
+Raz WMTTACPTECH
+
+For IA=0 To dim([F:SIV]INSORDNUM)-1
+  If [F:SIV]INSORDNUM(IA)<>""
+    Raz WREGLEMENTS,WINSATI
+    Read [DUD]DUD0="*SO";[F:SIV]INSORDNUM(IA);1;[F:SIV]INSLIN(IA)
+    If !fstat
+      If [F:SIV]CUR <> [F:DUD]CUR
+        WSTAT=0
+        Call CONVERT([F:SIV]CUR,[F:DUD]CUR,GLOCALDEV,[F:SIH]CURTYP,datesyst,
+&                    [F:SIV]INSATI(IA),WINSATI,WSTAT) From TRTDEV
+        If WSTAT<>0 : WINSATI=[F:SIV]INSATI(IA) : Endif
+      Else
+        WINSATI=[F:SIV]INSATI(IA)
+      Endif
+
+      Filter [PYO] Where DUDNUM=[F:DUD]ACCNUM & DUDLIG=[F:DUD]DUDLIG
+&                  Order By Key PYO0
+      For [PYO]
+        WREGLEMENTS +=[F:PYO]DUDPAYAMT
+      Next
+      Filter [PYO]
+
+      WMTTACPTECH += ([F:DUD]PAYCUR + [F:DUD]TMPCUR)
+
+      Raz WMTT_ACPT_VER_PREV
+      Gosub RECH_ACPTS_VER_PREV
+      WACPT_REGL_RESTANTS = ([F:DUD]TMPCUR + WREGLEMENTS)
+      If WMTT_ACPT_VER_PREV>0
+        If ([F:DUD]TMPCUR + WREGLEMENTS)-[L]WMTT_ACPT_VER_PREV>0
+          WACPT_REGL_RESTANTS = ([F:DUD]TMPCUR + WREGLEMENTS)-[L]WMTT_ACPT_VER_PREV
+        Endif
+      Endif
+      If WINSATI>=WACPT_REGL_RESTANTS
+        WACPTDDES += WINSATI-WACPT_REGL_RESTANTS
+      Endif
+      If WINSATI<WACPT_REGL_RESTANTS
+        WACPTVERSES += WINSATI
+      Else
+        WACPTVERSES += WACPT_REGL_RESTANTS
+      Endif
+    Endif
+  Endif
+Next
+
+Return
+
+$RECH_ACPTS_VER_PREV
+Raz WMTT_ACPT_VER_PREV
+Filter [SIVV] Where SALFCY=[F:SIV]SALFCY and find([F:SIV]INSORDNUM(IA),INSORDNUM)>0 and INVDAT<=[F:SIV]INVDAT and CREDATTIM<[F:SIV]CREDATTIM
+& and INVSTA<>3 and INVTYP=1 and NUM<[F:SIV]NUM
+& Order By Key TMP0 = INVDAT;CREDATTIM;NUM
+For [SIVV]TMP0
+  For I = 0 To dim([F:SIVV]INSORDNUM)-1
+    If [F:SIVV]INSORDNUM(I)=[F:SIV]INSORDNUM(IA) and [F:SIVV]INSLIN(I)=[F:SIV]INSLIN(IA)
+      If [F:SIVV]CUR <> [F:DUD]CUR
+        WSTAT_PREV=0
+        If [F:SIHH]NUM<>[F:SIVV]NUM
+          Read [F:SIHH]SIH0=[F:SIVV]NUM
+        Endif
+        Call CONVERT([F:SIVV]CUR,[F:DUD]CUR,GLOCALDEV,[F:SIHH]CURTYP,datesyst,
+&                    [F:SIVV]INSATI(I),WINSATI_PREV,WSTAT_PREV) From TRTDEV
+        If WSTAT_PREV<>0 : WINSATI_PREV=[F:SIVV]INSATI(I) : Endif
+      Else
+        WINSATI_PREV=[F:SIVV]INSATI(I)
+      Endif
+
+      If WINSATI_PREV<([F:DUD]TMPCUR + WREGLEMENTS)
+        WMTT_ACPT_VER_PREV += WINSATI_PREV
+      Else
+        WMTT_ACPT_VER_PREV += ([F:DUD]TMPCUR + WREGLEMENTS)
+      Endif
+    Endif
+  Next I
+Next
+Filter [SIVV]
+Return
+
+$ALIM_ORDER_DISCOUNT
+  Raz WACPTDDES,WACPTVERSES,WMTTACPTECH
+  If [F:SIV]INVTYP=1 and sum([F:SIV]INSATI)>0 and [F:SIV]INVSTA<>3
+    Gosub FIND_ORDER_DISCOUNT
+    If WACPTDDES>0 or WACPTVERSES>0
+      Raz [F:TRPT]
+      [F:TRPT]=[F:ARM]
+
+      [F:TRPT]VCRNUM     = [F:SIV]NUM
+      [F:TRPT]SIVCUR     = [F:SIV]CUR
+      [F:TRPT]SIVACPTDDE = WACPTDDES
+      [F:TRPT]SIVACPTVER = WACPTVERSES
+      [F:TRPT]SIVACPTECH = WMTTACPTECH
+
+      Write [TRPT]
+      If fstat  GOK=0 : Call FSTA("TRPT") From GLOCK : Endif #Break : Endif
+    Endif
+  Endif
+Return
+
+$ALIM_DEPMGTMOD
+  Read [F:SIH]SIH0=[F:SIV]NUM
+  If !fstat and [F:SIH]DEPRAT<>0
+    Call PARAML([F:SIV]SALFCY,"DEPMGTMOD",WDEPMGTMOD) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+    If find(WDEPMGTMOD,"1","5")
+      Read [F:TRPT]TSRPT0=[F:ARM]NUMREQ;GUSER;[F:ARM]RPTCOD;[F:SIV]NUM
+      If !fstat
+        [F:TRPT]DEPMGTMOD = val(WDEPMGTMOD)
+        Rewrite [TRPT]
+        If fstat : GOK=0 : Call FSTA("TRPT") From GLOCK : Endif #Break : Endif
+      Else
+        Raz [F:TRPT]
+        [F:TRPT]       = [F:ARM]
+        [F:TRPT]VCRNUM = [F:SIV]NUM
+
+        [F:TRPT]DEPMGTMOD = val(WDEPMGTMOD)
+        Write [TRPT]
+        If fstat : GOK=0 : Call FSTA("TRPT") From GLOCK : Endif #Break : Endif
+      Endif
+    Endif
+  Endif
+Return
+
+$ALIM_SDDPRN
+  If WACTIVSDD
+    Raz WSDDPRN
+    Call PARAML([F:SIV]SALFCY,"SDDPRN",WSDDPRN ) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+    If WSDDPRN = "2"
+      Read [F:TRPT]TSRPT0=[F:ARM]NUMREQ;GUSER;[F:ARM]RPTCOD;[F:SIV]NUM
+      If !fstat
+        [F:TRPT]SDDPRN = val(WSDDPRN)
+        Rewrite [TRPT]
+        If fstat : GOK=0 : Call FSTA("TRPT") From GLOCK : Endif # Break : Endif
+      Else
+        Raz [F:TRPT]
+        [F:TRPT]       = [F:ARM]
+        [F:TRPT]VCRNUM = [F:SIV]NUM
+
+        [F:TRPT]SDDPRN = val(WSDDPRN)
+        Write [TRPT]
+        If fstat : GOK=0 : Call FSTA("TRPT") From GLOCK : Endif # Break : Endif
+      Endif
+    Endif
+  Endif
+Return
+
+$SET_IS_WITHHOLDINGTAX
+Call LEC_TVT_LEG([F:CPY]LEG,[F:SVV]VAT,WRET) From TRTLECLEG
+ISWITHHOLDINGTAX = 0
+
+If [F:TVT]ACCCOD<>"" & [F:TVT]VATTYP > 1
+  If [F:CAC]COA <> [F:LED]COA | [F:CAC]TYP <> 10 | [F:CAC]ACCCOD <> [F:TVT]ACCCOD
+    Read [F:CAC]CAC2 = [F:LED]COA;10;[F:TVT]ACCCOD
+    If fstat : Raz [F:CAC] : Endif
+  Endif
+  For K = 0 To dim([F:CAC]ACC)-1
+   If [F:CAC]ACC(K) <> "" & pat([F:CAC]ACC(K), ACCRET+"*") & ACCRET <> ""
+     ISWITHHOLDINGTAX = 1
+     Break
+   Endif
+  Next
+Endif
+Filter [F:CAC]
+
+Return
+
+$ALIM_TMPSRPT
+Local Integer WTOWRITE : WTOWRITE=0
+
+If !clalev([F:CPY]) : Local File COMPANY [CPY] : Endif
+
+Read [F:CPY]CPY0 = [F:SIV]CPY
+If [F:CPY]LEG="POR"
+  Local Char    ACCRET(30)
+  Local Integer WRET
+  Local Integer ISWITHHOLDINGTAX
+  Local Integer K
+  Local Integer LEDT
+
+  If !clalev([F:SVV]) : Local File SVCRVAT  [SVV] : Endif
+  If !clalev([F:CAC]) : Local File GACCCODE [CAC] : Endif
+  If !clalev([F:GCM]) : Local File GACM     [GCM] : Endif
+  If !clalev([F:LED]) : Local File GLED     [LED] : Endif
+  If !clalev([F:TVT]) : Local File TABVAT   [TVT] : Endif
+
+  Call PARAM([F:CPY]CPY, "SAFTACCRET",[L]ACCRET) From ADOVAL
+  Read [F:GCM]GCM0=[F:CPY]ACM
+  Call LECLEDMAIN(1, [F:CPY]CPY, [L]LEDT) From CPTDIV
+  Read [F:LED]LED0=[F:GCM]LED([L]LEDT-1)
+
+  For [F:SVV] Where [F:SVV]VCRNUM=[F:SIV]NUM
+    Gosub SET_IS_WITHHOLDINGTAX
+    If ISWITHHOLDINGTAX = 1
+      [F:SVV]WITHOLTAXFLG = 2
+      Rewrite [F:SVV]
+      If fstat>0 : Call FSTA("SVV") From GLOCK : GOK=0 : Endif
+    Endif
+  Next
+Endif
+
+  Raz [F:TRPT]
+  [F:TRPT]=[F:ARM]
+  [F:TRPT]VCRNUM     = [F:SIV]NUM
+  [F:TRPT]SIVCUR     = [F:SIV]CUR
+
+  Raz WACPTDDES,WACPTVERSES,WMTTACPTECH
+  If [F:SIV]INVTYP=1 and sum([F:SIV]INSATI)>0 and [F:SIV]INVSTA<>3
+    Gosub FIND_ORDER_DISCOUNT
+
+    If WACPTDDES>0 or WACPTVERSES>0
+
+      [F:TRPT]SIVACPTDDE = WACPTDDES
+      [F:TRPT]SIVACPTVER = WACPTVERSES
+      [F:TRPT]SIVACPTECH = WMTTACPTECH
+      WTOWRITE=1
+    Endif
+  Endif
+
+  Read [F:SIH]SIH0=[F:SIV]NUM
+  If !fstat and [F:SIH]DEPRAT<>0
+    Call PARAML([F:SIV]SALFCY,"DEPMGTMOD",WDEPMGTMOD) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+    If find(WDEPMGTMOD,"1","5")
+      [F:TRPT]DEPMGTMOD = val(WDEPMGTMOD)
+      WTOWRITE=1
+    Endif
+  Endif
+
+  If GACTION = "RSAAIMPSIH" & func AFNC.ACTIV("ELINV")#NIBOW ZAF LEGISLATION JIRA# X3-1579
+    [F:TRPT]PTMENTION05 = mess(121,2281,1)
+    WTOWRITE=1
+  Endif
+
+  If WACTIVSDD
+    Raz WSDDPRN
+    Call PARAML([F:SIV]SALFCY,"SDDPRN",WSDDPRN ) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+    If WSDDPRN = "2"
+      [F:TRPT]SDDPRN = val(WSDDPRN)
+      WTOWRITE=1
+    Endif
+  Endif
+
+  If WTOWRITE=1 or func AFNC.ACTIV("KPO")
+    Write [TRPT]
+    If fstat : GOK=0 : Call FSTA("TRPT") From GLOCK : Endif # Break : Endif
+  Endif
+Return
+
+$AFTARC
+If func AFNC.ACTIV("ELINV") & GFONCTION="GESSIH" &  GACTION = "RSAAIMPSIH" & clalev([M:SIH0]) & EXT="pdf"
+  Gosub KZADIGITALINVOICE From LIBZAF
+Endif
+Return
+
+$GET_REXNUM
+  Local Char WREXNUM(30)
+  If func AFNC.ACTIV("REX")>0
+    Local Char WREXNUMFCY(30), WCRY(5), WFCY(5)
+    Local Integer WORICER
+    Local File COMPANY [CPYX]
+    Read [CPYX]CPY0=[F:SIV]CPY
+    If fstat=[V]CST_AOK
+      If [F:CPYX]ORICERFLG=2
+        WREXNUM=[F:CPYX]REXNUM
+        WCRY=[F:CPYX]CRY
+        Gosub CHECK_SITE
+      Else
+        WORICER=1
+        Gosub CHECK_SITE
+      Endif
+      If WCRY=[F:SIV]BPDCRY :  Raz WREXNUM:  Return: Endif
+      If WORICER=2: Raz WREXNUM
+      Else
+        If WREXNUMFCY<>WREXNUM and WREXNUMFCY<>"" : WREXNUM=WREXNUMFCY: Endif
+        Local File TABCOUNTRY [TCYX]
+        Local Integer WGSP(2), WEEC(2)
+
+        Read [TCYX]TCY0=WCRY # Reading company/site country data
+        If fstat=[V]CST_AOK
+          WGSP(0)=[F:TCYX]GSPFLG: WEEC(0)=[F:TCYX]EECFLG
+        Endif
+
+        Read [TCYX]TCY0=[F:SIV]BPDCRY  # Reading customer country data
+        If fstat=[V]CST_AOK
+          WGSP(1)=[F:TCYX]GSPFLG: WEEC(1)=[F:TCYX]EECFLG
+        Endif
+        LogicClose File [TCYX]
+
+        If (WGSP(0)=2 and WEEC(1)=2) or (WGSP(1)=2 and WEEC(0)=2) #OK- noting to do
+        Else  Raz WREXNUM
+        Endif
+      Endif
+    Endif
+    LogicClose File [F:CPYX]
+  Endif
+
+Return
+
+$CHECK_SITE
+  Local File FACILITY [FCYX]
+  Read [FCYX]FCY0=[F:SIV]SALFCY
+  If fstat<>[V]CST_AOK : Raz [F:FCYX] : Endif
+  If [F:FCYX]FINFLG=2
+    WREXNUMFCY=[F:FCYX]REXNUM
+    WFCY=[F:FCYX]FCY
+  Elsif [F:FCYX]FINRSPFCY<>""
+    Read [FCYX]FCY0=[F:FCYX]FINRSPFCY
+    If fstat=[V]CST_AOK
+      WREXNUMYCY=[F:FCYX]REXNUM
+      WFCY=[F:FCYX]FCY
+    Else : Raz [F:FCYX]
+    Endif
+  Endif
+  If  [F:FCYX]ORICERFLG<>2 and WORICER=1: WORICER=2: Endif
+  LogicClose File [FCYX]
+  If WORICER=2 or WFCY="" : Return : Endif
+
+  Local File BPADDRESS [BPAX]
+  Filter [BPAX] Where BPANUM=WFCY and BPAADDFLG=2
+  Read  [BPAX] First
+  If fstat=[V]CST_AOK:  WCRY= [F:BPAX]CRY:  Endif
+  LogicClose File [BPAX]
+Return
+
+$FICHIER
+If func AFNC.ACTIV("EDIX3")
+  Gosub FICHIER From EDIPRTPDF
+Endif
+Return
+
+
+
+

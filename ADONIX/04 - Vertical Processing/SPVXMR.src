@@ -1,0 +1,80 @@
+#<AdxTL>@(#)1.0.0.0 $Revision$
+#-------------------------------------------------------------------------------
+#
+# Vertical Processes for Lock Colours screen (XMR0)
+#-------------------------------------------------------------------------------
+# History
+# ~~~~~~~
+# 06/05/2016    Tim Wilcox      V03.05.01   T2001   original release
+# 11/05/2016    Tim Wilcox      V03.05.02   T2082   change help text to a CLOB, not 5 individual lines
+#                                           T2082   also use "pat" command to determine if delete option is enabled
+# 12/05/2016    Tim Wilcox      V03.05.03   T2082   levels 9997/9998/9999 are defaults for no locks, locks, and count in progress locks
+# 12/04/2017    Tim Wilcox      V03.05.04   T----   functions moved to XMOXM5MR
+#-------------------------------------------------------------------------------
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "03.05.04 12/04/2017 XM5"
+#-------------------------------------------------------------------------------
+
+################################################################################
+## Main Process
+## ~~~~~~~~~~~~
+##
+##  Called for each ACTION.
+##  In here we call additional processing for specific ACTION codes.
+##
+################################################################################
+#-------------------------------------------------------------------------------
+$ACTION
+
+    If func AFNC.ACTIV("XM5")
+        Gosub ACTION From XMOXM5MR
+    Endif
+
+Return
+
+###############################################################################
+# entered value must be between 0 and 255
+#
+$CHECK_VALUE
+
+   Gosub CHECK_VALUE From XMOXM5MR
+
+Return
+
+###############################################################################
+# Red intensity changed
+#
+Subprog AM_RVAL(VALEUR)
+Variable Decimal VALEUR
+    Gosub CHECK_VALUE
+End
+
+###############################################################################
+# green intensity changed
+#
+Subprog AM_GVAL(VALEUR)
+Variable Decimal VALEUR
+    Gosub CHECK_VALUE
+End
+
+###############################################################################
+# blue intensity changed
+#
+Subprog AM_BVAL(VALEUR)
+Variable Decimal VALEUR
+    Gosub CHECK_VALUE
+End
+
+###############################################################################
+# lock level is 9997/9998/9999, dont allow any other header values to be set
+#
+Subprog AM_LVL(VALEUR)
+Variable Decimal VALEUR
+
+    Call AM_LVL(VALEUR) From XMOXM5MR
+
+End
+
+######################################################################################
+

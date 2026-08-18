@@ -1,0 +1,84 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Customers
+$ACTION
+Case ACTION
+    When "SETBOUT" : Gosub SETBOUT
+    When "VERIF_CRE" : Gosub VERIF_CRE
+    When "VERIF_MOD" : Gosub VERIF_MOD
+    When Default
+Endcase
+Return
+
+$SETBOUT
+CHMEN+="9a"
+If !GIMPORT and !GWEBSERV
+    If func AFNC.INTFLD("AUTILIS","ZFINAUT",GUSER)<>"2"
+        Diszo [M:BPC3]VACBPR
+        Diszo [M:BPC4]XVACBPR
+    Endif
+Endif
+Return
+
+$VERIF_MOD
+    Gosub FSC_CHECK
+    If !clalev([ZBPC]) : Local File BPCUSTOMER [ZBPC] : Endif
+    Read [ZBPC]BPC0=[M:BPC0]BPCNUM
+    If ![S]fstat
+    	If [F:ZBPC]ZRMTCUST<>2 & [M:BPC0]ZRMTCUST=2
+    		Gosub DME_CHECK
+    	Else If [F:ZBPC]ZRMTCUST=2 & [M:BPC0]ZRMTCUST<>2
+    			Local Integer OKCAN : [L]OKCAN=2
+            	Call OUINON("Remote customer removed. Change default shipping method to normal?", [L]OKCAN) From GESECRAN
+                If [L]OKCAN=2
+                	[M:BPC1]DME=1 : Affzo [M:BPC1]DME
+                Endif
+			Endif
+		Endif
+	Endif
+	If func AFNC.INTFLD("AUTILIS","ZBPCCRE",GUSER)<>"2"
+		Call ERREURT("Modification of customer records is forbidden by your access level.", 1) From GESECRAN : OK = 0 : Return
+	Endif
+Return
+
+$VERIF_CRE
+Gosub FSC_CHECK
+Gosub DME_CHECK
+If func AFNC.INTFLD("AUTILIS","ZBPCCRE",GUSER)<>"2"
+	Call ERREURT("Creation of customer records is forbidden by your access level.", 1) From GESECRAN : OK = 0 : Return
+Endif
+Return
+
+$FSC_CHECK
+If [M:BPC3]ZFSCFLG=2 & [M:BPC0]BCGCOD<>"CB"
+    [M:BPC0]BCGCOD="CB"
+    Affzo [M:BPC0]BCGCOD
+Endif
+If [M:BPC3]ZFSCFLG=1 & [M:BPC0]BCGCOD="CB"
+    [M:BPC0]BCGCOD="CA"
+    Affzo [M:BPC0]BCGCOD
+Endif
+Return
+
+$DME_CHECK
+If [M:BPC0]ZRMTCUST=2 & [M:BPC1]DME<>3
+	Local Integer OKCAN : [L]OKCAN=2
+	Call OUINON("Remote customer. Change default shipping method to ship-complete?", [L]OKCAN) From GESECRAN
+    If [L]OKCAN=2
+    	[M:BPC1]DME=3 : Affzo [M:BPC1]DME
+    Endif
+Endif
+If left$([M:BPC0]BPCNUM,3)="TMS" : [M:BPC3]ZCOLLEC=2 : Affzo [M:BPC3]ZCOLLEC : Endif
+Return
+
+Subprog IB_NBDLV
+End
+
+Subprog AP_NBDLV
+End
+
+Subprog AM_XYCOSTCENTRE(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog AM_XYCSTCENTDES(VALEUR)
+Variable Char    VALEUR()
+End

@@ -1,0 +1,202 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+###########################################################################################
+# Script            : XINFP_ERR
+# Creation date     : 21/11/2017
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            :
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : ERROR MANAGEMENT
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When Default
+    Endcase
+Return
+
+########################################################################################################################
+# SUBPROG THAT CREATES ERROR MESSAGE
+########################################################################################################################
+Subprog XERR_TRANS(XINFPTYP, XINFPNUM, XINFPEXP, XINFPSTA, XINFPLIN, XINFPDES)
+    Value Char    XINFPTYP
+    Value Char    XINFPNUM
+    Value Integer XINFPEXP
+    Value Integer XINFPSTA
+    Value Integer XINFPLIN
+    Value Char    XINFPDES
+
+    If !clalev([F:XINFEH]) : Local File XINFEH   [F:XINFEH] : Endif
+    If !clalev([F:XINFED]) : Local File XINFED   [F:XINFED] : Endif
+
+    # LOOK IF THERE IS A HEADER RECORD ENTRY BEFORE COMMITTING A LINE LEVEL DETAILS
+    ###################################################################################################################
+    Read [F:XINFEH]XINFEH0 = XINFPTYP;XINFPNUM
+
+    If fstat
+        Gosub WRITE_HEADER From XINFP_ERR
+    Endif
+
+    If XINFPSTA = 2
+        Gosub UPDATE_SUCCESS From XINFP_ERR
+    Endif
+
+    Gosub WRITE_DETAIL From XINFP_ERR
+
+    # UPDATE INFOPOS WITH ERROR MESSAGE
+    ###################################################################################################################
+    # TODO - UPDATE OF MESSAGE
+    # THIS HAS TO BE MODIFIED TO USE THE FOLLOWING METHOD BELOW, NOT CURRENTLY SUPPORTED IN BEEMAID RELEASE
+    # num$(func APRODUCT.AGETVERSLIC()) > 8
+    # NON SYRACUSE SYSTEMS DOESNT HAVE THE ABOVE FUNCTION, I EXTRACT THE VERSION AND FIND THE RELEASE NUMBER
+    # THIS IS USED FOR THE WEB SERVICE FLAGGING OF TRANSACTIONS BEING SUCCESSFULLY INTEGRATED
+    # 1.7.X IS V7 NATIVE
+    # 1.8.X IS PU8
+    # 1.9.X IS PU9 AND UP
+    ###################################################################################################################
+    If val(left$(GVERSION,instr(instr(1,GVERSION,".")+1,GVERSION,".")-1)) > 1.7
+        Call WEB_UPDATE(XINFPSTA, XINFPTYP, XINFPNUM) From XINFP_ERR
+    Endif
+
+    # PRINTS THE ACTUAL MESSAGE TO THE LOG - ALL UPDATES HAVE OCCURRED / TRANSACTION COMPLETE
+    ###################################################################################################################
+    Call ECR_TRACE(XINFPDES, mod(XINFPSTA,2)) From GESECRAN
+
+    If clalev([F:XINFEH]) : Close Local File [F:XINFEH] : Endif
+    If clalev([F:XINFED]) : Close Local File [F:XINFED] : Endif
+
+End
+
+########################################################################################################################
+# WRITE THE HEADER RECORD
+########################################################################################################################
+$WRITE_HEADER
+      Raz [F:XINFEH]
+
+      Trbegin [F:XINFEH]
+          [F:XINFEH]TYP    = XINFPTYP
+          [F:XINFEH]NUM    = XINFPNUM
+          [F:XINFEH]EXPNUM = XINFPEXP
+          [F:XINFEH]STA    = XINFPSTA
+          [F:XINFEH]NUM    = XINFPNUM
+          Write [F:XINFEH]
+
+          If fstat
+              Rollback
+          Else
+              Commit
+          Endif
+Return
+
+########################################################################################################################
+# WRITE THE HEADER RECORD
+########################################################################################################################
+$WRITE_DETAIL
+    Local Char    XLIN(30)
+
+    Raz [F:XINFED]
+
+    Trbegin [F:XINFED]
+        [F:XINFED]TYP    = XINFPTYP
+        [F:XINFED]NUM    = XINFPNUM
+        [F:XINFED]DES    = XINFPDES
+        [F:XINFED]LINTYP = XINFPSTA
+        [F:XINFED]LIN    = 0#val([L]XLIN)
+        Write [F:XINFED]
+
+        If fstat
+            Rollback
+        Else
+            Commit
+        Endif
+Return
+
+########################################################################################################################
+# UPDATES THE HEADER RECORD AND DELETES THE ERROR LINES
+########################################################################################################################
+Subprog DELETE_ERRORS(XINFPNUM)
+      Value Char XINFPNUM
+
+      If !clalev([F:XINFED]) : Local File XINFED   [F:XINFED] : Endif
+
+      Trbegin [F:XINFED]
+          Delete [F:XINFED] Where [F:XINFED]NUM = XINFPNUM
+
+          If fstat
+              Rollback
+          Else
+              Commit
+          Endif
+
+      If clalev([F:XINFED]) : Close Local File [F:XINFED] : Endif
+End
+
+########################################################################################################################
+# UPDATES THE HEADER RECORD AND DELETES THE ERROR LINES
+########################################################################################################################
+$UPDATE_SUCCESS
+      Raz [F:XINFEH]
+
+      Trbegin [F:XINFEH], [F:XINFED]
+          Update [F:XINFEH] Where [F:XINFEH]NUM = XINFPNUM With [F:XINFEH]STA  = 2
+
+          Delete [F:XINFED] Where [F:XINFED]NUM = XINFPNUM
+
+          If fstat
+              Rollback
+          Else
+              Commit
+          Endif
+Return
+
+########################################################################################################################
+# UPDATE INFOPOS WITH THE RECORD STATUS
+########################################################################################################################
+Subprog WEB_UPDATE(XINFPSTA, XINFPTYP, XINFPNUM)
+    Value Integer XINFPSTA
+    Value Char    XINFPTYP
+    Value Char    XINFPNUM
+
+    Local Char XINFPPCOD(100)(1..10), XINFPPVAL(100)(1..10), XINFPHCOD(100)(1..10), XINFPHVAL(100)(1..10)
+    Local Clbfile XINFPRESHEAD(0), XINFPRESBODY(0), XINFPCDATA(0)
+    Local Integer XINFPASTATUS
+
+    # HEADER PARAMETERS FOR THE
+    [L]XINFPHCOD(1) = "Content-Type"
+    [L]XINFPHVAL(1) = '"application/json"'
+    [L]XINFPHCOD(2) = "Authorization"
+    [L]XINFPHVAL(2) = '"Token qt9jM5gDUkbC"'
+
+    # FILL CDATA
+    If XINFPSTA = 2
+        [L]XINFPCDATA='{"success" : true }'
+    Else
+        [L]XINFPCDATA='{"success" : false }'
+    Endif
+
+    # CALL THE WEBSERVICE AND POST THE UPDATE TO INFOPOS
+    [L]XINFPASTATUS = func ASYRRESTCLI.EXEC_REST_WS("XINFOPOS", "POST", "/"+ XINFPTYP +"/"+ XINFPNUM, [L]XINFPPCOD, [L]XINFPPVAL,
+&                                                       [L]XINFPHCOD, [L]XINFPHVAL, [L]XINFPCDATA, 0, "", [L]XINFPRESHEAD, [L]XINFPRESBODY)
+
+    If [L]XINFPASTATUS = 200
+        # TODO - UPDATE OF MESSAGE
+        #Call ECR_TRACE("INFOPOS UPDATED",0) From GESECRAN
+    Else
+        # TODO - UPDATE OF MESSAGE
+        #Call ECR_TRACE("ERROR DURING WEB SERVICE CALL TO UPDATE INFOPOS",1) From GESECRAN
+    Endif
+
+
+End
+
+
+
+

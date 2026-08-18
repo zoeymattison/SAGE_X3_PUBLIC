@@ -1,0 +1,61 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Purchase Invoice Approval automatic follow-up
+
+If !clalev([ZPIH]) : Local File PINVOICE [ZPIH] : Endif
+If !clalev([ZAPD]) : Local File ZAPREQD [ZAPD] : Endif
+If !clalev([ZAT]) : Local File AOBJTXT [ZAT] : Endif
+Columns [ZAT] (IDENT1, NAM)
+
+Global Char ZG_PINREC(200),ZG_PINVCR(100),ZG_BPSVCR(100),ZG_PINBPS(100),ZG_PINCM1(100),ZG_PINCM2(100),ZG_PINCM3(100),ZG_PINUSR(100),ZG_PINFUN(100),ZG_PINATT(250),ZG_PIHSUBJ(240)
+Global Decimal ZG_PINATI
+
+Filter [ZPIH] Where PAZ<>4
+For [ZPIH]
+	Filter [ZAPD] Where date$=ZDATE+5 and ZNUM=[F:ZPIH]NUM
+	For [ZAPD]
+		[V]ZG_PINREC = func AFNC.INTFLD("BPSUPPLIER","ZBPSAPP",[F:ZPIH]BPR)
+		[V]ZG_PIHSUBJ = "[NOTICE] - First Reminder - A Supplier Payment Requires Your Approval!"
+		[V]ZG_PINVCR = [F:ZPIH]NUM
+		[V]ZG_BPSVCR = [F:ZPIH]BPRVCR
+		[V]ZG_PINBPS = [F:ZPIH]BPR
+		[V]ZG_PINATI = [F:ZPIH]AMTATI
+		[V]ZG_PINCM1 = [F:ZPIH]DES(0)
+		[V]ZG_PINCM2 = [F:ZPIH]DES(1)
+		[V]ZG_PINCM3 = [F:ZPIH]DES(2)
+		[V]ZG_PINUSR = GUSER
+		[V]ZG_PINFUN = GFONCTION
+		Infbox [F:ZPIH]NUM+" "+[V]ZG_PINREC
+        Filter [ZAT] Where IDENT1 = ZG_PINVCR
+        Read [ZAT]First
+        [V]ZG_PINATT = [F:ZAT]NAM
+        Local Integer TYPEVT : TYPEVT = 1
+        Local Char CODEVT : [L]CODEVT = "ZSZ"
+        Local Char OPERAT : [L]OPERAT = ""
+        Local Char CLEOBJ : [L]CLEOBJ = ""
+        Call WORKFLOW([L]TYPEVT,[L]CODEVT,[L]OPERAT,[L]CLEOBJ) From AWRK
+        Raz [V]ZG_PINREC, [V]ZG_BPSVCR, [V]ZG_PINBPS, [V]ZG_PINATI, [V]ZG_PINCM1, [V]ZG_PINCM2, [V]ZG_PINCM3, [V]ZG_PINUSR, [V]ZG_PINFUN, [V]ZG_PINATT, [V]ZG_PINVCR,[V]ZG_PIHSUBJ
+    Next
+    Filter [ZAPD] Where date$=ZDATE+10 and ZNUM=[F:ZPIH]NUM
+    For [ZAPD]
+		[V]ZG_PINREC = func AFNC.INTFLD("BPSUPPLIER","ZBPSAPP",[F:ZPIH]BPR)
+		[V]ZG_PIHSUBJ = "[NOTICE] - Second Reminder - A Supplier Payment Requires Your Approval!"
+		[V]ZG_PINVCR = [F:ZPIH]NUM
+		[V]ZG_BPSVCR = [F:ZPIH]BPRVCR
+		[V]ZG_PINBPS = [F:ZPIH]BPR
+		[V]ZG_PINATI = [F:ZPIH]AMTATI
+		[V]ZG_PINCM1 = [F:ZPIH]DES(0)
+		[V]ZG_PINCM2 = [F:ZPIH]DES(1)
+		[V]ZG_PINCM3 = [F:ZPIH]DES(2)
+		[V]ZG_PINUSR = GUSER
+		[V]ZG_PINFUN = GFONCTION
+        Filter [ZAT] Where IDENT1 = ZG_PINVCR
+        Read [ZAT]First
+        [V]ZG_PINATT = [F:ZAT]NAM
+        Local Integer TYPEVT : TYPEVT = 1
+        Local Char CODEVT : [L]CODEVT = "ZSZ"
+        Local Char OPERAT : [L]OPERAT = ""
+        Local Char CLEOBJ : [L]CLEOBJ = ""
+        Call WORKFLOW([L]TYPEVT,[L]CODEVT,[L]OPERAT,[L]CLEOBJ) From AWRK
+        Raz [V]ZG_PINREC, [V]ZG_BPSVCR, [V]ZG_PINBPS, [V]ZG_PINATI, [V]ZG_PINCM1, [V]ZG_PINCM2, [V]ZG_PINCM3, [V]ZG_PINUSR, [V]ZG_PINFUN, [V]ZG_PINATT, [V]ZG_PINVCR,[V]ZG_PIHSUBJ
+    Next
+Next

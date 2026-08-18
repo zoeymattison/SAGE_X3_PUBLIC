@@ -1,0 +1,2713 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#########################################################################
+# SUBSQHA : GESTION DES DEVIS                         EB - MARS     1998#
+#########################################################################
+# Contient les traitements des actions appelés par l'objet SUBSQH       #
+# Etiquettes                                                            #
+#########################################################################
+#########################################################################
+$AV_IMPRIME
+#---------------------------------------------------------------#
+# avant impression alimentation du no doc de la transaction     #
+#---------------------------------------------------------------#
+If [M:SQH0]DOCNAM<>""
+   [L]AREPORT=[M:SQH0]DOCNAM
+Elsif WSLTDOCNAM<>""
+   [L]AREPORT=WSLTDOCNAM
+Endif
+
+Return
+#########################################################################
+$AP_IMPRIME
+#---------------------------------------------------------------#
+# apres impression repositionnement sur le bon enregistrement   #
+#---------------------------------------------------------------#
+Gosub RELIT From GOBJSUB
+#MAE, le 23/01/08, bg 45433
+Raz [L]AREPORT
+Return
+#########################################################################
+$DEFTRANS
+
+If GFONC1 <> "GESSQH" Raz GFLAG Endif
+
+# GRNA 18/05/2011
+Local Char CUSSEAPAR : CUSSEAPAR = "TRSCSQUO"
+Gosub DEFTRANS From CUSSEALIB
+
+Return
+#########################################################################
+$VARIANTE
+
+# La transaction lu est elle utilisable ?
+If clalev ([F:SLT])=0 Local File SALTRS [SLT] Endif
+Read [SLT]SLT0=1;[F:AWI]TRN
+If fstat
+   OK = 0
+Elsif [F:SLT]ENAFLG<>2
+   OK = 0
+Endif
+Return
+#########################################################################
+$SETTRANS
+
+Gosub SETTRANS_DEF
+If clalev ([F:SLT])=0 Local File SALTRS [SLT] Endif
+Read [SLT]SLT0=1;GFLAG
+If clalev ([F:DTR])=0 Local File DIETRS [DTR] Endif
+Read [DTR]DTR0="SLT";1;GFLAG;0;0
+
+WSLTDOCFLG = [F:SLT]DOCFLG
+WSLTDOCNAM = [F:SLT]DOCNAM
+WSLTSTRNUM = [F:SLT]STRNUM
+
+If  func AFNC.ACTIV("LTA") : GSSTENTCOD  = [F:SLT]SSTENTCOD  : Endif  #LTA.n
+
+#MAE, le 29/01/08, GRP_SITE
+GGRPFCY = [F:SLT]GFY
+
+Close Local File [SLT], [DTR]
+Return
+
+#------------------------------------------------------------------------
+# afin d'être appelé dans ouvre pour ne pas planter en import
+$SETTRANS_DEF
+If dim(WSLTDOCFLG)<=0  : Local Shortint WSLTDOCFLG           : Endif
+If dim(WSLTSNSFLG)<=0  : Local Shortint WSLTSNSFLG           : Endif
+If dim(WSLTDOCNAM)<=0  : Local Char     WSLTDOCNAM (GLONARP) : Endif
+If dim(WSLTSNSNAM)<=0  : Local Char     WSLTSNSNAM (GLONARP) : Endif
+If dim(WSLTSTRNUM)<=0  : Local Char     WSLTSTRNUM (GLONTRS) : Endif
+If dim(GSSTENTCOD)<=0  : Global Integer GSSTENTCOD           : Endif  #LTA.n
+Return
+
+
+#########################################################################
+$OUVRE
+
+#-----------------------------------#
+# Sauvegarde des variables globales #
+#-----------------------------------#
+Gosub SAUV_GLOB From TRTX3GLOB
+
+If GIMPORT Gosub SETTRANS_DEF Endif
+
+Global Char     GNUM(GLONVCR)  : # N° DE DEVIS
+Global Char     GTARFLG(1)     : # Flag recalcul des tarifs
+Global Shortint GINVTYP        : # 1 = facture / 2 = avoir / 5 = proforma
+Global Integer  GDACLOK        : # Flag ctrl qté, prix, marge, montant mini
+Global Integer  GPRIMOD        : # Flag modif des prix/remises
+
+#Local  Integer  WNBGAUCHE      : WNBGAUCHE = GNBGAUCHE
+Local Char CODE (3)
+Local Integer RETOUR
+
+#Gosub OPEN_CPYVIEW From TRTX3CPY
+
+If !clalev([F:TCA])  Local File TABCOUAFF  [TCA] Endif
+
+If !clalev([F:GCM])  Local File GACM       [GCM] Endif
+
+GVENCFG=1
+
+If !clalev([F:ACV])  Local File ACTIV      [ACV]   Endif
+#Global Integer GACTMUL : GACTMUL=1    : # Globale multisociété : 1(non) / 2(oui)
+#Read [ACV] CODACT="MUL" : If fstat  Raz [F:ACV] : Endif
+#If [F:ACV]FLACT=2 GACTMUL=2 Endif
+
+Local Char WPARAM(10)
+#--------------------------------------------------------------#
+# Chargement param.utilisateur ctrl qte,prix,marge,montant mini#
+#--------------------------------------------------------------#
+Call PARAMUTIL("SDACLOK",WPARAM,"","") From SUBAUS
+GDACLOK=val(WPARAM)
+If GDACLOK=0 GDACLOK=1 Endif
+#------------------------------------------------------------#
+# Chargement param.utilisateur modif des prix/remises        #
+#------------------------------------------------------------#
+Call PARAMUTIL("SPRIMOD",WPARAM,"","") From SUBAUS
+GPRIMOD=val(WPARAM)
+If GPRIMOD=0 GPRIMOD=1 Endif
+
+###############################################################
+# Ouverture de la table affaire si module Action Co Actif   Modif CRM 22/10/2003
+###############################################################
+If GMODU(13) = 2
+    If !clalev([F:OPP]) : Local File OPPOR [OPP] : Endif
+    Global Char GSZSQHFROMOPPRAZCRE(GLONPJT)  # FGR 14/02/2012 X3SUIVI79621 : avec une longueur c'est mieux
+Endif
+#------------------------------------------------------------#
+#              Chargements liés aux tarifs                   #
+#------------------------------------------------------------#
+# Contrôle existence de la structure tarif par défaut        #
+# Chargement des variables globales pour la recherche tarif  #
+# Récupération de la structure des frais/remises             #
+# Récupération des types de frais/remises                    #
+#              des no éléments facturation                   #
+#------------------------------------------------------------#
+GORITITCOL=1
+#If GACTMUL=2
+GPLISTC="néant" :# Pour forcer l'affichage des entêtes de colonne si structure=""
+#Endif
+Call CTLSTRUCT (1,RETOUR) From TRTPRICE
+If RETOUR <>0: OK=0: Return :Endif
+Call TARIFCHGT(5)         From TRTPRICE
+Call COLREM("C",1,"")     From TRTPRICE
+Call TYPREM(1,"")  From TRTPRICE
+#------------------------------------------------------------#
+
+Global Char     GFOCITMREF(GLONITM)
+Global Decimal  GFOCQTY
+Global Char     GFOCUOM, GPNTITMREF(GLONITM)
+Global Shortint GFOCMOTIF
+Global Shortint GFOCFLG
+
+Raz GSOC_ACTIVE
+GFCY = GFCYDEF (5)
+# Ctrl site par défaut par rapport au critère, si aucun site par défaut, charge le 1er site correspondant au critere
+Call GETFCYDEF(GFCY,"[F:FCY]SALFLG=2") From TRTX3
+# Chargement globales référenciels, comptes et sections de la société
+Gosub CHARG_PARAM : If GERR=1 OK=0 : Return Endif
+# --- Déclaration classe ecran pour le configurateur ---------------------------
+Call LECACT("CFG",RETOUR) From TRTX3
+If RETOUR = 1 Local Mask CFGWRK [CFW] Endif
+
+# --- Déclaration des fenetres d'adresses --------------------------------------
+If clalev([M:ADB_])=0 : Local Mask ADRBPC [M:ADB_] : Endif :# CPO 68724 - Zones adresse en bureautique
+# Bug 70949
+#If clalev([M:ADB1])=0 Local Mask ADRBPC [ADB1] Endif
+#If clalev([M:ADB2])=0 Local Mask ADRBPC [ADB2] Endif
+If clalev([M:ADB1])=0
+    Local Mask ADRBPC [ADB1]                     : # Déclaration de l'écran d'adresse ADB1
+Else
+  If !clalev([M:ADBY])
+    Local Mask ADRBPC [ADBY] : [M:ADBY]=[M:ADB1] : # Sauvegarde de l'écran d'adresse ADB1 à cause de la navigation
+  Endif
+Endif
+If clalev([M:ADB2])=0
+    Local Mask ADRBPC [ADB2]                     : # Déclaration de l'écran d'adresse ADB1
+Else
+  If !clalev([M:ADBZ])
+    Local Mask ADRBPC [ADBZ] : [M:ADBZ]=[M:ADB2] : # Sauvegarde de l'adresse ADB2 à cause de la navigation
+  Endif
+Endif
+# Bug 70949
+
+Local Char SFIT_OBJ : SFIT_OBJ="SQH"
+Gosub INIT_SFIT From SUBSFIT
+
+# FGR 28/07/2015 : X3SUIVI108078 : Optimisation (début)
+  Link [SQD] With [ITM]ITM0=[F:SQD]ITMREF,
+&                 [ITS]ITS0=[F:SQD]ITMREF
+&              As [LSQD]
+# FGR 28/07/2015 : X3SUIVI108078 : Optimisation
+
+Gosub DECLARE From TABLEAUX
+
+# --- Ouverture + reservations pour repartition elts facturation a la ligne ----
+Gosub OUV_DSPLIN From TRTVENFACC
+
+# Detail local tax data
+Gosub OUVRE_LTA From TRTTAXSST   # 106867.n
+# Gosub OUVRE_LTA From TRTTAXUSA   # 106867.o
+
+Return
+
+
+###########################################################################################
+#    Après execution des menus                                                            #
+###########################################################################################
+$STATUT
+
+#fq6051-gbn
+GCONSULT=SAV_GCONSULT
+GCONSDIA=SAV_GCONSDIA
+
+Case BOUT
+    When "E"     : If mkstat=4 & GREP=""
+#                      GREP="M" : REP="M"
+#                      Gosub SETBOUT From GOBJSUB
+                       Gosub ENTRE_MODIF From GOBJSUB
+                   Endif
+                   If [M]SQHTEX1 <> "" & !GIMPORT
+                       Call SET_IMAGE (4) From GESECRAN
+                   Elsif !GIMPORT
+                       Call RESET_IMAGE (4) From GESECRAN
+                   Endif
+    When "F"     : If mkstat=4 & GREP=""
+#                      GREP="M" : REP="M"
+#                      Gosub SETBOUT From GOBJSUB
+                       Gosub ENTRE_MODIF From GOBJSUB
+                   Endif
+                   If [M]SQHTEX2 <> "" & !GIMPORT
+                       Call SET_IMAGE (4) From GESECRAN
+                   Elsif !GIMPORT
+                       Call RESET_IMAGE (4) From GESECRAN
+                   Endif
+    When "H"     : If [M:ADB1]ADBFLG = 2 | [M]CNTNAM <> [M:ADB1]CNTNAM : # Adresse client
+                       # Dde 77155 : Dégriser le bouton enregistrer si utilisation système de taxes américaines
+                       #If GREP <> "C" & GREP <> "M" & GREP <> "D"
+                       # If GLOCUSATAX   # 106867.o
+                       If func AFNC.ACTIV("LTA") & [F:CPY]SSTTAXACT = 2   # 106867.n
+                           Gosub ENTRE_MODIF From GOBJSUB
+                       Elsif GREP <> "C" & GREP <> "M" & GREP <> "D"
+                           Gosub MAJADRESSE From SUBSQHB
+                       Endif
+                       If [M:ADB1]BPRNAM(0) <> ""
+                           [M:SQH0]BPCNAM = [M:ADB1]BPRNAM(0)
+                           Affzo [M:SQH0]BPCNAM
+                       Endif
+                   Endif
+    When "J"     : If [M:ADB2]ADBFLG = 2 | [M]CNTNAM <> [M:ADB2]CNTNAM : # Adresse client livré
+                       # Dde 77155 : Dégriser le bouton enregistrer si utilisation système de taxes américaines
+                       #If GREP <> "C" & GREP <> "M" & GREP <> "D"
+                       # 79705 : V7 : SAT in SPRICLINK
+                       # Dégriser le bouton enregistrer si la recherche tarif a été executée
+                       #If GLOCUSATAX
+                       # If GLOCUSATAX | (!find(GREP,"C","M","D") & sum([M]UPDFLG)<>0)   # 106867.o
+                       If (func AFNC.ACTIV("LTA") & [F:CPY]SSTTAXACT = 2) | (!find(GREP,"C","M","D") & sum([M]UPDFLG)<>0)   # 106867.n
+                           Gosub ENTRE_MODIF From GOBJSUB
+                       Elsif GREP <> "C" & GREP <> "M" & GREP <> "D"
+                           Gosub MAJADRESSE From SUBSQHB
+                       Endif
+                       If [M:ADB2]BPRNAM(0) <> ""
+                           [M:SQH1]BPDNAM = [M:ADB2]BPRNAM(0)
+                           Affzo [M:SQH1]BPDNAM
+                       Endif
+                   Endif
+                   Gosub SHOW_HIDE_ENTCOD  From TRTADRLIB #LTA.n
+
+    When "M"     : If mkstat=4 & GREP=""                               : # Informations CEE
+#                      GREP="M" : REP="M" : # Pour forcer le bouton 'enregistrer'
+                      Gosub ENTRE_MODIF From GOBJSUB
+                   Endif
+Endcase
+Return
+
+# 79705 : V7 : SAT in SPRICLINK
+#######################################################################
+# Après exécution d'une action et avant l'exécution de l'action suite #
+#######################################################################
+$AVANT_SUITE
+Case BOUT
+  When "H","J" :  # After execution Adresse and before execution recalculate prices
+    # Not trigger recalculate prices if globale not informed
+    If (dim(GADDACTMOD)<0 | GADDACTMOD<>"1") OK=0 Endif
+Endcase
+Return
+# 79705 : V7 : SAT in SPRICLINK
+
+# TS - A supprimer (nouvelle gestion de texte)
+###########################################################################################
+#    Après execution des menus                                                            #
+###########################################################################################
+#$STATUT
+#Case BOUT
+#    When "E"     : Gosub MAJ_TEX From TRTX3TEX     : # Texte entête
+#                   [M]SQHTEX1 = WNUMTEX
+#                   If [M]SQHTEX1 <> "" & !GIMPORT
+#                       Call SET_IMAGE (4) From GESECRAN
+#                   Elsif !GIMPORT
+#                       Call RESET_IMAGE (4) From GESECRAN
+#                   Endif
+#    When "F"     : Gosub MAJ_TEX From TRTX3TEX     : # Texte pied
+#                   [M]SQHTEX2 = WNUMTEX
+#                   If [M]SQHTEX2 <> "" & !GIMPORT
+#                       Call SET_IMAGE (4) From GESECRAN
+#                   Elsif !GIMPORT
+#                       Call RESET_IMAGE (4) From GESECRAN
+#                   Endif
+#    When "H"     : If [M:ADB1]ADBFLG = 2 | [M]CNTNAM <> [M:ADB1]CNTNAM : # Adresse client
+#                       If GREP <> "C" & GREP <> "M" & GREP <> "D"
+#                           Gosub MAJADRESSE From SUBSQHB
+#                       Endif
+#                       If [M:ADB1]BPRNAM(0) <> ""
+#                           [M:SQH0]BPCNAM = [M:ADB1]BPRNAM(0)
+#                           Affzo [M:SQH0]BPCNAM
+#                       Endif
+#                   Endif
+#    When "J"     : If [M:ADB2]ADBFLG = 2 | [M]CNTNAM <> [M:ADB2]CNTNAM : # Adresse client livré
+#                       If GREP <> "C" & GREP <> "M" & GREP <> "D"
+#                           Gosub MAJADRESSE From SUBSQHB
+#                       Endif
+#                       If [M:ADB2]BPRNAM(0) <> ""
+#                           [M:SQH1]BPDNAM = [M:ADB2]BPRNAM(0)
+#                           Affzo [M:SQH1]BPDNAM
+#                       Endif
+#                   Endif
+#Endcase
+#Return
+
+####################################################################
+$ABANDON
+#------------------------------------#
+# Abandon création par l'utilisateur #
+#------------------------------------#
+Local Integer I, WRET
+
+# TS - Nouvelle gestion de texte
+#-------------------------------
+If GREP = "D"
+   If left$([M:SQH0]SQHTEX1,3)="SQH"
+      Call SUP_CLOB([M:SQH0]SQHTEX1,WRET) From TRTX3TEX
+   Endif
+   If left$([M:SQH0]SQHTEX2,3)="SQH"
+      Call SUP_CLOB([M:SQH0]SQHTEX2,WRET) From TRTX3TEX
+   Endif
+   For I=0 To [M]NBLIG-1
+      If left$([M:SQH2]SQDTEX(I),3)="SQD"
+         Call SUP_CLOB([M:SQH2]SQDTEX(I),WRET) From TRTX3TEX
+      Endif
+   Next I
+Endif
+
+Call RAZ_CLOB From ACLOB
+
+Gosub PJM_OPPOR_PSO_FREEGROUP From SUBSOHA1      # Issue X3-8085/121537 - 2017-02-15 by FGR
+
+# TS - A supprimer (nouvelle gestion de texte)
+#----- suppression des textes si abandon en dupli ou creation --#
+#Local Integer WRETOUR : WRETOUR = 0
+#Local Char    WNUMTEX (12)
+#If GREP = "D"
+#     If [M]ANCSQHTEX1 <> [M]SQHTEX1
+#         WNUMTEX = [M]SQHTEX1
+#         Call TEX(5,"SQH1","","","",WNUMTEX,"A",WRETOUR) From TRTX3TEX
+#     Endif
+#     If [M]ANCSQHTEX2 <> [M]SQHTEX2
+#         WNUMTEX = [M]SQHTEX2
+#         Call TEX(5,"SQH2","","","",WNUMTEX,"A",WRETOUR) From TRTX3TEX
+#     Endif
+#Elsif GREP ="C"
+#    WNUMTEX = [M]SQHTEX1
+#    Call TEX(5,"SQH1","","","",WNUMTEX,"A",WRETOUR) From TRTX3TEX
+#    WNUMTEX = [M]SQHTEX2
+#    Call TEX(5,"SQH2","","","",WNUMTEX,"A",WRETOUR) From TRTX3TEX
+#Endif
+#--- suppression des textes sur la ligne ---#
+#For I = 0 To [M]NBLIG -1
+#    If GREP = "D"
+#         If [M]ANCSQDTEX (I) <> [M]SQDTEX (I)
+#            WNUMTEX = [M]SQDTEX (I)
+#            Call TEX(5,"SQD1","","","",WNUMTEX,"A",WRETOUR) From TRTX3TEX
+#         Endif
+#    Elsif GREP ="C"
+#        WNUMTEX = [M]SQDTEX (I)
+#        Call TEX(5,"SQD1","","","",WNUMTEX,"A",WRETOUR) From TRTX3TEX
+#    Endif
+#Next I
+Actzo [M:SQH0]SQHNUM
+
+Return
+
+####################################################################
+$FERME
+#Modif CRM 17 mars 2004
+#Raffraichissement de l'affaire
+If GMODU(13) = 2
+    #LSE 09/01/2007
+    If GPILNAV>1
+        If GNAVIG(GPILNAV-1) = "GESOPP"
+            Gosub COMEBACKTOOPP From SUBSQHC
+        Endif
+    Endif
+    Kill GSZSQHFROMOPPRAZCRE
+Endif
+
+GCONSDIA=0
+# Bug 70949
+# --- Restitution des écrans d'adresse à cause de la navigation -----#
+If clalev([M:ADBY]) & clalev([M:ADB1])
+  [M:ADB1]=[M:ADBY] : Close Local Mask [ADB1]
+Endif
+If clalev([M:ADBZ]) & clalev([M:ADB2])
+  [M:ADB2]=[M:ADBZ] : Close Local Mask [ADB2]
+Endif
+# Bug 70949
+#------------------------------------#
+# Restitution des variables globales #
+#------------------------------------#
+GVENCFG=0
+GORITITCOL=0
+#-----
+Gosub REST_GLOB From TRTX3GLOB
+
+#-- effacement icone texte
+Call RESET_IMAGE (4) From GESECRAN
+
+  GCREFONC = 0 # FGR 18/02/2014 : X3SUIVI96940 on remet une valeur normale.
+
+If dim(G_PREV_DSPLIN)>0  Kill  G_PREV_DSPLIN : Endif : #--CPO 102340
+
+Return
+
+####################################################################
+$SETBOUT
+# ------------------------------------------------------------------------------------- #
+# Suppression des boutons                                                               #
+# ------------------------------------------------------------------------------------- #
+#     H : Changement de code                                                            #
+#     A : Supprimer  : Si devis partiellement ou totalement cdé                         #
+#     1 : Proforma   : Si encours de traitement, si aucun devis,                        #
+#                      Si devis partiel.ou total.cdé, si déjà proforma,                 #
+#                    : Si tunnel depuis factures                                        #
+# ------------------------------------------------------------------------------------- #
+# Si l'on vient d'ailleurs sauf depuis les affaires, suppression du bouton créér et des accès aux autres enr.
+#LSE 09/01/2007
+If GPILNAV>1
+#MAE, on ne doit pas supprimer les boutons créer si on vient des clients
+#    If GFONC1 <> "GESSQH" and GNAVIG(GPILNAV-1) <> "GESOPP"
+    If GFONC1 <> "GESSQH" and GNAVIG(GPILNAV-1) <> "GESOPP" and GNAVIG(GPILNAV-1) <> "GESBPC"
+        Call VIREBOUT(CHAINE,"RCDH<>S09") From GOBJET # Bug 73701 - Le L (impression liste) est retiré du VIREBOUT
+    Endif
+  If GNAVIG(GPILNAV-1) = "GESOPP" Then
+    # FGR 06/10/2009 : X3SUIVI56861 : création interdite si affaire close. On ne peut que visualiser ce qui existe
+    If [M:OPP1]OPPCLO = 2 Then
+      Call VIREBOUT(CHAINE,"CD") From GOBJET
+    Endif
+  Endif
+Endif
+
+#- X3Suivi 69847 Génération commande depuis devis --#
+#---------------------------------------------------------------------------------------------#
+# Pas de bouton "Commande"
+#   Si l'on vient par tunnel des comm/liv/fac, si mode consultation ,  si
+#   Si devis complètement commandé
+#   Si signature devis = 1-non ou 2-partiellement
+#---------------------------------------------------------------------------------------------#
+If find(GFONC1,"GESSDH","GESSOH","GESSIH")
+   Call VIREBOUT(CHAINE,"2") From GOBJET
+Endif
+
+# Bug 39742 : Si mode consultation, il faut désactiver les boutons
+If GCONSULT Call VIREBOUT(CHAINE,"12") From GOBJET Endif
+Call VIREBOUT(CHAINE,"H") From GOBJET
+If !CLECUR | [M]QUOSTA <> 1 Call VIREBOUT(CHAINE,"A") From GOBJET : Endif
+If GREP <> "" | !CLECUR | [M]QUOSTA > 1 | [M]PRFNUM <> "" | GFONC1 = "GESSIH"
+   Call VIREBOUT(CHAINE,"1") From GOBJET
+Endif
+
+If GREP <> "" | !CLECUR | [M:SQH1]QUOSTA=3 | [M:SQH1]APPFLG<3
+   Call VIREBOUT(CHAINE,"2") From GOBJET
+Endif
+
+# --------------------------------------------------------------------------- #
+# Activation/Désactivation des menus                                          #
+# --------------------------------------------------------------------------- #
+#   E,F : Texte          : Actif si devis en ligne ou création ou duplication #
+#   H,J : Adresse        : Actif si devis en ligne ou création ou duplication #
+#     M : Info douanières: Actif si devis en ligne                            #
+#     K : Situation      : Actif si devis en ligne et rien en cours           #
+#     L : Transaction                                                         #
+#     N : Traçabilité pièces                                SYMEU 28/11/2008  #
+#     O : Sage Sales Tax                                    RBU 26/04/2012    #
+# --------------------------------------------------------------------------- #
+If GREP="C" | GREP="D" | CLECUR
+    CHMEN += "EF"
+    CHMEN += "HJ"
+Endif
+# Clé courante
+If CLECUR CHMEN += "M" Endif
+If CLECUR & GREP = "" CHMEN += "K" Endif
+CHMEN += "L"
+# If  func AFNC.ACTIV("LTA") & GLOCUSATAX : CHMEN += "O" : Endif   # 106867.o  #This menu option does not exist for v7 and above
+
+If !find(GREP,"C","D") and !find("CONSPIV",GNAVIG(1..GPILNAV)) Then CHMEN += "N" Endif # SYMEU 28/11/2008 : branchement traçabilité pièces
+# Issue X3-81805 - 2018-04-06 by VAVIL : Is possible delete documents that go to SAF-T
+If func PORLEGLIB.PORLEG([M:SQH0]SALFCY, "") :  Call VIREBOUT(CHAINE,"A") From GOBJET : Endif
+# End issue X3-81805
+Gosub SET_BOUT_SPE From GSAISIE
+Return
+
+###########################################################################################
+#    Avant l'execution des boutons et des menus                                           #
+###########################################################################################
+$AVANTBOUT
+Local Char     WFONC1(30)
+Local Char     WTYP(4), WTEX(12), WANCTEX(12)
+Local Integer  WCOD
+Local Integer  WMODULE    :    WMODULE = 5
+#fq66051-gbn
+Local  Integer  SAV_GCONSULT : SAV_GCONSULT=GCONSULT
+Local  Integer  SAV_GCONSDIA : SAV_GCONSDIA=GCONSDIA
+
+# Visu des textes si aucun droit de modif
+If (find(GREP,"C","D") & !ACTCRE) | (GREP="M" & !ACTMOD) GCONSDIA=1 Endif
+
+# Pour etre sur qu'il soit bien chargé
+GFCY=[M]SALFCY
+
+  # FGR 19/05/2015 : X3SUIVI106158 (début)
+  If find(BOUT, "E", "F", "H", "J") Then
+    If [M:SQH0]BPCORD = "" Then
+      GERR = 1
+      GMESSAGE = mess(426,192,1)
+      Return
+    Endif
+  Endif
+  # FGR 19/05/2015 : X3SUIVI106158 (fin)
+
+Case BOUT
+    When "E"     :  # Saisie du texte entete
+                    If [M]SQHNUM = "" & GREP <> "C" & GREP <> "D"
+#                       GMESSAGE est à blc, il faut positionner ERR
+                        GERR = 1 : GMESSAGE= "" : Return
+                    Endif
+    When "F"     :                         : # Saisie du texte pied
+                    If [M]SQHNUM = "" & GREP <> "C" & GREP <> "D"
+#                       GMESSAGE est à blc, il faut positionner ERR
+                        GERR = 1 : GMESSAGE= "" : Return
+                    Endif
+    When "H"      : [M]CNTNAM=[M:ADB1]CNTNAM    : # Adresse client
+    When "J"      : [M]CNTNAM=[M:ADB2]CNTNAM    : # Adresse livraison
+    When "1"      :                               # Proforma
+#                   Ctrl autorisation bouton proforma
+                    GBIDC2="P": Gosub AUTORIS_OPT From CONTX3
+                    If !GBIDI2
+                       GCREPARBOU=2 : GERR = 1 : GMESSAGE = mess(2,104,1) : Return
+                    Endif
+#                   Ctrl devise "in"
+                    Local Char WDEVISE : Local Date WDAT : Local Integer WOK
+                    WDEVISE=[M:SQH0]CUR:WDAT=[M:SQH0]QUODAT
+                    Gosub CTLDEVISEIN From CONTX3
+                    Case WOK
+                        When 1 :     # Attention saisie en devise "in"
+                            OK=2 : Call AVERTIR(mess(95,107,1),OK) From GESECRAN
+                            If OK=1 OK=0 : GCREPARBOU=2 : GERR=1 : Return : Endif
+                        When 2 :     # La devise est "in" interdite
+                            GCREPARBOU=2:GERR=1 : GMESSAGE = mess(94,107,1) : Return
+                        When 3 :     # La devise est "in" et disparue
+                            GMESSAGE=[M:SQH0]CUR-":"-mess(457,196,1)-format$("D:"+GFMDAT4,[F:TCU]CURENDDAT)
+                            GCREPARBOU=2:GERR=1 : Return
+                    Endcase
+                    Default File [SQH]
+                    GINVTYP = 5
+                    WFONC1=GFONC1
+                    GFONC1="GESSQH"
+                    Gosub VERROU_SQH
+                    If GERR <> 1 GCREPARBOU = 1 : Endif
+
+    When "2"      :                               #-- Génération commande
+                    #- X3Suivi 69847 Génération commande depuis devis --#
+                    GCREPARBOU = 2
+                    WFONC1=GFONC1 : GFONC1="GESSQH"
+                    Gosub AVTBOUT_COM
+                    If GERR <> 1
+                       Gosub VERROU_SQH
+                       If GERR <> 1 : GCREPARBOU = 1 : Endif
+                    Endif
+    When Default
+Endcase
+
+#Fq66051-Gbn
+Case BOUT
+ When "M", "E", "F", "H", "J" : If GREP="" & (!ACTMOD | !VERROU)  GCONSULT=1 : GCONSDIA=2 : Endif
+ When Default
+Endcase
+
+Return
+
+#- X3Suivi 69847 Génération commande depuis devis --#
+###########################################################################################
+#    Avant execution du bouton commande                                                   #
+###########################################################################################
+$AVTBOUT_COM
+  Raz GERR,GMESSAGE
+
+  If [M:SQH1]VLYDAT<>[0/0/0] & [M:SQH1]VLYDAT<date$
+    GERR=1 : OK=0 : GMESSAGE=mess(368,192,1) : Return
+  Endif
+
+#- X3Suivi 22777 :  Contole depassement d'en-cours pour le client --#
+Local Integer WCDTSTA
+Local Decimal WOST
+Local Decimal WOSTAUZ
+Local Char    WMESS9(80), WMESS1 (80)
+
+  If [F:BPC]BPCTYP = 4 Then
+    # Transformation interdite pour un prospect
+    # FGR 12/03/2014 : X3SUIVI69847
+    GMESSAGE = [M:SQH0]BPCORD - mess(1146,196,1)
+    OK = 0
+    GERR = 1
+    Return
+  Else
+    #-- Contrôle état crédit pour le client --"
+    Call SDCDTSTA ('',[M:SQH0]BPCORD,[M:SQH0]CHGTYP,0,[M:SQH1]CUR,[M:SQH0]QUODAT,0, 1,WCDTSTA,WOST,WOSTAUZ)  From TRTVENCDT
+    Case WCDTSTA
+      When 2 : # Client bloqué
+        Local Integer WOK : WOK=2
+        Call AVERTIR (mess(2,178,1)   , WOK) From GESECRAN
+        If WOK=1 : GERR=1 : OK = 0  : Return  : Endif
+      When 3 : # Dépassement d'en cours
+        WMESS9 =  '\'+ '\' + format$("N:9.2",WOST) + '>' - format$("N:9.2",WOSTAUZ)
+        Local Integer WOK : WOK=2
+        WMESS1 = mess(3,178,1)  -  format$("N:9.2[ ]",WOSTAUZ)- [M:SQH1]CUR
+        #-- 81855
+        If dim(GVENFLG02)>=0 & (GVENFLG02=2 or GVENFLG02=3 )
+          WMESS1 += WMESS9
+        Endif
+        Call AVERTIR ( WMESS1 , WOK) From GESECRAN
+        If WOK=1 : GERR=1 : OK = 0  : Return  : Endif
+    When Default
+    Endcase
+    If [F:BPC]BPCSTA<>2 : OK=0 : GERR=1 : GMESSAGE=[F:BPC]BPCNUM+"\"+mess(4,119,1) : Return : Endif : # Client inactif
+  Endif
+Return
+
+####################################################################
+$VERROU_SQH
+#--------------------------------------------------#
+# Verrouillage du devis pour bouton                #
+#--------------------------------------------------#
+SYMBOLE2 = "SQH"+[M:SQH0]SQHNUM
+Lock = SYMBOLE2
+If fstat
+   # modification en cours sur un autre poste
+   GERR=1 : GMESSAGE=[M:SQH0]SQHNUM-":"-mess(10,100,1)
+Endif
+Return
+###########################################################################################
+#CHECK UNUSED_BEGIN
+$AVTBOUT_TEXTE
+
+#---------------------------------------------------#
+# OPTION : Gestion des textes entete et pied        #
+#---------------------------------------------------#
+
+# TS - A supprimer (nouvelle gestion de texte)
+
+Local Integer WRETOUR
+Local Char    WNUMTEX(12), WCLE1
+
+WRETOUR = 0
+WNUMTEX = WTEX
+
+#-- Si duplication, recuperation du texte du devis que l'on duplique
+#                   ("D" : Duplication sans saisie)
+If GREP = "D"
+    If WANCTEX = WTEX & WNUMTEX <> ""
+        Call TEX(5,WTYP,"","","",WNUMTEX,"X",WRETOUR)              From TRTX3TEX
+    Endif
+Elsif GREP <> "C"
+    WCLE1 = [M]SQHNUM
+Endif
+
+Return
+#CHECK UNUSED_END
+
+###########################################################################################
+#    Après execution des boutons                                                          #
+###########################################################################################
+$EXEBOUT
+  Case BOUT
+    When "1"
+      # Proforma
+      GFONC1=WFONC1
+      Gosub RELIT From GOBJSUB
+    When "2"
+      # Devis
+      GFONC1=WFONC1
+      Gosub RELIT From GOBJSUB
+    When Default
+  Endcase
+Return
+####################################################################
+$RAZCRE
+
+[M:SQH0]QUODAT=date$
+#------------------------------------------------------------------------#
+# Chargement site par défaut                                             #
+# Récupération des paramètres vente du site / de la société              #
+# Chargement globales référenciels, comptes et sections de la société    #
+# Réalimentation du cours devise dossier/devise cde                      #
+# -----------------------------------------------------------------------#
+  # FGR 02/02/2012 X3SUIVI79462 (début)
+  #GFCY=GFCYDEF(5)
+  If GPILNAV > 1 Then
+    If GNAVIG(GPILNAV-1) = "GESOPP" Then
+      GFCY = [M:OPP0]SALFCY
+    Else
+      GFCY = GFCYDEF(5)
+    Endif
+  Else
+    GFCY = GFCYDEF(5)
+  Endif
+  If GFCY = "" Then
+    GFCY=GFCYDEF(5)
+  Endif
+  # FGR 02/02/2012 X3SUIVI79462 (fin)
+
+
+# Ctrl site par défaut par rapport au critère, si aucun site par défaut, charge le 1er site correspondant au critere
+Call GETFCYDEF(GFCY,"[F:FCY]SALFLG=2") From TRTX3
+Call GLOBVAR(GFCY,"VEN") From TRTX3
+Gosub CHARG_PARAM : If GERR=1 OK=0 : Return Endif
+[M:SQH0]SALFCY=GFCY
+
+# FGR 20/02/2015 : X3SUIVI104383 (début)
+If GSQHTYP <> "" Then
+  Local Integer IRET
+
+  [M:SQH0]SQHTYP = GSQHTYP
+  Call LEC_TSQ_LEG(GCURLEG, [M:SQH0]SQHTYP, IRET) From TRTLECLEG
+  Call AM_SQHTYP([M:SQH0]SQHTYP) From W1SQH0
+Endif
+# FGR 20/02/2015 : X3SUIVI104383 (fin)
+
+[M:SQH1]STOFCY=GFCYDEF(7)
+If [M:SQH1]STOFCY<>""
+   Read [FCY]FCY0=[M:SQH1]STOFCY
+   # If [F:FCY]LEGCPY <> GSOCIETE  Raz [M:SQH1]STOFCY Endif                  #Bug 120236
+   If [F:FCY]LEGCPY <> GSOCIETE and GFCYDEF(5)<>"" Raz [M:SQH1]STOFCY Endif  #Bug 120236
+Endif
+# Init.devise pr init.format saisie colonnes remise pr pouvoir ensuite afficher le tableau des lignes
+[M:SQH1]CUR=GLOCALDEV
+#----------------------------------------------------#
+# Chargement libellés et formats colonnes tarif      #
+#----------------------------------------------------#
+#If GACTMUL=2
+# Alimentation concernant les colonnes frais/remises en fonction de la structure tarif de la société
+Call ALICOLREM (1,1,GFLAG,"SQH2",[M:SQH1]CUR,1,[M:SQH0]PLISTC) From TRTPRICE
+#Else
+#    # Alimentation du format des colonnes frais/remise
+#    Call ALIFORREM (1, GFLAG, "SQH2", 0, [M:SQH1]CUR) From TRTPRICE
+#Endif
+# -----------------------------------------------------------------------#
+# Affichage entêtes colonnes variables (comptes et sections analytiques) #
+# -----------------------------------------------------------------------#
+Gosub AFF_TITCOL
+
+# TS - Nouvelle gestion de texte
+#-------------------------------
+Call RAZ_CLOB From ACLOB
+Raz [M:SQH0]SQHTEX1, [M:SQH0]SQHTEX2
+
+GCONSDIA=0
+
+Call RESET_IMAGE (4) From GESECRAN
+
+#--------------------------------#
+# Effacement des masques adresse #
+#--------------------------------#
+Raz GTARFLG
+
+Raz [M:ADB1], [M:ADB2]
+#Modif CRM 7 février 2001
+#Infos complémentaires à initialiser
+#LSE 09/01/2007
+If GPILNAV>1
+    If GNAVIG(GPILNAV-1) = "GESOPP"
+        Gosub SQHFROMOPP From SUBSQHC
+    Endif
+Endif
+[M:SQH1]QUOSTA = 1 : [M:SQH1]QUOPRN = 1
+
+# --> Gestion des signatures : Positionnement flag modif signature
+[M:SQH1]APPFLG = 1  : GUPDAPPFLG=1
+
+If [M:SQH0]BPCORD <> ""
+  # FGR 07/04/2015 : X3SUIVI107457 (début)
+  #  VALEUR = [M:SQH0]BPCORD
+  #  Call AP_BPCORD(VALEUR) From SUBSQH
+  #  Call AM_BPCORD(VALEUR) From SUBSQH
+  VALEUR = [M:SQH0]BPCORD
+  Call AP_BPCORD(VALEUR) From W1SQH0
+  Call AM_BPCORD(VALEUR) From W1SQH0
+  # FGR 07/04/2015 : X3SUIVI107457 (fin)
+Endif
+
+# GRNA 18/05/2011
+Local Char CUSSEAORI(GLONAOB) : CUSSEAORI = "SQH1"
+Gosub RAZCRE From CUSSEALIB
+
+#------------------------------------------------------------#
+# Activation/Desactivation des zones en fonction du contexte #
+#------------------------------------------------------------#
+# FGR 23/11/2011 : X3SUIVI71065 (début)
+Call PJT_MODFCY([M:SQH0]SALFCY, "[M:SQH2]DPJT") From TRTPJT
+# FGR 23/11/2011 : X3SUIVI71065 (fin)
+
+Gosub GRIZE_LIENS
+Affzo [M:SQH0]1-99
+Affzo [M:SQH1]1-99
+
+#------------------------------------------------------------#
+# Renseignement des unités de répartition                    #
+#------------------------------------------------------------#
+[M:SQH0]DSPWEU = GSALDSPWEU
+[M:SQH0]DSPVOU = GSALDSPVOU
+
+Return
+
+####################################################################
+$RAZDUP
+#-----------------------------------------------#
+# Modif CRM 07/09/2004                          #
+#-----------------------------------------------#
+Raz [M:SQH1]PREOPP
+If GMODU(13) = 2
+    #LSE 09/01/2007
+    If GPILNAV>1
+        If GNAVIG(GPILNAV-1) = "GESOPP"
+            If [M:SQH1]PJT <> ""
+                Read [OPP] OPP0 = [M:SQH1]PJT
+                If !fstat
+                    GSZSQHFROMOPPRAZCRE = [F:OPP]OPPNUM
+                Endif
+            Endif
+        Endif
+    Endif
+Endif
+
+#-----------------------------------------------#
+# Reinitialisation des champs avant duplication #
+#-----------------------------------------------#
+Local Shortint I
+Local Integer  WRET
+
+#------------------------------------------------------------------------#
+# Récupération des paramètres vente du site / de la société              #
+# Chargement globales référenciels, comptes et sections de la société    #
+#------------------------------------------------------------------------#
+GFCY = [M:SQH0]SALFCY
+#Call GETDEV(GFCY) From DEVSUB
+Call GLOBVAR(GFCY,"VEN") From TRTX3
+Gosub CHARG_PARAM : If GERR=1 OK=0 : Return Endif
+
+#-- gestion des textes                          ---#
+#--- sauvegarde des compteurs texte à dupliquer ---#
+#-- pour entete et pied                         ---#
+
+# TS - Nouvelle gestion de texte
+#-------------------------------
+Call RAZ_CLOB From ACLOB
+If left$([M:SQH0]SQHTEX1,3)="SQH"
+   Call DUP_CLOB("SQH",[M:SQH0]SQHTEX1,WRET) From TRTX3TEX
+   If WRET<1 Raz [M:SQH0]SQHTEX1 Endif
+Endif
+If left$([M:SQH0]SQHTEX2,3)="SQH"
+   Call DUP_CLOB("SQH",[M:SQH0]SQHTEX2,WRET) From TRTX3TEX
+   If WRET<1 Raz [M:SQH0]SQHTEX2 Endif
+Endif
+
+GCONSDIA=0
+
+# TS - A supprimer (nouvelle gestion de texte)
+#[M:SQH0]ANCSQHTEX1 = [M:SQH0]SQHTEX1
+#[M:SQH0]ANCSQHTEX2 = [M:SQH0]SQHTEX2
+
+Raz GTARFLG
+[M:SQH0]QUODAT=date$
+Raz [M:SQH0]SQHNUM, [M]PRFNUM
+Raz [M:SQH1]VLYDAT, [M:SQH1]PBYPRC
+Raz [M:SQH3]SOHNUM, [M:SQH3]ORDDAT
+[M:SQH1]QUOSTA = 1 : [M:SQH1]QUOPRN = 1
+
+# --> Gestion des signatures : Positionnement flag modif signature
+[M:SQH1]APPFLG = 1  : GUPDAPPFLG=1
+
+#--CPO 71065 - Code affaire à la ligne (Partie : rajout paramètre société pour contrôle documents mono-affaire)
+#--Duplication avec paramètre à OUI => si le code affaire de la ligne est <> de celui de l'en-tête, on reprend l'en-tête
+Call TRAITE_DUPLICATION("[M:SQH1]PJT") From TRTPJT
+#--/CPO
+
+For I=0 To [M:SQH2]NBLIG-1
+    Raz [M:SQH2]UPDFLG(I)
+    Raz [M:SQH2]CREFLG(I)
+    Raz [M:SQH2]ORDQTY(I)
+    Raz [M:SQH2]DSOHNUM(I), [M:SQH2]SOPLIN(I)
+
+    # TS - Nouvelle gestion de texte
+    #-------------------------------
+    If left$([M:SQH2]SQDTEX(I),3)="SQD"
+       Call DUP_CLOB("SQD",[M:SQH2]SQDTEX(I),WRET) From TRTX3TEX
+       If WRET<1 Raz [M:SQH2]SQDTEX(I) Endif
+    Endif
+
+    # TS - A supprimer (nouvelle gestion de texte)
+    #[M:SQH2]ANCSQDTEX(I) = [M:SQH2]SQDTEX(I)
+
+Next I
+
+#------------------------------------------------------------#
+# Renseignement des unités de répartition                    #
+#------------------------------------------------------------#
+[M:SQH0]DSPWEU = GSALDSPWEU
+[M:SQH0]DSPVOU = GSALDSPVOU
+
+#------------------------------------------------------------#
+# Activation/Desactivation des zones en fonction du contexte #
+#------------------------------------------------------------#
+
+Call NTSDUP([M:SQH0]BPCORD,"BPCORD") From TRTNTSCTL   # customer notes
+# Issue X3-82004 - 2018-03-12 by VAVIL : error with sequential number when duplicating a sales quote
+# --> Rechargement du code compteur
+If [F:TSQ]SOHTYP <> [M:SQH0]SQHTYP | find([F:TSQ]LEG,GCURLEG)<1
+  Local Integer WERR
+  Call LEC_TSQ_LEG(GCURLEG,[M:SQH0]SQHTYP,WERR) From TRTLECLEG
+  If WERR Raz [F:TSQ] : Call RSTA("TSQ",[M:SQH0]SQHTYP) From GLOCK : Endif
+Endif
+If [F:TSQ]CODNUM <> ""
+  GMANCOU=[F:TSQ]MANCOU : GCPT=[F:TSQ]CODNUM
+Else
+  #-- Aucun compteur associé au type de quote
+  Call LECTCA(5,WRET) From SUBTCA
+  If fstat | !WRET
+    GERR=1 : GMESSAGE=mess(58,105,1)-mess(5,14,1)-mess(250,199,1) : Return
+  Endif
+  GMANCOU=[F:TCA]MANCOU(0) : GCPT=[F:TCA]CODNUM(0)
+Endif
+# End issue X3-82004
+Gosub GRIZE_LIENS
+Affzo [M:SQH0]1-99
+Affzo [M:SQH1]5,10,15,20,25
+Affzo [M:SQH2]1-99
+Affzo [M:SQH3]5,20
+Return
+
+####################################################################
+$VERIF_CRE
+#--------------------------#
+# Verification en creation #
+#--------------------------#
+If OK=0 Return Endif : # Bug 49634 : Si positionné par le spécifique, inutile de continuer
+Gosub VERIF
+
+Return
+
+####################################################################
+$APRES_CRE
+Local Char TBPAR(10)(1..50),TBVAL(30)(1..50)
+Local Integer CLOFLG
+CLOFLG = 0
+
+# Issue 117128.s - 2016-09-28 by CATUA : Move WS calls outside database transactions (Quote Creation Header)
+If func AFNC.ACTIV("LTA") and [F:CPY]SSTTAXACT = 2 and [F:SQH]ADRVAL <> 2
+    Call CHECK_DOC_TOADR(1, RET) From TRTADRLIB
+    If RET = 0 : Gosub UPDATE_ADRVAL  : Endif
+Endif
+# Issue 117128.e
+
+#####################################################
+#Modif CRM 22/10/2003
+#Incrémentation des étapes avant-vente de l'affaire
+#LSE 07/08/2006 déplacer dans création
+#Call ADDOPPSTE("SQH", [M:SQH1]PREOPP, [M:SQH1]PJT) From SUBOPPB
+
+#-----------------------------------------------#
+# Impression devis client                       #
+#-----------------------------------------------#
+If WSLTDOCFLG = 2
+   Gosub SET_CLE From GOBJSUB
+   CLECUR = 1
+Endif
+If WSLTDOCFLG = 2 & !GIMPORT
+   If [M:SQH0]DOCNAM<>""
+      [L]REPORT1=[M:SQH0]DOCNAM
+   Elsif WSLTDOCNAM<>""
+      [L]REPORT1=WSLTDOCNAM
+   Endif
+   Call ETAT([L]REPORT1,"GESSQH",TBPAR,TBVAL) From ETAT
+Endif
+If !GIMPORT
+#  Maintenant on fait toujours un gosub RELIT
+   Gosub RELIT From GOBJSUB
+   [M:SQH0]SQHNUM = [F:SQH]SQHNUM
+Else
+   Gosub LIENS From TABLEAUX
+Endif
+#-----------------------------------------------#
+# Rechargement des indicateurs UPDFLG et CREFLG #
+#-----------------------------------------------#
+#    Gosub LIENS From TABLEAUX
+#    Gosub GRIZE_LIENS
+#    If !GIMPORT
+#        Affzo [M:SQH1]
+#        Affzo [M:SQH2]
+#    Endif
+#Endif
+
+############################################################################
+# Maj dans MAJMVC
+#Mise à jour de la fiche prospect/client     Modif CRM 10 juillet 2000
+#Call SETQUOLASDAT([M:SQH0]BPCORD,[M:SQH0]QUODAT) From SUBBPCB
+
+Return
+####################################################################
+$INICRE
+#---------------------------#
+# Chargement avant le write #
+#---------------------------#
+Local Integer I, SPSTAT
+Local Decimal COURS
+
+# Gestion des signatures
+If GAPPSQH>1
+    If [F:SQH]VLYDAT<date$ & [F:SQH]VLYDAT<>[0/0/0]
+        # --> Les conditions de la règle de workflow ne sont pas respectées : il faut initialiser le flag à non signé
+        [F:SQH]APPFLG=1
+    Else
+        # --> Les conditions de la règle de workflow sont respectées : c'est le workflow qui initialise le flag à non signé
+        [F:SQH]APPFLG=0
+    Endif
+Else
+    [F:SQH]APPFLG=4
+Endif
+
+# Récupération du compteur de devis
+If GMANCOU <> 2 | (GMANCOU=2 & vireblc([M:SQH0]SQHNUM,2)="")
+    # Issue X3-43209 by VAVIL
+    If func PORLEGLIB.SEQNUMCORRECT([F:SQH]SALFCY, GCPT) = 0
+      GOK = 0 : GERR = 1
+      Return
+    Endif
+    #Issue end
+    Call NUMERO (GCPT,[F:SQH]SALFCY,[F:SQH]QUODAT,"",GNUM,STAT) From SUBANM
+    If GOK<0 Return Endif
+    If STAT = 0
+        [F:SQH]SQHNUM  = GNUM
+        [M:SQH0]SQHNUM = GNUM
+        Affzo [M:SQH0]SQHNUM
+    Else
+       # problème lors de la récupération du compteur
+       GERR=1:GMESSAGE = mess(60,199,1) : GOK=0 : Return
+    Endif
+Endif
+
+# Alimentation cours en devise société
+Call COURSITE([M]CUR,[M]SALFCY,[M]CHGTYP,[M]QUODAT,COURS,SPSTAT) From TRTDEV
+[F:SQH]CHGRAT=COURS
+
+# chargement de l'entête
+Gosub CHARGENTETE
+
+# Tax by document
+# If func AFNC.ACTIV("LTA") & GLOCUSATAX   # 106867.o
+If func AFNC.ACTIV("LTA") & [F:CPY]SSTTAXACT = 2   # 106867.n
+  GTAXBYDOC = 1
+Endif
+
+# valorisation TTC (idem calcul facture)
+# 101874 : V9 : Taxe code control
+Gosub INIVALTTC
+If GOK=0 : Return Endif
+# 101874
+
+# Issue 75815 - 2016-04-05 by VAVIL : It should not be possible to create a sales quote with negative totals
+If func PORLEGLIB.DIGSIGN([F:SQH]SALFCY, "") & ([F:SQH]QUOINVATIL<0 | [F:SQH]QUOINVATI<0)
+  Raz [F:SQH]SQHNUM
+  Raz [M:SQH0]SQHNUM
+  Affzo [M:SQH0]SQHNUM
+  GMESSAGE = mess(216,191,1) : GOK=0 : Return
+Endif
+# End issue X3-75815
+
+Return
+# 101874 : V9 : Taxe code control
+# valorisation TTC (idem calcul facture)
+####################################################################
+$INIVALTTC
+
+Global Integer G_CLCDSPLIN : G_CLCDSPLIN=1
+# Valuation is always done in this case
+GVALTTC=2
+#---- Paramètres complementaires appel valorisation
+# PARAM_T(0) : Flag contrôle des taxes             (1=Non/2=Oui)
+# PARAM_T(1) : Lecture de la trace par le sous-pro (1=Non/2=Oui)
+# PARAM_T(2) : Flag retour                         (1=KO/2=OK)
+Local    Char     PARAM_T (25) (0..10)
+PARAM_T(0)=num$(2)      : # Contrôle des taxes lors de la création
+If GIMPORT
+    PARAM_T(1)=num$(1)  : # Import     : Pas de lecture de la trace
+Else
+    PARAM_T(1)=num$(2)  : # Interactif : Lecture de la trace
+Endif
+PARAM_T(2)=num$(0)
+Call VALTTC ("GESSQH", PARAM_T) From TRTVENFACR
+If PARAM_T(2)="1" GERR=1 : GOK=0 : Return Endif
+
+Return
+# 101874
+####################################################################
+$CREATION
+#----------------------------------------------------------------#
+# Création des enregistrements sans SVCRVAT et SVCRFOOT          #
+#----------------------------------------------------------------#
+Call UPD_VALORISATION ("C","SQH") From TRTVENFACC
+If GOK<1 Return Endif
+#---------------------------------#
+# Creation des lignes de devis    #
+#---------------------------------#
+Local Char FLGCLI(1)
+# -- Enregistrement des lignes du tableau
+Gosub CREATION From TABLEAUX
+If  GOK<1 : Return : Endif
+
+#----------------------------------------------------------------#
+# ACA - Creation des enr. analytiques des elts de facturation    #
+#----------------------------------------------------------------#
+[M:SIHV]VCRTYP=1 : [M:SIHV]NUM=[F:SQH]SQHNUM
+Gosub CREMOD_DIE_FOOT From SUBSIHV
+If GOK < 1 : Return : Endif
+
+# Remise à jour de l'état du devis
+If GHISTO=0 Gosub MAJSTASQH From SUBSQHB Endif
+#------------------------------------#
+# Mise à jour des mouvements clients #
+#------------------------------------#
+# Maj mouvement client (en devis)
+Call  MAJMVC ([F:SQH]BPCORD, [F:SQH]CUR, [F:SQH]CHGTYP, 0, [F:SQH]QUODAT, [F:SQH]SQHNUM, [F:SQH]SALFCY,
+&             [F:SQH]QUONOT, [F:SQH]QUOATI, "+", "Q", GREP, 0) From TRTBPMVT
+If GOK<1: Return: Endif
+
+#LSE 07/08/2006
+#Incrémentation des étapes avant-vente de l'affaire
+# FGR 24/11/2011 X3SUIVI71065 (début)
+#Local Integer IERRINF
+#Local Integer ICHAPTER
+#Local Integer IBRETOUR
+#IBRETOUR=1
+#Call ADDOPPSTE("SQH", [M:SQH1]PREOPP, [M:SQH1]PJT,IERRINF,ICHAPTER,IBRETOUR) From SUBOPPB
+#If IBRETOUR=0
+#    If IERRINF <> -999 and ICHAPTER <> -999 Then # FGR 30/01/2014 : X3SUIVI96289 pour traiter le cas où GMESSAGE est déjà chargé
+#      GMESSAGE = mess(IERRINF,ICHAPTER,1)
+#    Endif
+#    GERR = 1
+#    GOK = 0
+#Endif
+Call CRM_MANAGE_STEPB("SQH") From OPPOR_CSTD_PROGS_CRM   # FGR 12/08/2015 : X3SUIVI108275
+If GOK < 1 : Return : Endif
+# FGR 24/11/2011 X3SUIVI71065 (fin)
+
+# Detail local tax data
+# If func AFNC.ACTIV("LTA") & GLOCUSATAX   # 106867.o
+If func AFNC.ACTIV("LTA") & [F:CPY]SSTTAXACT = 2   # 106867.n
+  Gosub CREMOD_LTV From TRTTAXSST   # 106867.n
+  # Gosub CREMOD_LTV From TRTTAXUSA   # 106867.o
+  If GOK < 1 : Return : Endif
+Endif
+
+# -- Maj des statistiques
+Call VALSTA("SQH",1) From SUBPS2
+If GOK < 1 : Return : Endif
+# -- Maj date dernier devis dans BPCUSTOMER
+#FLGCLI = "C"
+#Gosub MAJCLI
+Return
+####################################################################
+$FILTRE
+Default File [SQH]
+Return
+####################################################################
+$REMP_DERLU
+
+#MAE, pour raz dernier lu si navigation autre que depuis client ou affaire
+If GFONC1<>"GESSQH"
+   If GPILNAV>1
+      If !find(GNAVIG(GPILNAV-1),"GESBPC","GESOPP")
+         adxmxl=0
+      Endif
+   Else
+      adxmxl=0
+   Endif
+Endif
+
+
+Return
+####################################################################
+$FILGAUCHE
+#MAE, pour raz liste gauche si navigation autre que depuis client ou affaire
+# FGR 21/01/2010 : X3SUIVI61035 : quand on vient par le portail, GFONC1=""
+If GFONC1<>"GESSQH" and GFONC1<>""
+   If GPILNAV>1
+      If !find(GNAVIG(GPILNAV-1),"GESBPC","GESOPP")
+         If ILIS=0 adxmxl=0 Endif
+      Endif
+   Elsif ILIS=0
+      adxmxl=0
+   Endif
+Endif
+
+Default File [SQH]
+Return
+####################################################################
+$LIENS
+Local Char WBPCCLE
+
+#------------------------------------------------------------------------#
+# Récupération des paramètres vente du site / de la société              #
+# Chargement globales référenciels, comptes et sections de la société    #
+# Réalimentation du cours devise dossier/devise cde                      #
+# -----------------------------------------------------------------------#
+GFCY = [F:SQH]SALFCY
+#Call GETDEV(GFCY)  From DEVSUB
+Call GLOBVAR(GFCY,"VEN") From TRTX3
+Gosub CHARG_PARAM : Raz GERR : Raz GMESSAGE
+#----------------------------------------------------#
+# Chargement libellés et formats colonnes tarif      #
+#----------------------------------------------------#
+#If GACTMUL=2
+# Alimentation concernant les colonnes frais/remises en fonction de la structure tarif de la société
+Call ALICOLREM (1,1,GFLAG,"SQH2",[M:SQH1]CUR,0,[M:SQH0]PLISTC) From TRTPRICE
+#Else
+#    # Alimentation du format des colonnes frais/remise
+#    Call ALIFORREM (1, GFLAG, "SQH2", 0, [M:SQH1]CUR) From TRTPRICE
+#Endif
+# -----------------------------------------------------------------------#
+# Chargement des sections analytiques entête du document                 #
+# Affichage entêtes colonnes variables (comptes et sections analytiques) #
+# -----------------------------------------------------------------------#
+Call CHARG_CCEH("SQH3","NBAXE","SQH") From TRTX3CPT
+Gosub AFF_TITCOL
+#------------------------------#
+# Lecture du site d'expedition #
+#------------------------------#
+If [F:FCY]FCY <> [F:SQH]STOFCY
+    Read [F:FCY]FCY0 = [F:SQH]STOFCY
+    If fstat Raz [F:FCY] : Call RSTA("FCY", [F:SQH]STOFCY) From GLOCK : Endif
+Endif
+#---------------------------------------------------------#
+# Lecture Client commande                                 #
+#---------------------------------------------------------#
+Read [F:BPC]BPC0 = [F:SQH]BPCORD
+If fstat Raz [F:BPC] : Call RSTA("BPC",[F:SQH]BPCORD) From GLOCK : Endif
+
+Gosub AFFICHE_BCK_TIERS # FGR 12/03/2014 : X3SUIVI69847
+
+# Alimentation à partir du modèle d'édition
+Call ALI_PRTMOD("SQH0",1) From TRTX3
+If [M:SQH0]COPNBR=0 [M:SQH0]COPNBR=1 Endif
+
+#----------------------------------------------------#
+# Lecture Client facture associé au Client commande  #
+#----------------------------------------------------#
+If [F:BPC]BPCINV <> ""
+    WBPCCLE = [F:BPC]BPCINV
+Else
+    WBPCCLE = [F:BPC]BPCNUM
+Endif
+If [F:BPC]BPCNUM<>WBPCCLE
+    Read [F:BPC]BPC0 = WBPCCLE
+    If fstat Raz [F:BPC] : Call RSTA("BPC",WBPCCLE) From GLOCK : [F:BPC]CUR = GLOCALDEV : Endif
+Endif
+If [F:BPR]BPRNUM<>WBPCCLE
+    Read [F:BPR]BPR0 = WBPCCLE
+    If fstat Raz [F:BPR] : Call RSTA("BPR",WBPCCLE) From GLOCK : Endif
+Endif
+Local Integer NBPOSTE
+NBPOSTE=dim([M:SQH3]INVDTA)
+Call STRUFOOT (3,"SQH3",NBPOSTE,[F:SQH]CHGTYP,[F:BPC]CUR,[F:SQH]CUR,"NON") From SUBSFIT
+[M:SQH3]NBFAC = NBPOSTE
+
+GBPCNUM = [F:SQH]BPCORD
+If [F:SQH]BPCNAM(0) <> "" [M:SQH0]BPCNAM = [F:SQH]BPCNAM(0)
+                     Else [M:SQH0]BPCNAM = [F:BPC]BPCNAM    : Endif
+#-------------------------------------------------------#
+# Lecture Client livré   : Alimentation du nom client   #
+#-------------------------------------------------------#
+If [F:SQH]BPAADD <> "" & [F:BPC]BPCTYP = 1
+# Client
+    If [F:BPD]BPCNUM <> [F:SQH]BPCORD | [F:BPD]BPAADD <> [F:SQH]BPAADD
+       Read [BPD]BPD0 = [F:SQH]BPCORD;[F:SQH]BPAADD
+       If fstat Raz [F:BPD] Endif
+    Endif
+    If [F:SQH]BPDNAM(0) <> "" [M:SQH1]BPDNAM = [F:SQH]BPDNAM(0)
+                         Else [M:SQH1]BPDNAM = [F:BPD]BPDNAM    : Endif
+Elsif [F:SQH]BPAADD <> "" & [F:BPC]BPCTYP = 4
+# Prospect
+    If [F:SQH]BPDNAM(0) <> "" [M:SQH1]BPDNAM = [F:SQH]BPDNAM(0)
+                         Else [M:SQH1]BPDNAM = [F:BPC]BPCNAM    : Endif
+Endif
+#---------------------------#
+# Alimentation des adresses #
+#---------------------------#
+Raz [M:ADB1], [M:ADB2]
+
+[M:ADB1]BPAADD       = [F:SQH]BPAORD
+[M:ADB1]ADBBPR       = [F:SQH]BPCORD
+[M:ADB1]BPRNAM(0)    = [F:SQH]BPCNAM(0)
+[M:ADB1]BPRNAM(1)    = [F:SQH]BPCNAM(1)
+[M:ADB1]BPAADDLIG(0) = [F:SQH]BPCADDLIG(0)
+[M:ADB1]BPAADDLIG(1) = [F:SQH]BPCADDLIG(1)
+[M:ADB1]BPAADDLIG(2) = [F:SQH]BPCADDLIG(2)
+[M:ADB1]POSCOD       = [F:SQH]BPCPOSCOD
+[M:ADB1]CTY          = [F:SQH]BPCCTY
+[M:ADB1]SAT          = [F:SQH]BPCSAT
+[M:ADB1]CRY          = [F:SQH]BPCCRY
+[M:ADB1]CRYNAM       = [F:SQH]BPCCRYNAM
+[M:ADB1]CNTNAM       = [F:SQH]CNCNAM
+
+If [M:ADB1]BPRNAM <> "" |  [M:ADB1]BPAADDLIG <> "" |
+&  [M:ADB1]POSCOD <> "" |  [M:ADB1]CTY <> "" |
+&  [M:ADB1]SAT    <> "" |
+&  [M:ADB1]CRY    <> "" |  [M:ADB1]CRYNAM <> ""
+    [M:ADB1]ADBFLG = 3
+Else
+    [M:ADB1]ADBFLG = 0
+Endif
+
+# Alimentation code adresse (client livré) dans [M:ADB2] pour saisie adresse libre
+If dim([M:ADB2]BPAADD) > 0
+    [M:ADB2]BPAADD   = [F:SQH]BPAADD
+Endif
+[M:ADB2]ADBBPR       = [F:SQH]BPCORD
+[M:ADB2]BPRNAM(0)    = [F:SQH]BPDNAM(0)
+[M:ADB2]BPRNAM(1)    = [F:SQH]BPDNAM(1)
+[M:ADB2]BPAADDLIG(0) = [F:SQH]BPDADDLIG(0)
+[M:ADB2]BPAADDLIG(1) = [F:SQH]BPDADDLIG(1)
+[M:ADB2]BPAADDLIG(2) = [F:SQH]BPDADDLIG(2)
+[M:ADB2]POSCOD       = [F:SQH]BPDPOSCOD
+[M:ADB2]CTY          = [F:SQH]BPDCTY
+[M:ADB2]SAT          = [F:SQH]BPDSAT
+[M:ADB2]CRY          = [F:SQH]BPDCRY
+[M:ADB2]CRYNAM       = [F:SQH]BPDCRYNAM
+[M:ADB2]CNTNAM       = [F:SQH]CNDNAM
+
+If [M:ADB2]BPRNAM <> "" |  [M:ADB2]BPAADDLIG <> "" |
+&  [M:ADB2]POSCOD <> "" |  [M:ADB2]CTY <> "" |
+&  [M:ADB2]SAT    <> "" |
+&  [M:ADB2]CRY    <> "" |  [M:ADB2]CRYNAM <> ""
+    [M:ADB2]ADBFLG = 3
+Else
+    [M:ADB2]ADBFLG = 0
+Endif
+
+If dim([M:ADB2]ADRVAL) > 0 and dim([F:SQH]ADRVAL) > 0   #LTA.sn
+    [M:ADB2]ADRVAL = [F:SQH]ADRVAL
+Endif                                                   #LTA.en
+
+# Alimentation pays client livré pour affichage et ctrl n°identification CEE
+If [M:ADB2]CRY<>""
+    [M:SQH0]EECNUMCRY=[M:ADB2]CRY
+Elsif [F:SQH]BPAADD<>""
+    If [F:BPA]BPATYP<>1 | [F:BPA]BPANUM<>[F:SQH]BPCORD | [F:BPA]BPAADD<>[F:SQH]BPAADD
+        Read [BPA]BPA0=1;[F:SQH]BPCORD;[F:SQH]BPAADD
+        If fstat Raz [F:BPA] Endif
+    Endif
+    [M:SQH0]EECNUMCRY=[F:BPA]CRY
+Else
+    If [F:BPR]BPRNUM<>WBPCCLE
+        Read [BPR] BPR0=WBPCCLE
+        If fstat Raz [F:BPR] Endif
+    Endif
+    [M:SQH0]EECNUMCRY=[F:BPR]CRY
+Endif
+
+Gosub SHOW_HIDE_ENTCOD From TRTADRLIB #LTA.n
+
+# TS - Nouvelle gestion de texte
+#-------------------------------
+If GFONC1="GESSQH" Call RAZ_CLOB From ACLOB Endif
+# Pour visu des textes si devis entièrement commandé
+If [F:SQH]QUOSTA=3
+   GCONSDIA=1
+Else
+   GCONSDIA=0
+Endif
+
+######################
+
+Raz GTARFLG
+GUPDAPPFLG=1
+
+# Chargement des lignes dans le tableau
+Gosub LIENS From TABLEAUX
+# Remise à jour de l'état du devis
+Trbegin [SQH]
+Gosub MAJSTASQH From SUBSQHB
+Commit
+#------------------------#
+# affichage icone texte  #
+#------------------------#
+If [M:SQH0]SQHTEX1 <> "" | [M:SQH0]SQHTEX2 <> ""
+    Call SET_IMAGE (4) From GESECRAN
+Else
+    Call RESET_IMAGE (4) From GESECRAN
+Endif
+
+# Gestion de l'état des zones
+Local Char    WSVGGREP(1)
+WSVGGREP = GREP : Raz GREP
+Gosub GRIZE_LIENS
+GREP = WSVGGREP
+
+# 71065 : PJT
+##--------------------------------------------#
+## Modif CRM                 6 juillet 2000
+## Lecture du libellé en clair de l'affaire
+##--------------------------------------------#
+#If [M:SQH1]PJT = ""
+#    Grizo [M:SQH1]PJTCLA
+#    [M:SQH1]PJTCLA = ""
+#Else
+#    If GMODU(13) = 2
+#        Read [OPP] OPP0 = [M:SQH1]PJT
+#        If fstat
+#            Grizo [M:SQH1]PJTCLA
+#            [M:SQH1]PJTCLA = ""
+#        Else
+#            Actzo [M:SQH1]PJTCLA
+#            [M:SQH1]PJTCLA = left$([F:OPP]OPPDES, 45)
+#        Endif
+#    Endif
+#Endif
+# 71065 : PJT
+
+#####################################################
+# Contrôle de l'incrémentation du cyle de vente des affaires   Modif CRM 22/10/2003
+#####################################################
+Call SETPREOPP("SQH") From SUBOPPB
+
+#Gbn-103562
+If dim(GWEBSERV)<0 | (dim(GWEBSERV)>0 & GWEBSERV<>1)
+  #FGR 29/10/2013 : X3SUIVI93079 - Office Integration (début)
+  #Local Integer LRET_VALUE
+  # POINT FOR JUERGEN (begin)
+  #LRET_VALUE=func AOFFDOC.OFFICE_DOC("SQH", "SQUOTE", "SQUOTE", [F:SQH]SQHNUM, isomess, GSOCIETE, GCURLEG, "")
+  # POINT FOR JUERGEN (end)
+  #FGR 29/10/2013 : X3SUIVI93079 - Office Integration (fin)
+Endif
+
+Return
+
+####################################################################
+$GRIZE_LIENS
+#------------------------------------------------------------#
+# Activation/Desactivation des zones en fonction du contexte #
+#------------------------------------------------------------#
+
+# FGR 23/11/2011 : X3SUIVI71065 (début)
+If GPJTSNGDOC = G_NON Then
+  Call PJT_MODFCY([M:SQH0]SALFCY, "[M:SQH2]DPJT") From TRTPJT
+Endif
+# FGR 23/11/2011 : X3SUIVI71065 (fin)
+
+If [M:SQH1]QUOSTA = 3
+   Diszo [M:SQH0]1-99
+   Diszo [M:SQH1]1-99
+   Diszo [M:SQH3]1-99
+   Diszo [M:SQH2]1-99
+   Actzo [M:SQH0]SQHNUM
+   Return
+Else
+   Actzo [M:SQH0]1-99
+   Actzo [M:SQH1]1-99
+   Actzo [M:SQH3]1-99
+   Actzo [M:SQH2]1-99
+Endif
+
+If GREP <> "C"
+   Diszo [M:SQH0]SALFCY
+   Diszo [M:SQH0]SQHTYP      # FGR 25/02/2015 : X3SUIVI104383
+Endif
+If !find(GREP,"C","D")
+    Diszo [M:SQH1]CUR
+Elsif GUPDCUR=1
+    Call CONTDEV([M:SQH1]CUR,[M:SQH0]QUODAT) From TRTDEV
+    If !mkstat Diszo [M:SQH1]CUR Endif
+    Raz GMESSAGE : mkstat=0
+Endif
+If !find(GREP,"C","D")
+   Diszo [M:SQH0]BPCORD
+   Diszo [M:SQH1]VACBPR
+Elsif GMANCOU <> 2
+   Diszo [M:SQH0]SQHNUM
+Endif
+If !find(GREP,"C","D") | GNOTATI=1
+    Diszo [M:SQH1]PRITYP
+Endif
+
+If GLINREP = 1
+   If dim([M:SQH2]REP1) > 0 Diszo [M:SQH2]REP1, REPRAT1 Endif
+   If dim([M:SQH2]REP2) > 0 Diszo [M:SQH2]REP2, REPRAT2 Endif
+Endif
+If GLINBPD = 1
+   Diszo [M:SQH2]DBPAADD
+Endif
+
+Diszo [M:SQH2]QUOATI          : # JL TTC
+Diszo [M:SQH3]PRFNUM
+Diszo [M:SQH3]SOHNUM
+
+If GPRIMOD=1
+    Diszo [M:SQH2]GROPRI
+    If dim([M:SQH2]DISCRGVAL1) > 0 Diszo [M:SQH2]DISCRGVAL1 Endif
+    If dim([M:SQH2]DISCRGVAL2) > 0 Diszo [M:SQH2]DISCRGVAL2 Endif
+    If dim([M:SQH2]DISCRGVAL3) > 0 Diszo [M:SQH2]DISCRGVAL3 Endif
+    If dim([M:SQH2]DISCRGVAL4) > 0 Diszo [M:SQH2]DISCRGVAL4 Endif
+    If dim([M:SQH2]DISCRGVAL5) > 0 Diszo [M:SQH2]DISCRGVAL5 Endif
+    If dim([M:SQH2]DISCRGVAL6) > 0 Diszo [M:SQH2]DISCRGVAL6 Endif
+    If dim([M:SQH2]DISCRGVAL7) > 0 Diszo [M:SQH2]DISCRGVAL7 Endif
+    If dim([M:SQH2]DISCRGVAL8) > 0 Diszo [M:SQH2]DISCRGVAL8 Endif
+    If dim([M:SQH2]DISCRGVAL9) > 0 Diszo [M:SQH2]DISCRGVAL9 Endif
+Endif
+
+If dim([M:SQH2]QUOINVATI)>0 : Diszo [M:SQH2]QUOINVATI : Endif
+
+# FGR 23/11/2011 : X3SUIVI71065 (début)
+If GPJTSNGDOC = G_OUI Then
+  Call PJT_MODFCY([M:SQH0]SALFCY, "[M:SQH2]DPJT") From TRTPJT
+Endif
+# FGR 23/11/2011 : X3SUIVI71065 (fin)
+
+# 101380
+Call SETUP_SSTFIELDS
+
+Return
+
+####################################################################
+$AVANT_MOD
+OK=1
+#-----------------------------------------#
+# Controle de modification d'un devis     #
+#-----------------------------------------#
+
+# --> devis non modifiable si transformé totalement en cde
+If  [F:SQH]QUOSTA = 3
+    GERR=1 : GMESSAGE = mess(36,192,1) : OK=0 : Return
+Endif
+# --> Gestion des signatures
+# Devis signé, modification ?
+If find([F:SQH]APPFLG, 2,3)
+   OK=2 : Call AVERTIR(mess(228,191,1)+"\"+mess(60,123,1)-"?",OK) From GESECRAN
+   If OK=1 OK=0 : Return Else OK=1 : Endif
+Endif
+
+Return
+####################################################################
+$VERIF_MOD
+#-----------------------#
+# Verification en modif #
+#-----------------------#
+If OK=0 Return Endif : # Bug 49634 : Si positionné par le spécifique, inutile de continuer
+Gosub VERIF : If OK=0 Return Endif
+
+# --> Gestion des signatures
+# Modification de champs, ajout, suppr de ligne : Annulation des signatures existantes
+If GAPPSQH>1 & find([F:SQH]APPFLG, 2,3) & (GUPDAPPFLG=2 | find (2,[M:SQH2]WUPDAPPFLG (0..[M:SQH2]NBLIG-1)))
+   OK=2 : Call AVERTIR(mess(230,191,1),OK) From GESECRAN
+   If OK=1 OK=0 : Return Else OK=1 : Endif
+Endif
+Return
+####################################################################
+$AVANT_MODFIC
+#------------------------------------------#
+# Traitement avant modification            #
+#------------------------------------------#
+Local Integer SPSTAT, WRET
+Local Decimal COURS
+
+If [M:SQH0]SQHTEX1="" & left$([F:SQH]SQHTEX1,3)="SQH"
+   Call SUP_CLOB([F:SQH]SQHTEX1,WRET) From TRTX3TEX
+Endif
+If [M:SQH0]SQHTEX2="" & left$([F:SQH]SQHTEX2,3)="SQH"
+   Call SUP_CLOB([F:SQH]SQHTEX2,WRET) From TRTX3TEX
+Endif
+#------------------------------------#
+# Mise à jour des mouvements clients #
+#------------------------------------#
+# Maj mouvement client (déduction en devis)
+Call  MAJMVC ([F:SQH]BPCORD, [F:SQH]CUR, [F:SQH]CHGTYP, 0, [F:SQH]QUODAT, [F:SQH]SQHNUM, [F:SQH]SALFCY,
+&             [F:SQH]QUONOT, [F:SQH]QUOATI, "-", "Q", GREP, 0) From TRTBPMVT
+If GOK<1: Return: Endif
+
+# Maj des statistiques
+Call VALSTA("SQH",-1) From SUBPS2
+If GOK < 1 : Return : Endif
+
+# Alimentation cours en devise société
+If [F:SQH]CUR<>[M]CUR | [F:SQH]SALFCY<>[M]SALFCY | [F:SQH]QUODAT<>[M]QUODAT
+   Call COURSITE([M]CUR,[M]SALFCY,[M]CHGTYP,[M]QUODAT,COURS,SPSTAT) From TRTDEV
+   [F:SQH]CHGRAT=COURS
+Endif
+# Si modification de la date, forcage de la modif sur les lignes
+If !find(GREP,"C","D") & [F:SQH]QUODAT <> [M:SQH0]QUODAT
+   Local Integer NLIG
+   For NLIG = 0 To [M]NBLIG-1
+      [M]UPDFLG(NLIG) = 1
+   Next NLIG
+Endif
+
+# --> Gestion des signatures
+# Positionnement indicateur "Annulé" sur les lignes de suivi de workflow
+If GAPPSQH>1 & (GUPDAPPFLG=2 | find(2,[M:SQH2]WUPDAPPFLG(0..[M:SQH2]NBLIG-1)) | [F:SQH]APPFLG=1)
+  Call ANNULE_SUIVI("SQH",mess(652,197,1),1,WRET) From TRTVENDIV
+  If GOK<1  Return : Endif
+Endif
+
+Return
+####################################################################
+$APRES_MOD
+Local Char TBPAR(10)(1..50),TBVAL(30)(1..50)
+
+# Issue 117128.s - 2016-09-28 by CATUA : Move WS calls outside database transactions (Quote Creation Header)
+If func AFNC.ACTIV("LTA") and [F:CPY]SSTTAXACT = 2 and [F:SQH]ADRVAL <> 2
+    Call CHECK_DOC_TOADR(1, RET) From TRTADRLIB
+    If RET = 0 : Gosub UPDATE_ADRVAL  : Endif
+Endif
+# Issue 117128.e
+
+#####################################################
+#Modif CRM 22/10/2003
+#Incrémentation des étapes avant-vente de l'affaire
+#LSE 07/08/2006 déplacer dans modif
+#Call ADDOPPSTE("SQH", [M:SQH1]PREOPP, [M:SQH1]PJT) From SUBOPPB
+
+#-----------------------------------------------#
+# Impression devis client                       #
+#-----------------------------------------------#
+If WSLTDOCFLG=2 & [F:SQH]QUOPRN<>2
+   Gosub SET_CLE From GOBJSUB
+   CLECUR = 1
+Endif
+If WSLTDOCFLG=2 & [F:SQH]QUOPRN<>2 & !GIMPORT
+   If [M:SQH0]DOCNAM<>""
+      [L]REPORT1=[M:SQH0]DOCNAM
+   Elsif WSLTDOCNAM<>""
+      [L]REPORT1=WSLTDOCNAM
+   Endif
+   Call ETAT([L]REPORT1,"GESSQH",TBPAR,TBVAL) From ETAT
+Endif
+
+# Maintenant, on fait toujours un gosub RELIT
+Gosub RELIT From GOBJSUB
+[M:SQH0]SQHNUM = [F:SQH]SQHNUM
+
+#-----------------------------------------------#
+# Rechargement des indicateurs UPDFLG et CREFLG #
+#-----------------------------------------------#
+#   Gosub LIENS From TABLEAUX
+#   Gosub GRIZE_LIENS
+#   Affzo [M:SQH1]
+#   Affzo [M:SQH2]
+#Endif
+
+Return
+####################################################################
+$INIMOD
+
+#-----------------------------#
+# Chargement avant le Rewrite #
+#-----------------------------#
+# --> Gestion des signatures
+If [F:SQH]QUOSTA<>3 & (GUPDAPPFLG=2 | find (2,[M:SQH2]WUPDAPPFLG (0..[M:SQH2]NBLIG-1)) | [F:SQH]APPFLG=1)
+    If GAPPSQH>1
+        If [F:SQH]VLYDAT<date$ & [F:SQH]VLYDAT<>[0/0/0]
+            # --> Les conditions de la règle de workflow ne sont pas respectées : il faut initialiser le flag à non signé
+            [F:SQH]APPFLG=1
+        Else
+            # --> Les conditions de la règle de workflow sont respectées : c'est le workflow qui initialise le flag à non signé
+            [F:SQH]APPFLG=0
+        Endif
+    Else
+        [F:SQH]APPFLG=4
+    Endif
+Endif
+
+Gosub CHARGENTETE
+
+# Gestion des signatures
+# --> Si les conditions de la règle de workflow ne sont pas respectées, il faut initialiser le flag à non signé
+If [F:SQH]APPFLG=0 & ([F:SQH]VLYDAT<date$ & [F:SQH]VLYDAT<>[0/0/0]) [F:SQH]APPFLG=1 Endif
+
+# Tax by document - before VALTTC call
+# If func AFNC.ACTIV("LTA") & GLOCUSATAX   # 106867.o
+If func AFNC.ACTIV("LTA") & [F:CPY]SSTTAXACT = 2   # 106867.n
+  GTAXBYDOC = 1
+Endif
+
+# valorisation TTC (idem calcul facture)
+# 101874 : V9 : Taxe code control
+Gosub INIVALTTC
+If GOK=0 : Return Endif
+# 101874
+
+# Issue 75815 - 2016-04-05 by VAVIL : It should not be possible to create a sales quote with negative totals
+If func PORLEGLIB.DIGSIGN([F:SQH]SALFCY, "") & ([F:SQH]QUOINVATIL<0 | [F:SQH]QUOINVATI<0)
+  GMESSAGE = mess(216,191,1) : GOK=0 : Return
+Endif
+# End issue X3-75815
+
+Return
+####################################################################
+$MODIF
+
+#----------------------------------------------------------------#
+# Modification des enregistrements sans SVCRVAT et SVCRFOOT      #
+#----------------------------------------------------------------#
+Call UPD_VALORISATION ("M","SQH") From TRTVENFACC
+If GOK<1 Return Endif
+
+#-------------------------------------#
+# Modification des lignes de commande #
+#-------------------------------------#
+Gosub MODIF From TABLEAUX
+If GOK<1:Return:Endif
+# Remise à jour de l'état du devis
+Gosub MAJSTASQH From SUBSQHB
+
+#----------------------------------------------------------------#
+# ACA - Modification des enr. analytiques des elts de facturation#
+#----------------------------------------------------------------#
+[M:SIHV]VCRTYP=1 : [M:SIHV]NUM=[F:SQH]SQHNUM
+Gosub CREMOD_DIE_FOOT From SUBSIHV
+If GOK < 1 : Return : Endif
+
+#----------------------------#
+# Maj des mouvements clients #
+#----------------------------#
+# Maj mouvement client (en devis)
+Call  MAJMVC ([F:SQH]BPCORD, [F:SQH]CUR, [F:SQH]CHGTYP, 0, [F:SQH]QUODAT, [F:SQH]SQHNUM, [F:SQH]SALFCY,
+&             [F:SQH]QUONOT, [F:SQH]QUOATI, "+", "Q", GREP, 0) From TRTBPMVT
+If GOK<1: Return: Endif
+
+#LSE 07/08/2006
+#Incrémentation des étapes avant-vente de l'affaire
+# FGR 24/11/2011 X3SUIVI71065 (début)
+#Local Integer IERRINF
+#Local Integer ICHAPTER
+#Local Integer IBRETOUR
+#IBRETOUR=1
+#Call ADDOPPSTE("SQH", [M:SQH1]PREOPP, [M:SQH1]PJT,IERRINF,ICHAPTER,IBRETOUR) From SUBOPPB
+#If IBRETOUR=0
+#    If IERRINF <> -999 and ICHAPTER <> -999 Then # FGR 30/01/2014 : X3SUIVI96289 pour traiter le cas où GMESSAGE est déjà chargé
+#      GMESSAGE = mess(IERRINF,ICHAPTER,1)
+#    Endif
+#    GERR = 1
+#    GOK = 0
+#Endif
+Call CRM_MANAGE_STEPB("SQH") From OPPOR_CSTD_PROGS_CRM   # FGR 12/08/2015 : X3SUIVI108275
+If GOK < 1 : Return : Endif
+# FGR 24/11/2011 X3SUIVI71065 (fin)
+
+# Detail local tax data
+# If func AFNC.ACTIV("LTA") & GLOCUSATAX   # 106867.o
+If func AFNC.ACTIV("LTA") & [F:CPY]SSTTAXACT = 2   # 106867.n
+  Gosub CREMOD_LTV From TRTTAXSST   # 106867.n
+  # Gosub CREMOD_LTV From TRTTAXUSA   # 106867.o
+  If GOK < 1 : Return : Endif
+Endif
+
+  # -------------------------------------------------
+  # Issue X3-8085/121537 - 2017-02-15 by FGR : BEGIN
+  Gosub PJM_OPPOR_PSO From SUBSOHA1
+  # Issue X3-8085/121537 - 2017-02-15 by FGR : END
+  # -------------------------------------------------
+
+# Maj des statistiques
+Call VALSTA("SQH",1) From SUBPS2
+If GOK < 1 : Return : Endif
+
+Return
+#########################################################################
+$APRES_MODIF
+# --> Gestion des signatures : Positionnement du flag modif signatures
+If find(COUZON,"BPAADD","PJT","VLYDAT","VACBPR","DAYLTI","PTE","DEP","INVDTAAMT")
+    GUPDAPPFLG=2
+Endif
+If find(COUZON,"DBPAADD","DDAYLTI","QTY","SAUSTUCOE","GROPRI") | instr(1,COUZON,"DISCRGVAL") | instr(1,COUZON,"VACITM")
+    [M:SQH2]WUPDAPPFLG(nolign-1)=2
+Endif
+
+Return
+####################################################################
+$VERF_ANU
+#----------------------------------------#
+# Controle de suppression d'un devis     #
+#----------------------------------------#
+
+# --> devis non supprimable si transformé totalement ou partiel. en cde
+If  [F:SQH]QUOSTA <> 1
+    GERR=1 : GMESSAGE=mess(37,192,1) : OK=0
+    Return
+Endif
+# --> Gestion des signatures
+# Devis signé : Annulation des signatures existantes, modification ?
+If find([F:SQH]APPFLG, 2,3)
+   OK=2 : Call AVERTIR(mess(228,191,1)+"\"+mess(53,123,1)-"?",OK) From GESECRAN
+   If OK=1 OK=0 : Return : Endif
+Endif
+# --> ce document est associé à une proforma
+If [F:SQH]PRFNUM <> ""
+   GERR=2 : GMESSAGE=mess(106,191,1)-[F:SQH]PRFNUM
+Endif
+
+Return
+
+###############################################################
+$ANNULE
+#------------------------------------#
+# Annulation d'un devis              #
+#------------------------------------#
+Local Char    FLGCLI  (1)
+Local Integer WRET
+
+#----------------------------------------------------------------#
+# Suppression des enregistrements sans SVCRVAT et SVCRFOOT       #
+#----------------------------------------------------------------#
+Call UPD_VALORISATION ("A","SQH") From TRTVENFACC
+If GOK<1 Return Endif
+
+#----------------------------------------------------------------#
+# ACA - Suppression des enr. analytiques des elts de facturation #
+#----------------------------------------------------------------#
+[M:SIHV]VCRTYP=1 : [M:SIHV]NUM=[F:SQH]SQHNUM
+Gosub ANU_DIE_FOOT From SUBSIHV
+If GOK < 1 : Return : Endif
+
+# TS - Nouvelle gestion de texte
+#-------------------------------
+If left$([F:SQH]SQHTEX1,3)="SQH"
+   Call SUP_CLOB([F:SQH]SQHTEX1,WRET) From TRTX3TEX
+Endif
+If left$([F:SQH]SQHTEX2,3)="SQH"
+   Call SUP_CLOB([F:SQH]SQHTEX2,WRET) From TRTX3TEX
+Endif
+
+# Suppression du document office
+Call SUPBLOB ("SQH", [F:SQH]SQHNUM, "", "") From SUBAON
+
+# --> Gestion des signatures
+#----------------------------------------------------------------#
+# Suppression des lignes                                         #
+#----------------------------------------------------------------#
+Gosub ANNULE From TABLEAUX : # Effacement des lignes
+If GOK<1 : Return : Endif
+
+#------------------------------------------------------------------------#
+# Positionnement indicateur "Annulé" sur les lignes de suivi de workflow #
+#------------------------------------------------------------------------#
+If GAPPSQH>1
+  Call ANNULE_SUIVI("SQH",mess(653,197,1),1,WRET) From TRTVENDIV
+  If GOK<1  Return : Endif
+Endif
+
+#------------------------------------#
+# Mise à jour des mouvements clients #
+#------------------------------------#
+# Maj mouvement client (en devis)
+Call  MAJMVC ([F:SQH]BPCORD, [F:SQH]CUR, [F:SQH]CHGTYP, 0, [F:SQH]QUODAT, [F:SQH]SQHNUM, [F:SQH]SALFCY,
+&             [F:SQH]QUONOT, [F:SQH]QUOATI, "-", "Q", GREP, 0) From TRTBPMVT
+If GOK<1: Return: Endif
+
+
+  # FGR 11/03/2009 : c'est pas le meilleur endroit. Si l'annule échoue on va décrémenter quand même l'affaire !
+  #                  Dans $ANNULE c'est mieux !
+  #---------------------------------------------------------------#
+  #Mise à jour du champs "Nb de devis" de la fiche Affaire.       #
+  #---------------------------------------------------------------#
+  If [M:SQH1]PJT <> "" and GMODU(13) = 2 Then
+    # --------------------------------------
+    # FGR 12/08/2015 : X3SUIVI108275 (début)
+    #    # FGR 11/03/2009 : X3SUIVI53266 Mis tout le code dans un S/P dans SUBOPPB
+    #    Local Char SZMESSAGE(250)
+    #    Local Integer IERROR
+    #
+    #    # FGR 05/05/2011 : X3SUIVI71031 (début)
+    #    #Call ANNULE_DEVIS([M:SQH1]PJT, SZMESSAGE, IERROR) From SUBOPPB
+    #    Call DELOPPSTE("SQH", [M:SQH1]PJT, [F:SQH]SQHNUM, SZMESSAGE, IERROR) From SUBOPPB
+    #    # FGR 04/02/2010 : X3SUIVI62224 test à l'envers
+    #    #If IERROR = 1 Then
+    #    If IERROR = 0 Then
+    #      GOK = 0
+    #      GMESSAGE = SZMESSAGE
+    #      Return
+    #    Endif
+    #    # FGR 05/05/2011 : X3SUIVI71031 (fin)
+    #  # FGR 05/05/2011 : X3SUIVI71031 (fin)
+    Call CRM_DEL_STEPB("SQH") From OPPOR_CSTD_PROGS_CRM
+    If GERR = 1 Then
+      Return
+    Endif
+    # FGR 12/08/2015 : X3SUIVI108275 (fin)
+    # --------------------------------------
+  Endif
+
+ # Detail local tax data
+# If func AFNC.ACTIV("LTA") & GLOCUSATAX   # 106867.o
+If func AFNC.ACTIV("LTA") & [F:CPY]SSTTAXACT = 2   # 106867.n
+  Gosub CREMOD_LTV From TRTTAXSST   # 106867.n
+  # Gosub CREMOD_LTV From TRTTAXUSA   # 106867.o
+  If GOK < 1 : Return : Endif
+Endif
+
+  # ------------------------------------------------
+  # Issue X3-7539/119856 - 2016-11-23 by FGR : BEGIN
+  If func ASYRFNC.ACTIV("PJM") Then
+    Local Instance LPJMSOLITMH Using C_PJMSOLITMH
+    Local Integer IRET
+
+    LPJMSOLITMH = NewInstance C_PJMSOLITMH AllocGroup null
+    IRET = fmet LPJMSOLITMH.DOC_DELINK("", 1, [F:SQH]SQHNUM)
+    If IRET > [V]CST_AOK Then
+      If func SYRSTACKTOOLS.MSGSTACK_GET_FIRST_UPPER_MESSAGE(LPJMSOLITMH, GMESSAGE) = [V]CST_AWARNING Then
+        GERR = 2
+      Else
+        GOK = 0
+        GERR = 1
+      Endif
+    Endif
+    FreeGroup LPJMSOLITMH
+    Raz LPJMSOLITMH
+    If IRET >= [V]CST_AERROR Then
+      Return
+    Endif
+  Endif
+  # Issue X3-7539/119856 - 2016-11-23 by FGR : END
+  # ------------------------------------------------
+
+# Maj des statistiques
+Call VALSTA("SQH",-1) From SUBPS2
+If GOK < 1 : Return : Endif
+
+# -- Maj date dernier devis dans BPCUSTOMER
+#FLGCLI = "A"
+#Gosub MAJCLI
+Return
+
+###############################################################
+$BOITE
+#If GFONC1 <> "GESSQH" and GNAVIG(GPILNAV-1) <> "GESOPP"
+#    GNBGAUCHE = 0
+#Endif
+Return
+###############################################################
+$DEFLIG
+#----------------------------------#
+# Définition du fichier des lignes #
+#----------------------------------#
+# Critère de lecture      (CRIT)   #
+# Nom du fichier          (FICLIG) #
+# Abréviation du fichier  (ABLIG)  #
+# Zone numéro de ligne    (ZONLIG) #
+#----------------------------------#
+Default Mask [SQH2]
+# FGR 24/07/2015 : X3SUIVI109796 : Optimisation (début)
+#Default File [SQD]
+#Default File [LSQD]
+If dim(SAVACT) >= 0 and find(SAVACT,"MODIF","CREATION","ANNULE") Then
+  Default File [SQD]
+Else
+  Default File [LSQD]
+Endif
+# FGR 24/07/2015 : X3SUIVI109796 : Optimisation (fin)
+
+CRIT = 'SQHNUM="'+[M:SQH0]SQHNUM+'"'
+FICLIG = "SQUOTED" : ABLIG = "SQD"
+ZONLIG = "SQDLIN"
+
+Return
+####################################################################
+$LIENS_LIG
+
+Local Shortint NOL, NLIG
+Local Char     VAT(GLONVAT)(3)
+
+NOL = nolign-1
+# Chargement de la quantité pour calcul de qté en nomenclature
+[M]CQTY(NOL) = [M]QTY(NOL)
+
+#---------------------------------------------------------#
+# Lecture article pour charger le flag mise à jour stock  #
+#---------------------------------------------------------#
+# FGR 27/07/2015 : X3SUIVI108078 : Optimisation (début)
+#If [F:ITM]ITMREF <> [F:SQD]ITMREF
+#    Read [F:ITM]ITM0 = [F:SQD]ITMREF
+#    If fstat Raz [F:ITM] : Call RSTA ("ITM",[F:SQD]ITMREF) From GLOCK Endif
+#Endif
+# FGR 27/07/2015 : X3SUIVI108078 : Optimisation (fin)
+
+[M:SQH2]STOMGTCOD(NOL) = [F:ITM]STOMGTCOD
+#---------------------------------------------------------#
+# Lecture article-vente pour chargement base calcul marge #
+#---------------------------------------------------------#
+# FGR 27/07/2015 : X3SUIVI108078 : Optimisation (début)
+#If [F:ITS]ITMREF <> [F:SQD]ITMREF
+#    Read [F:ITS]ITS0 = [F:SQD]ITMREF
+#    If   fstat Raz [F:ITS] : Call RSTA ("ITS",[F:SQD]ITMREF) From GLOCK Endif
+#Endif
+# FGR 27/07/2015 : X3SUIVI108078 : Optimisation (fin)
+# FGR 10/11/2015 : X3SUIVI108078 (début) TEST [ITS]
+If [F:ITS]ITMREF <> [F:SQD]ITMREF Then
+  Call MESSAGE(func AFNC.MES1(mess(435,192,1), [F:SQD]ITMREF)) From GESECRAN
+Endif
+# FGR 10/11/2015 : X3SUIVI108078 (fin) TEST [ITS]
+
+# Issue 117128.s - 2016-09-28 by CATUA : Move WS calls outside database transactions (Quote Creation Line)
+If func AFNC.ACTIV("LTA") and [F:CPY]SSTTAXACT = 2
+  If find(GREP,"C","M")
+    #Check from address, if different
+    If [F:SQD]STOFCY <> [F:SQH]STOFCY
+      Call CHECK_FRADR([F:SQD]STOFCY,1,WRET) From TRTADRLIB
+    Endif
+    # Check delivery address, if different
+    If [F:SQD]BPAADD <> "" and [F:SQD]BPAADD <> [F:SQH]BPAADD
+      Call CHECK_LIN_TOADR(1, [F:SQH]BPCORD, [F:SQD]BPAADD) From TRTADRLIB
+    Endif
+  Endif
+Endif
+# Issue 117128.e
+
+#---------------------------------------------#
+# Alimentation de l'écran à partir de SQUOTED #
+#---------------------------------------------#
+[M:SQH2]DSTOFCY(NOL)  = [F:SQD]STOFCY
+[M:SQH2]DDAYLTI(NOL)  = [F:SQD]DAYLTI
+[M:SQH2]DBPAADD(NOL)  = [F:SQD]BPAADD
+[M:SQH2]VAT1(NOL)     = [F:SQD]VAT(0)
+[M:SQH2]VAT2(NOL)     = [F:SQD]VAT(1)
+[M:SQH2]VAT3(NOL)     = [F:SQD]VAT(2)
+[M:SQH2]VACITM1(NOL)  = [F:SQD]VACITM(0)
+[M:SQH2]VACITM2(NOL)  = [F:SQD]VACITM(1)
+[M:SQH2]VACITM3(NOL)  = [F:SQD]VACITM(2)
+[M:SQH2]DSOHNUM(NOL)  = [F:SQD]SOHNUM
+[M:SQH2]DPJT(NOL)     = [F:SQD]PJT    : # 71065 : PJT
+[M:SQH2]WUPDAPPFLG(NOL) = 1
+If dim([M:SQH2]SSTCOD(NOL))>0 : [M:SQH2]SSTCOD(NOL)=[F:SQD]SSTCOD : Endif #101380.n
+NLIG=NOL
+
+#----- Chargement sections analytiques -----#
+Call CHARG_CCE("SQH2",NOL,"SQD",0,[F:SQD]SQHNUM,[F:SQD]SQDLIN,0,"") From TRTX3CPT
+#---------------------------------------------#
+# Calcul du montant  HT et TTC de la ligne    #
+# Calcul du mnt à liv HT et TTC de la ligne   #
+#---------------------------------------------#
+VAT (0)     =  [F:SQD]VAT(0)
+VAT (1)     =  [F:SQD]VAT(1)
+VAT (2)     =  [F:SQD]VAT(2)
+Gosub CALC_QUO From SUBSQHB
+
+Return
+####################################################################
+$INICRE_LIG
+Local Shortint NOL : NOL=nolign-1
+#--------------------------------#
+# Avant le Write de la ligne SQD #
+#--------------------------------#
+
+[F:SQD]SQHNUM = [M:SQH0]SQHNUM
+[F:SQD]BPCORD = [M:SQH0]BPCORD
+[F:SQD]SALFCY = [M:SQH0]SALFCY
+[F:SQD]QUODAT = [M:SQH0]QUODAT
+[F:SQD]ORDFLG = 1
+[F:SQD]DSPWEU = [M:SQH0]DSPWEU
+[F:SQD]DSPVOU = [M:SQH0]DSPVOU
+
+Gosub CHARGESQD
+
+# En Import, permet la maj des champs affichés et invisibles
+If GIMPORT & dim(G_TRTIMPORT)>0
+    # A ne pas effectuer pour les lignes générées automatiquement
+    If (find([M]LINTYP(NOL), 1,2,6,10) & [M]FOCFLG(NOL)<>3) Gosub ACTION From =G_TRTIMPORT : Endif
+Endif
+
+Return
+####################################################################
+$INIMOD_LIG
+Local Shortint NOL : NOL=nolign-1
+#----------------------------------#
+# Avant le Rewrite de la ligne SQD #
+#----------------------------------#
+[F:SQD]QUODAT    =  [M:SQH0]QUODAT
+Gosub CHARGESQD
+
+# En Import, permet la maj des champs affichés et invisibles
+If GIMPORT & dim(G_TRTIMPORT)>0
+    # A ne pas effectuer pour les lignes générées automatiquement
+    If (find([M]LINTYP(NOL), 1,2,6,10) & [M]FOCFLG(NOL)<>3) Gosub ACTION From =G_TRTIMPORT : Endif
+Endif
+
+Return
+
+####################################################################
+$VALLIG
+#----------------------------------------------------------------#
+# En création     : TRTLIG = "C" et SIGN = +1 (après le write)   #
+# En modification : TRTLIG = "M" et SIGN = -1 (avant le rewrite) #
+#                                   SIGN = +1 (après le rewrite) #
+# En annulation   : TRTLIG = "A" et SIGN = -1 (avant le delete)  #
+#----------------------------------------------------------------#
+Local Integer NOL : NOL=nolign-1
+Local Integer I, WRET
+
+# --> Annulation
+If    SIGN = -1 & TRTLIG = "A"
+    If left$([F:SQD]SQDTEX,3)="SQD"
+       Call SUP_CLOB([F:SQD]SQDTEX,WRET) From TRTX3TEX
+    Endif
+    #----- Suppression comptes et sections de la ligne de devis -----#
+    Call ENREG_ACCCCE(0,"","","","SQD",0,[F:SQD]SQHNUM,[F:SQD]SQDLIN,0,"","A") From TRTX3CPT
+    If GOK<1  Return : Endif
+    #-----
+# --> Modification
+Elsif SIGN = -1 & TRTLIG = "M"
+    If [M:SQH2]SQDTEX(NOL)="" & left$([F:SQD]SQDTEX,3)="SQD"
+       Call SUP_CLOB([F:SQD]SQDTEX,WRET) From TRTX3TEX
+    Endif
+# --> Création et Modification
+Elsif SIGN = +1
+    #----- Ecriture des sections de la ligne de devis -----#
+    Call ENREG_ACCCCE(nolign-1,"","","[M:SQH2]CCE","SQD",
+&                     0,[F:SQD]SQHNUM,[F:SQD]SQDLIN,0,"",TRTLIG) From TRTX3CPT
+    If GOK<1  Return : Endif
+    #-----
+Endif
+If GOK < 1 Return : Endif
+
+  # -------------------------------------------------
+  # Issue X3-8085/121537 - 2017-02-15 by FGR : BEGIN
+  If func ASYRFNC.ACTIV("PJM") Then
+    Local Integer IPJMRET
+
+    If GREP = "M" and TRTLIG = "A" and SIGN = -1 Then
+      # Only for deleted lines.
+      If dim(ZPJMPSO) < 0 Then
+        Local Instance ZPJMPSO Using C_TECPSO
+      Endif
+      If ZPJMPSO = null Then
+        ZPJMPSO = NewInstance C_TECPSO AllocGroup null
+      Endif
+      IPJMRET = fmet ZPJMPSO.PSO_ADD_LINE("SQH", [M:SQH0]SQHNUM, [F:SQD]SQDPSONUM, [F:SQD]SQDSEQNUM)
+      If IPJMRET >= [V]CST_AERROR Then
+        # TODO FLORENT ICI prevoir gestion erreur
+      Endif
+    Endif
+  Endif
+  # Issue X3-8085/121537 - 2017-02-15 by FGR : END
+  # -------------------------------------------------
+
+If GREP="D" & TRTLIG="C" & [M]FOCFLG(NOL)=2
+   # Dupplication d'une ligne à l'origine d'une gratuit
+   # Maj du nouveau de ligne sur le gratuit
+   I=find ([M]SQDLIN(NOL), [M]ORILIN(0..[M]NBLIG-1))
+   If I <> 0 [M]ORILIN(I-1)= [F:SQD]SQDLIN : Endif
+Endif
+
+# Maj des statistiques
+Call VALSTA("SQD",SIGN) From SUBPS2
+If GOK < 1 : Return : Endif
+Return
+
+####################################################################
+$VERIF
+Local Shortint RES
+Local Integer RET
+#---------------#
+# Verifications #
+#---------------#
+If GREP="D"
+# --> Ctrl particulier en dupli. pour l'euro : vérifier que ce n'est pas une devise "in"
+    Call CONTDEV([M:SQH1]CUR,[M:SQH0]QUODAT) From TRTDEV
+    If mkstat GERR=1 : GMESSAGE : OK=0 : Return : Endif
+# --> Ctrl particulier en dupli. : Ctrl client commande inactif
+#     Car le client est non modifiable en dupli. : Pas de passage en action ctrl bpcord
+    If [F:BPC]BPCNUM<>[M:SQH0]BPCORD
+       Read [BPC]BPC0 = [M:SQH0]BPCORD
+       If fstat Raz [F:BPC] : Endif
+    Endif
+    If [F:BPC]BPCSTA <> 2
+        GERR=1 : GMESSAGE = mess(194,192,1)
+        OK=0 : Return
+    Endif
+
+    # Vérification que les articles sont actifs
+    For I=0 To [M:SQH2]NBLIG-1
+       Read [ITM]ITM0=[M:SQH2]ITMREF(I)
+       If [F:ITM]ITMSTA = 6
+          GERR=1 : GMESSAGE = [M:SQH2]ITMREF(I)-":"-mess(3,196,1)+" ("+mess([F:ITM]ITMSTA,246,1)+")"
+          OK=0 : Break
+       Endif
+       # 89275 : Duplication cde et ctrl des prix
+       If GDACLOK=1
+           GNETMAR=1
+           Call CTLNETPRI([M:SQH0]BPCORD, [M]CHGTYP, [M]QUODAT, [M:SQH0]CUR,I) From TRTVENPRI
+           If mkstat=2 OK=0 : Break Endif
+           Call CTLPFM([M:SQH0]CUR,[M:SQH2]CPRPRI(I), I) From TRTVENPRI
+           If mkstat=2 OK=0 : Break Endif
+       Endif
+       # 89275
+    Next I
+    GNETMAR=0 : # 89275
+    If OK=0 Return Endif
+
+Endif
+If [M:SQH0]SALFCY<>[M:SQH1]STOFCY
+   Read [FCY]FCY0=[M:SQH1]STOFCY
+   If fstat | [F:FCY]LEGCPY<>GSOCIETE
+      GERR=1 : GMESSAGE=mess(2,194,1)
+      OK=0   : Return
+   Endif
+Endif
+# VPO 07/12/10 68435 verifier valeur Condition de paiement, Code escompte, Regime de taxe
+# VPO 01/03/11 71999 ameliorer message d'erreur
+mkstat = 0 :#--CPO 71937 TABDEPAGIO
+If [M:SQH1]VACBPR<>""
+    #mkstat=0 :#--CPO 71937 TABDEPAGIO
+    # 71937 : Multilégislation
+    #Call CONTADI([M:SQH1]VACBPR,"1","") From SUBADI
+    #If mkstat : GERR=1 : OK=0 : GMESSAGE=mess(32,126,1)-'"'+func AFNC.INTCLE("AMZ","SQH1~VACBPR")+'"\'+GMESSAGE : Return : Endif
+    #Call CONTROLE("ADI","",[M:SQH1]VACBPR,"1",RES) From CONTOBJ
+    #If RES : GERR=1 : OK=0 : GMESSAGE=mess(32,126,1)-'"'+func AFNC.INTCLE("AMZ","SQH1~VACBPR")+'"\'+GMESSAGE : Return : Endif
+    Call CONTTVB([M:SQH1]VACBPR,GCURLEG,"SQH1","VACBPR",[M:SQH0]SALFCY,"","") From SUBTVB
+    If mkstat : GERR=1 : OK=0 : GMESSAGE=mess(32,126,1)-'"'+func AFNC.INTCLE("AMZ","SQH1~VACBPR")+'"\'+GMESSAGE : Return : Endif
+    # 71937 : Multilégislation
+Endif
+If [M:SQH3]PTE<>""
+    #Call CONTROLE("TPT","",[M:SQH3]PTE,"",RES) From CONTOBJ
+    #If RES : GERR=1 : OK=0 : GMESSAGE=mess(32,126,1)-'"'+func AFNC.INTCLE("AMZ","SQH3~PTE")+'"\'+GMESSAGE : Return : Endif
+    #-- X3Suivi 71937 : Données par législation pour le Conditions de paiement
+    #--CPO 71937 01/08/2013 Suite dev review
+    Call CONTTPT([M:SQH3]PTE,GCURLEG,'','',[M:SQH0]SALFCY,'','') From SUBTPT
+    If mkstat : GERR=1 : OK=0 : GMESSAGE=mess(32,126,1)-'"'+func AFNC.INTCLE("AMZ","SQH3~PTE")+'"\'+GMESSAGE : Return : Endif
+    # FGR 22/07/2013 : X3SUIVI87923 (début)
+    Call CTRL_PTE_SEPA_BPC_SDD([M:SQH3]PTE, GSOCIETE, [M:SQH0]BPCORD) From TRTVENSDD
+    If mkstat Then
+      GERR = 1
+      OK = 0
+      GMESSAGE = mess(32,126,1)-'"'+func AFNC.INTCLE("AMZ","SQH3~PTE")+'"\'+GMESSAGE
+      Return
+    Endif
+    # FGR 22/07/2013 : X3SUIVI87923 (fin)
+Endif
+If [M:SQH3]DEP<>""
+#--CPO 71937 TABDEPAGIO
+    #Call CONTROLE("TDA","!",[M:SQH3]DEP,"",RES) From CONTOBJ
+    #If RES : GERR=1 : OK=0 : GMESSAGE=mess(32,126,1)-'"'+func AFNC.INTCLE("AMZ","SQH3~DEP")+'"\'+GMESSAGE : Return : Endif
+    Call CONTTDA([M:SQH3]DEP,GCURLEG,"SQH3","DEP",[M:SQH0]SALFCY,"","") From SUBTDA
+    If mkstat : GERR=1 : OK=0 : GMESSAGE=mess(32,126,1)-'"'+func AFNC.INTCLE("AMZ","SQH3~DEP")+'"\'+GMESSAGE : Return : Endif
+    #--/CPO
+Endif
+
+# FGR 09/08/2018 : X3SUIVI117717 (début)
+If dim(GWEBSERV)=1 & GWEBSERV=1
+#  Etiquette de création d'une nomenclature en mode Web Service
+   Gosub TRTCRENOM_ADAPI From TRTVENBOM
+Endif
+# FGR 09/08/2018 : X3SUIVI117717 (fin)
+
+#--> Vérification que tous les axes entête ont bien été saisis (s'ils sont saisissables)
+If GHEADIE = 1 : # Axes entêtes saisissables (Initialisé par GETCPY)
+   If dim([M]NBAXE)>0
+      For nolign = 1 To GNBDIE
+          If [M]CCE(nolign-1)="" & GOBLDIE(nolign)=2
+             GERR=1 : GMESSAGE = mess(177,199,1) : OK = 0 : Break
+          Endif
+      Next nolign
+   Endif
+   If OK = 0 Return Endif
+Endif
+
+# Issue X3-44998 - 2017-07-27 by CPO : Duplicated sale documents: analytical dimension not controlled (idem X3SUIVI93839)
+#--This control has to be done also during Creation/Update of a document (moved outside GREP="D")
+Gosub VERIF_CTL_ALLCCE From SUBSQHA
+If OK=0 : Return : Endif
+# End issue X3-44998
+
+OK = 1
+# --> Traitement des groupés si au moins une ligne a été modifié
+If [M:SQH2]NBLIG <> 0 & (sum([M:SQH2]UPDFLG) <> 0 | [M:SQH2]NBLIG <> [F:SQH]LINNBR)
+   # --> tarif groupé uniquement aucune une ligne n'est transformée en commande
+   If [M]QUOSTA = 1
+       OK=1
+       If GGRPPRI = 3 & !GIMPORT
+           Call OUINON(mess(61,196,1), OK) From GESECRAN
+       Endif
+       If GGRPPRI = 2 | OK = 2
+          Call RECH_GROUPE("SQH") From TRTVENTAR
+          Gosub RECALC_GROUPE From SUBSQHB
+# Optimisation 15/10/02
+#          Affzo [M:SQH1]1-99
+#          Affzo [M:SQH2]1-99
+       Endif
+    Endif
+Endif
+# --> Il doit y avoir au moins une ligne
+#     Test fait après la rech. groupé si elle a supprimé des gratuits et nblig devient = à 0
+If   [M:SQH2]NBLIG = 0
+     GERR=1 : GMESSAGE = mess(61,199,1)
+     OK=0
+     Return
+Endif
+
+# FGR 02/12/2011 : X3SUIVI71065 (début)
+Call PJT_CONTROLE_HEAD_DETAIL("[M:SQH1]PJT", "[M:SQH2]DPJT") From TRTPJT
+If GERR <> 0 Then
+  OK = 0
+  Return
+Endif
+# FGR 02/12/2011 : X3SUIVI71065 (fin)
+
+#   ------------------------------------------------------------- #
+#   Spécificité USA : Branchement du sous-pro de calcul des taxes #
+#   ------------------------------------------------------------- #
+#Call LECKUACT("KUA",RET) From TRTX3
+# If GLOCUSATAX   # 106867.o
+If func AFNC.ACTIV("LTA") & [F:CPY]SSTTAXACT = 2   # 106867.n
+    Local Integer WTRA : WTRA=0
+    If GTRACE="" Call OUVRE_TRACE(mess(322,197,1)) From LECFIC : WTRA=1 Endif
+    Call CLCTAXEUSA("SQH2", "2") From TRTTAXSST   # 106867.n
+    # Call CLCTAXEUSA("SQH2", "2") From TRTTAXUSA   # 106867.o
+    Call FERME_TRACE From LECFIC
+    If GMESSAGE <> "" & !GIMPORT
+        Call OUINON(mess(322,197,1)-"\"-GMESSAGE+"\"+mess(88,191,1), RET) From GESECRAN
+        If RET=2 Call LEC_TRACE From LECFIC : Endif
+        Raz GMESSAGE
+    Endif
+    If !WTRA Call OUVRE_TRACE("") From LECFIC Endif
+    Affzo [M:SQH2]5,10,15
+Endif
+#LTA.sn
+# If func AFNC.ACTIV("LTA") and GLOCUSATAX and func TRTADRLIB.CHKADR_MANDATORY()   # 106867.o
+If func AFNC.ACTIV("LTA") and [F:CPY]SSTTAXACT = 2 and func TRTADRLIB.CHKADR_MANDATORY()   # 106867.n
+  Gosub CHKADR_QUOTE From TRTADRLIB
+  If GERR <> 0 Then
+    OK = 0
+    Return
+  Endif
+Endif
+#LTA.en
+Return
+
+####################################################################
+$CHARGENTETE
+
+#--------------------------------------------------#
+# Chargement de l'entete avant le Write ou Rewrite #
+#--------------------------------------------------#
+Local Integer I, WRET
+
+If dim([F:SQH]CPY)>0 : [F:SQH]CPY=GSOCIETE : Endif
+
+# Alimentation des types de frais/remises et des no éléments de facturation
+For I = 1 To dim([F:SQH]DISCRGTYP)
+    [F:SQH]DISCRGTYP (I-1) = GDISCRGTYP (I-1)
+    [F:SQH]INVDTALIN (I-1) = GINVDTALIN (I-1)
+Next I
+
+# ALimentation du nbre de lignes
+[F:SQH]LINNBR       = [M:SQH2]NBLIG
+
+# Alimentation des totaux
+[F:SQH]QUONOT       = [M:SQH2]QUONOT
+[F:SQH]QUOATI       = [M:SQH2]QUOATI
+[F:SQH]PFMTOT       = [M:SQH2]PFMTOT
+
+# Alimentation de l'adresse commande
+[F:SQH]CNCNAM = [M:ADB1]CNTNAM
+#If find([M:ADB1]ADBFLG,0,1) Call CHARGE_ADRMSK("ADB1", [F:SQH]BPCORD) From TRTVENDIV : Endif            : # Bug 67868
+If GACTSAD=2 & find([M:ADB1]ADBFLG,0,1) Call CHARGE_ADRMSK("ADB1", [F:SQH]BPCORD) From TRTVENDIV : Endif : # Bug 67868
+Gosub CHARGE_ADRBPC From SUBSQHB
+# Alimentation de l'adresse livraison
+If [F:SQH]BPAADD<>""
+    [F:SQH]CNDNAM = [M:ADB2]CNTNAM
+    If find([M:ADB2]ADBFLG,0,1) Call CHARGE_ADRMSK("ADB2", [F:SQH]BPCORD) From TRTVENDIV : Endif
+    Gosub CHARGE_ADRBPD From SUBSQHB
+Endif
+
+# Issue 117128.s - 2016-09-28 by CATUA : Move WS calls outside database transactions (Comment out - Quote Creation Header)
+#If func AFNC.ACTIV("LTA") and [F:CPY]SSTTAXACT = 2 and [F:SQH]ADRVAL <> 2
+#    Call CHECK_DOC_TOADR(1, RET) From TRTADRLIB
+#    If RET = 0 : [F:SQH]ADRVAL = 2  : Endif
+#Endif
+# Issue 117128.e
+
+# TS - Nouvelle gestion de texte
+#-------------------------------
+If [M:SQH0]SQHTEX1<>""
+   If left$([M:SQH0]SQHTEX1,3)="SQH"
+      Call CRE_CLOB([M:SQH0]SQHTEX1,GOK) From TRTX3TEX
+      If GOK<1 Return Endif
+   Elsif left$([M:SQH0]SQHTEX1,3)<>"BPC"
+      Call DUP_CLOB("SQH",[M:SQH0]SQHTEX1,GOK) From TRTX3TEX
+      If GOK<1 Return Endif
+   Endif
+   [F:SQH]SQHTEX1 = [M:SQH0]SQHTEX1
+Endif
+If [M:SQH0]SQHTEX2<>""
+   If left$([M:SQH0]SQHTEX2,3)="SQH"
+      Call CRE_CLOB([M:SQH0]SQHTEX2,GOK) From TRTX3TEX
+      If GOK<1 Return Endif
+   Elsif left$([M:SQH0]SQHTEX2,3)<>"BPC"
+      Call DUP_CLOB("SQH",[M:SQH0]SQHTEX2,GOK) From TRTX3TEX
+      If GOK<1 Return Endif
+   Endif
+   [F:SQH]SQHTEX2 = [M:SQH0]SQHTEX2
+Endif
+
+# Alimentation des montants en devise société
+Call COURMNT([F:SQH]CUR,GLOCALDEV,GLOCALDEV,[F:SQH]CHGTYP,[F:SQH]QUODAT,1,
+&            [F:SQH]QUONOT,[F:SQH]QUONOTL,[F:SQH]CHGRAT,WRET) From TRTDEV
+Call COURMNT([F:SQH]CUR,GLOCALDEV,GLOCALDEV,[F:SQH]CHGTYP,[F:SQH]QUODAT,1,
+&            [F:SQH]QUOATI,[F:SQH]QUOATIL,[F:SQH]CHGRAT,WRET) From TRTDEV
+Call COURMNT([F:SQH]CUR,GLOCALDEV,GLOCALDEV,[F:SQH]CHGTYP,[F:SQH]QUODAT,1,
+&            [F:SQH]QUOINVNOT,[F:SQH]QUOINVNOTL,[F:SQH]CHGRAT,WRET) From TRTDEV
+Call COURMNT([F:SQH]CUR,GLOCALDEV,GLOCALDEV,[F:SQH]CHGTYP,[F:SQH]QUODAT,1,
+&            [F:SQH]QUOINVATI,[F:SQH]QUOINVATIL,[F:SQH]CHGRAT,WRET) From TRTDEV
+Return
+####################################################################
+$CHARGESQD
+Local Integer WRET
+
+If dim([F:SQD]CPY)>0 : [F:SQD]CPY=GSOCIETE : Endif
+
+[F:SQD]BPAADD    =  [M:SQH2]DBPAADD(NOL)
+[F:SQD]DAYLTI    =  [M:SQH2]DDAYLTI(NOL)
+[F:SQD]STOFCY    =  [M:SQH2]DSTOFCY(NOL)
+[F:SQD]VACITM(0) =  [M:SQH2]VACITM1(NOL)
+[F:SQD]VACITM(1) =  [M:SQH2]VACITM2(NOL)
+[F:SQD]VACITM(2) =  [M:SQH2]VACITM3(NOL)
+[F:SQD]VAT(0)    =  [M:SQH2]VAT1(NOL)
+[F:SQD]VAT(1)    =  [M:SQH2]VAT2(NOL)
+[F:SQD]VAT(2)    =  [M:SQH2]VAT3(NOL)
+[F:SQD]PJT       =  [M:SQH2]DPJT(NOL)   : # 71065 : PJT
+If dim([M:SQH2]SSTCOD(NOL))>0 : [F:SQD]SSTCOD=[M:SQH2]SSTCOD(NOL) : Endif  # 101380.n
+
+# TS - Nouvelle gestion de texte
+#-------------------------------
+If [M:SQH2]SQDTEX(NOL)<>""
+   If left$([M:SQH2]SQDTEX(NOL),3)="SQD"
+      Call CRE_CLOB([M:SQH2]SQDTEX(NOL),GOK) From TRTX3TEX
+      If GOK<1 Return Endif
+   Elsif !find(left$([M:SQH2]SQDTEX(NOL),3),"ITU","ITS")
+      Call DUP_CLOB("SQD",[M:SQH2]SQDTEX(NOL),GOK) From TRTX3TEX
+      If GOK<1 Return Endif
+   Endif
+   [F:SQD]SQDTEX = [M:SQH2]SQDTEX(NOL)
+Endif
+
+# Issue 117128.s - 2016-09-28 by CATUA : Move WS calls outside database transactions (Comment out - Quote Creation Line)
+#If func AFNC.ACTIV("LTA") and [F:CPY]SSTTAXACT = 2
+#  #Check from address, if different
+#  If [F:SQD]STOFCY <> [F:SQH]STOFCY
+#    Call CHECK_FRADR([F:SQD]STOFCY,1,WRET) From TRTADRLIB
+#  Endif
+#  # Check delivery address, if different
+#  If [F:SQD]BPAADD <> "" and [F:SQD]BPAADD <> [F:SQH]BPAADD
+#    Call CHECK_LIN_TOADR(1, [F:SQH]BPCORD, [F:SQD]BPAADD) From TRTADRLIB
+#  Endif
+#Endif
+# Issue 117128.e
+
+# --- Stockage a la ligne des elt de facturation
+Call UPD_DSPLIN("SQD",NOL) From TRTVENFACC
+
+Return
+
+########################################################
+$FIN_ACTION
+# Pour forcer un réaffichage du devis
+If REPONSE=GSTALIT-1024 Gosub RELIT From GOBJSUB Endif
+Return
+
+###############################################################################################
+$AVANT_CHOI
+  #LSE 23/06/2006 Permet de rentrer directement en création de devis
+  If GMODU(13)=2
+    If GBCRMFLGNEW=1
+      REPONSE=GSTANEW
+      Gosub NOUVEAU From GOBJSUB
+      Gosub SETBOUT From GOBJSUB
+      GBCRMFLGNEW=0
+    Endif
+  Endif
+
+  #MAE, écran des devis en création et alimenté par le client et le site via les navigations
+  If GCREFONC=1
+    Local Char VALEUR
+    REPONSE=GSTANEW
+    Gosub NOUVEAU From GOBJSUB
+    Gosub SETBOUT From GOBJSUB
+    # FGR 18/02/2014 : X3SUIVI96940 ne pas faire le diszo : ça désactive les actions sur champ (contrôle, AM...)
+    #Diszo [M:SQH0]BPCORD
+    # FGR 18/02/2014 : X3SUIVI96940 empêche l'exécution du AM_BPCORD
+    #GCREFONC = 0
+    GCREFONC = 2
+  Endif
+Return
+
+##########################################################################################################
+#--------------------------------------------------------------------------#
+# Chargement des paramètres avec GFCY = Site du devis                      #
+# ------------------------------------------------------------------------ #
+# Chargement des globales référenciels, comptes et sections de la société  #
+# Chargement des paramètres de localisation                                #
+# ------------------------------------------------------------------------ #
+$CHARG_PARAM
+Local  Char     PARAM2(10)
+
+# --- Chargement des globales référenciels, comptes et sections de la société
+Call GETCPY(GFCY,"SLT",1,GFLAG) From TRTX3CPT
+# 106867.sn
+If func AFNC.ACTIV("LTA")
+  Gosub GET_CPY_SSTTAXACT From TRTTAXSST
+Endif
+# 106867.en
+# --- Si changement société -----#
+If GSOC_UPDFLG
+    # --- Chargement des paramètres de localisation
+    # --- Utilisation systeme de taxe
+    # If func AFNC.ACTIV("KUS") 106867.so
+    #    Call PARAM(GFCY,"USATAX",PARAM2) From ADOVAL
+    #    GLOCUSATAX=val(PARAM2)
+    #    If GLOCUSATAX>0  GLOCUSATAX-=1 : Endif
+    # Else
+    #  Raz GLOCUSATAX
+    # Endif 106867.eo
+    # --- Récupération du code compteur
+    If dim(OK)<1  Local Integer OK : Endif
+    Call LECTCA(5,OK) From SUBTCA
+    If fstat | !OK
+        GERR=1 : GMESSAGE=mess(58,105,1)-mess(5,14,1)-mess(250,199,1) : Return
+    Endif
+    GMANCOU=[F:TCA]MANCOU(0) : GCPT=[F:TCA]CODNUM(0)
+
+    # FGR 28/11/2011 : X3SUIVI71065
+    GPJTSNGDOC = func TRTPJT.GET_PARAM_PJTSNGDOC(GFCY)
+Endif
+#--- Prix / Montant HT/TTC                    : # 82808 : Modification champ PRITYP
+Call PARAML(GFCY,"NOTATI",PARAM2) From ADOVAL : # 82808
+GNOTATI = val(PARAM2)                         : # 82808
+
+  # FGR 26/07/2013 : X3SUIVI87923 (début)
+  If func AFNC.ACTIV("SDD") Then
+    Call PARAML(GFCY, "SDDMGT", PARAM2) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+    GSDDMGT = val(PARAM2)
+    If GSDDMGT <> 1 and GSDDMGT <> 2 Then
+      GSDDMGT = 1
+    Endif
+  Endif
+  # FGR 26/07/2013 : X3SUIVI87923 (fin)
+  # FGR 20/02/2015 : X3SUIVI104383 (début)
+  Call PARAMUTIL("SQHTYP", PARAM2, GUSER, GFCY) From SUBAUS
+  GSQHTYP = PARAM2
+  # FGR 20/02/2015 : X3SUIVI104383 (fin)
+Return
+##########################################################################################################
+#------------------------------------------------------------------------#
+# Affichage entêtes colonnes variables (comptes et sections analytiques) #
+#------------------------------------------------------------------------#
+$AFF_TITCOL
+If GSOC_UPDFLG & !GIMPORT & dim([M:SQH2]CCE1)>0
+  Local Char BASPAG(10)
+  BASPAG="NBLIG" : Gosub TIT_COL From ="W1WK1"+GFLAG+"2"
+  #----- Pour forcer l'utilisation des formats évalués si tableau vide -----#
+  # Affzo nécessaire si sections invisibles pour faire disparaitre les colonnes
+  If [M:SQH2]NBLIG=0
+    [M:SQH2]NBLIG=1 : Affzo [SQH2]5 : Effzo [SQH2]5
+  Endif
+  #-----
+Endif
+Raz GSOC_UPDFLG
+Return
+
+####################################################################
+$AFFICHE_BCK_TIERS
+  # FGR 12/03/2014 : X3SUIVI69847
+  If [F:BPC]BPCTYP = 4 Then
+    Chgtzn [M:SQH0]BPCORD With mess(240,196,1)
+  Else
+    Chgtzn [M:SQH0]BPCORD With mess(1,277,1)
+  Endif
+Return
+
+# Issue 117128.s - 2016-10-05 by CATUA : Move WS calls outside database transactions (Quote Creation Header)
+####################################################################
+$UPDATE_ADRVAL
+  Local Char    SQHNUM(20) : SQHNUM = [F:SQH]SQHNUM
+  If clalev([F:SQH5])=0 : Local File SQUOTE [SQH5] : Endif
+
+  Trbegin [SQH5]
+
+  Update [SQH5] Where SQHNUM = [L]SQHNUM With ADRVAL = 2
+
+  If fstat
+    Rollback
+  Else
+    Commit
+  Endif
+
+  Close Local File [SQH5]
+Return
+# Issue 117128.e
+
+#########################################################################
+# 101380 - Setup SST Override related fields
+#########################################################################
+Subprog SETUP_SSTFIELDS
+
+# If GLOCUSATAX   # 106867.o
+If func AFNC.ACTIV("LTA") & [F:CPY]SSTTAXACT = 2   # 106867.n
+  Grizo [M:SQH2]VACITM1,VACITM2,VACITM3
+  If dim([M:SQH2]SSTCOD)>0 :
+    Chgfmt [M:SQH2]SSTCOD     With "K:"   + num$(type([M:SQH2]SSTCOD)-10)     + "B"     # Show enterable
+    Chgfmt [M:SQH3]SFISSTCOD  With "K:"   + num$(type([M:SQH3]SFISSTCOD)-10)  + "B"     # Show enterable
+    Actzo [M:SQH2]SSTCOD
+  Endif
+Else
+  Actzo [M:SQH2]VACITM1,VACITM2,VACITM3
+  If dim([M:SQH2]SSTCOD)>0
+    Chgfmt [M:SQH2]SSTCOD     With "-K:"  + num$(type([M:SQH2]SSTCOD)-10)     + "B"     # Hide
+    Chgfmt [M:SQH3]SFISSTCOD  With "-K:"  + num$(type([M:SQH3]SFISSTCOD)-10)  + "B"     # Hide
+  Endif
+Endif
+
+End
+####################################################################
+# Issue X3-44998 - 2017-07-27 by CPO : Duplicated sale documents: analytical dimension not controlled (idem X3SUIVI93839)
+$VERIF_CTL_ALLCCE
+Local Integer NE
+Local Char SAXECTRL(GLONCCE)
+
+  If dim([M:SQH3]CCE)>0
+    # -------------------------------------
+    For I = 0 To [M:SQH3]NBAXE-1
+      If [M:SQH3]CCE(I) <> "" Then
+        nolign = I + 1
+        Call C_CCE([M:SQH3]CCE(I)) From W1SQH3
+        If mkstat Then
+          OK = 0
+          Break
+        Endif
+      Endif
+    Next
+    If OK = 0 Then
+      Return
+    Endif
+  Endif
+
+  For I=0 To [M:SQH2]NBLIG-1
+    For NE = 1 To 20
+      If evalue("type([M:SQH2]CCE" + num$(NE) + "(I)) >= 0") Then
+        SAXECTRL = evalue("[M:SQH2]CCE" + num$(NE) + "(I)")
+        If SAXECTRL <> "" Then
+          nolign = I + 1
+          #--for the ENAFLG flag
+          Call CONTSEL("CCE","!",SAXECTRL,num$(GDIE(NE)),mkstat) From CONTOBJ
+          If !mkstat
+            Call CTRL_CCE(SAXECTRL, NE, "", GFINRSP, [M:SQH0]QUODAT) From TRTX3CPT
+          Endif
+          If mkstat Then
+            OK = 0
+            GMESSAGE = mess(162,154,1)-[M:SQH2]ITMREF(I)-":"-GMESSAGE
+            Break
+          Endif
+        Endif
+      Endif
+    Next NE
+    If OK = 0 Then
+      Break
+    Endif
+  Next
+  If OK = 0 Then
+    Return
+  Endif
+
+Return
+# End issue X3-44998
+
+
+
+
+
+
+

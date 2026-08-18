@@ -1,0 +1,37 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Mask management POC2 (Specific)
+
+######################################################################################
+## Section automatically added (screen POC2) 08/05/2025 07:15:30 (MOZM)
+######################################################################################
+$ACTION
+Case ACTION
+	When "VERIF_CRE" : Gosub VERIF_CRE
+	When "VERIF_MOD" : Gosub VERIF_MOD
+ When Default
+Endcase
+Return
+
+$VERIF_CRE
+#Gosub UPDATE_PURCHASE_TYPE
+Return
+
+$VERIF_MOD
+#Gosub UPDATE_PURCHASE_TYPE
+Return
+
+$UPDATE_PURCHASE_TYPE
+
+Return
+
+Subprog AM_ITMREF(VALEUR)
+Variable Char    VALEUR()
+[M:POC2]LINPURTYP=[F:ITM]ZLINPURTYP
+Affzo [M:POC2]LINPURTYP
+End
+
+Subprog IB_LINPURTYP
+End
+
+
+######################################################################################

@@ -1,0 +1,69 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#-------------------------------------------------------------------------------
+#
+# Sort and Filter Params Maintenance Vertical Processing (XM5SP0)
+#-------------------------------------------------------------------------------
+# History
+# ~~~~~~~
+# 30/08/2017    Tim Wilcox      V03.05.00   Q1390   original release (Hand 2 mouth)
+#-------------------------------------------------------------------------------
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "03.05.00 30/08/2017 XM5"
+#-------------------------------------------------------------------------------
+
+################################################################################
+## Main Process
+## ~~~~~~~~~~~~
+##
+##  Called for each ACTION.
+##  In here we call additional processing for specific ACTION codes.
+################################################################################
+
+$ACTION
+
+    If func AFNC.ACTIV("XM5")
+        Gosub ACTION From XMOXM5SP
+    Endif
+
+Return
+
+################################################################################
+# CONTROL PROCESSING ON CTYPE FIELD
+# DUPLICATE OF SPE ACTION
+#
+Subprog C_CTYPE(VALEUR)
+Variable Char VALEUR()
+
+    If func AFNC.ACTIV("XM5")
+        Gosub C_CTYPE From XMOXM5SP
+    Endif
+
+End
+
+################################################################################
+# CONTROL PROCESSING ON SORF FIELD
+# DUPLICATE OF SPE ACTION
+#
+Subprog C_SORF(VALEUR)
+Variable Char VALEUR()
+
+    If func AFNC.ACTIV("XM5")
+        Gosub C_SORF From XMOXM5SP
+    Endif
+
+End
+
+################################################################################
+# CONTROL PROCESSING ON PARAM FIELD
+# DUPLICATE OF SPE ACTION
+#
+Subprog C_PARAM(VALEUR)
+Variable Char VALEUR()
+
+    If func AFNC.ACTIV("XM5")
+        Gosub C_PARAM From XMOXM5SP
+    Endif
+
+End
+

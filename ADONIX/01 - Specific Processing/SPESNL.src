@@ -1,0 +1,54 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Counts
+# Mask management SNL0 (Specific)
+
+######################################################################################
+## Section automatically added (screen SNL0) 06/26/2024 12:44:16 (MOZM)
+######################################################################################
+$ACTION
+Case ACTION
+	When "AVANTBOUT" : Gosub AVANTBOUT
+	When "SETBOUT" : Gosub SETBOUT
+	When Default
+Endcase
+Return
+
+$SETBOUT
+CHMEN+="Z1"
+Return
+
+$AVANTBOUT
+#If GUSER="MOZM" : Infbox BOUT : Endif
+Case BOUT
+	When "1" : Gosub PRINT_RETAIL_WORKSHEET
+Endcase
+Return
+
+$PRINT_RETAIL_WORKSHEET
+Local Char TBPAR(240)(1..),TBVAL(240)(1..)
+TBPAR(1) = "session" : TBVAL(1) = [M:SNL0]CUNSSSNUM
+TBPAR(2) = "list" : TBVAL(2)=[M:SNL0]CUNLISNUM
+Call ETAT("MONK-CRETAIL","PREVIEW","",0,"",TBPAR,TBVAL) From AIMP3
+Return
+
+
+######################################################################################
+
+
+
+
+######################################################################################
+## Section automatically added (screen SNL0) 06/26/2024 12:51:19 (MOZM)
+######################################################################################
+Subprog AM_QTYPCUNEW(VALEUR)
+Variable Decimal VALEUR
+If VALEUR < 1 or VALEUR = val('')
+[M:SNL0]ZERSTOFLG(nolign-1) = 2
+Affzo [M:SNL0]ZERSTOFLG(nolign-1)
+Endif
+End
+
+Subprog IB_PCUSTUNEW
+End
+
+
+######################################################################################

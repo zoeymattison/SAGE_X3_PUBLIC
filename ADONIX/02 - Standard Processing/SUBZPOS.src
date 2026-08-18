@@ -1,0 +1,6 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+When Default
+Endcase
+Return

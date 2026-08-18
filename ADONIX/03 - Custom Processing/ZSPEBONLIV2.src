@@ -1,0 +1,19 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+Subprog IMPRIME(NBPAR,PARAMETRE)
+Value Integer NBPAR
+Variable Char PARAMETRE()()
+
+    GOK = 0
+
+End
+
+
+
+
+
+
+
+
+
+
+

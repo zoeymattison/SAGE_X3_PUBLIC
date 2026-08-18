@@ -1,0 +1,62 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+###########################################################################################
+# Script            : XINFP_DUD
+# Creation date     : 23/03/2018
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : PAYMENT
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : SOAP CALL TO RETURN ALL PAYMENTS ASSOCIATED TO SOH - INTEGRATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When Default
+    Endcase
+Return
+
+# CALULATES ALL THE PAYMENTS AGAINST A SALES ORDER
+##########################################################################################
+Subprog CAL_PAYMENTS(XSOHNUM, XVCRTYP, XCNT, XVCRNUM, XAMT, XACCDAT)
+    Value    Char    XSOHNUM
+    Value    Char    XVCRTYP
+    Variable Integer XCNT
+    Variable Char    XVCRNUM()(1..10)
+    Variable Decimal XAMT(1..10)
+    Variable Date    XACCDAT(1..10)
+
+    Raz XCNT
+
+    If !clalev([F:XPYHA]) : Local File PAYMENTH [F:XPYHA] : Endif
+    If !clalev([F:XPYDA]) : Local File PAYMENTD [F:XPYDA] : Endif
+
+    Filter [F:XPYDA] Where [F:XPYDA]VCRNUM = XSOHNUM
+&   Order By Key PYD0
+
+    For [F:XPYDA]PYD0
+        XCNT += 1
+
+        XVCRNUM(XCNT) = [F:XPYDA]NUM
+        XAMT(XCNT)    = [F:XPYDA]AMTLIN
+
+        Read [F:XPYHA]PYH0 = [F:XPYDA]NUM
+
+        XACCDAT(XCNT) = [F:XPYHA]ACCDAT
+    Next
+
+
+    If clalev([F:XPYHA]) : Close Local File [F:XPYHA] : Endif
+    If clalev([F:XPYDA]) : Close Local File [F:XPYDA] : Endif
+End
+
+
+
+

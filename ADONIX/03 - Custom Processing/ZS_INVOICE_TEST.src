@@ -1,0 +1,20 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+    Local Char FONCTION(30)
+    Local Char TBPAR(150)(150)
+    Local Char TBVAL(150)(150)
+
+TBPAR(0) = "vcrdeb"	: TBVAL(0) = ""
+TBPAR(1) = "vcrfin"	: TBVAL(1) = ""
+TBPAR(2) = "datedeb"	: TBVAL(2) = format$("MM[/]DD[/]YYYY",date$-365*10)
+TBPAR(3) = "datefin"	: TBVAL(3) = format$("MM[/]DD[/]YYYY",date$+365*10)
+TBPAR(4) = "bpdeb"	: TBVAL(4) = "92613"
+TBPAR(5) = "bpfin"	: TBVAL(5) = "92613"
+TBPAR(6) = "balance"	: TBVAL(6) = "2"
+TBPAR(7) = "edd"	: TBVAL(7) = "2"
+TBPAR(8) = "duddeb"	: TBVAL(8) = format$("MM[/]DD[/]YYYY",date$-365*10)
+TBPAR(9) = "dudfin"	: TBVAL(9) = format$("MM[/]DD[/]YYYY",date$+365*10)
+TBPAR(10) = "statement"	: TBVAL(10) = "2"
+
+    Call ETAT("MONK-INVOICE-T", "PREVIEW" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+
+

@@ -1,0 +1,16 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+    When Default
+Endcase
+Return
+
+Subprog AP_STA(VALEUR)
+Variable Char   VALEUR()
+
+End
+
+
+
+
+

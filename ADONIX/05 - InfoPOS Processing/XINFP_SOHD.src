@@ -1,0 +1,892 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+###########################################################################################
+# Script            : XINFP_SOHD
+# Creation date     : 12/10/2017
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : SALES
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : SALES ORDER DIRECT INTEGRATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When "IMP_ZONE"  : Gosub IMP_ZONE
+        When "IMP_TAB"   : Gosub IMP_TAB
+        When "IMP_ADD"   : Gosub IMP_ADD
+        When "ALISOHSDH" : If GIMPORT and clalev([F:XINFSIH]) : Gosub RE_CALC_TAX : Endif
+        When "ALISOQSDH" : If GIMPORT and clalev([F:XINFSIH]) : Gosub ALISOQSDH : Endif
+        When Default
+    Endcase
+Return
+
+########################################################################################################################
+# SUBPROG THAT CREATES SALES ORDERS
+########################################################################################################################
+Subprog SOH_TRANS(XINFPNUM, XINFPSTA)
+    Value Char XINFPNUM
+    Variable Integer XINFPSTA
+
+    If !clalev([F:XXSOHA])   : Local File SORDER      [F:XXSOHA]   : Endif
+    If !clalev([F:XXBPCA])   : Local File BPCUSTOMER  [F:XXBPCA]   : Endif
+    If !clalev([F:XXITMA])   : Local File ITMMASTER   [F:XXITMA]   : Endif
+
+    Raz fstat
+
+    # TODO - UPDATE OF MESSAGE
+    # DETERMINE IF SALES ORDER EXISTS
+    Filter [F:XXSOHA]
+    Look [F:XXSOHA]SOH0 = XINFPNUM
+
+    If fstat
+        If !clalev([F:XXINFSIH]) : Local File XINFSIH [F:XXINFSIH] : Endif
+        If !clalev([F:XXINFSID]) : Local File XINFSID [F:XXINFSID] : Endif
+
+        # TODO - UPDATE OF MESSAGE
+        # READ THE MAIN RECORD
+        # @RH@ - 05/12/2017 , CHANGE OF DOCUMENT NUMBER BEING POPULATED FROM INFOPOS
+        # Filter [F:XXINFSIH] Where [F:XXINFSIH]NUM = XINFPNUM Order By Key XINFSIH0
+        Filter [F:XXINFSIH] Where [F:XXINFSIH]INVREF = XINFPNUM Order By Key XINFSIH0
+        Read [F:XXINFSIH]XINFSIH0 First
+
+        # TODO - UPDATE OF MESSAGE
+        # READ THE CUSTOMER RECORD, IF THE CUSTOMER IS ON HOLD, DO NOT EVEN PROCEED
+        Filter [F:XXBPCA]
+        Filter [F:XXBPCA] Where [F:XXBPCA]BPCNUM = [F:XXINFSIH]BPCINV and [F:XXBPCA]OSTCTL = 3 Order By Key BPC0
+        Look [F:XXBPCA]BPC0 First
+
+        If fstat
+            # TODO - UPDATE OF MESSAGE
+            Call ECR_TRACE("GENERATION OF A DIRECT SALES ORDER : " - XINFPNUM,0) From GESECRAN
+
+            # CALL THE CREATION OF THE SALES ORDER
+            Call TRANS_CRE From XINFP_SOHD
+
+            # TODO - UPDATE OF MESSAGE
+            # DETERMINE IF SALES ORDER EXISTS
+            Filter [F:XXSOHA]
+            Look [F:XXSOHA]SOH0 = XINFPNUM
+
+            If fstat
+               # TODO - UPDATE OF MESSAGE
+               Call ECR_TRACE("ERROR DURING GENERATION OF DIRECT SALES ORDER : " - XINFPNUM,0) From GESECRAN
+            Endif
+
+        Else
+            # TODO - UPDATE OF MESSAGE
+            Call XERR_TRANS("SIH", [F:XXINFSIH]NUM, [F:XXINFSIH]EXPNUM, 1, 0, "CUSTOMER ON HOLD, UNABLE TO GENERATE SALES ORDER : " - [F:XXINFSIH]BPCINV) From XINFP_ERR
+            XINFPSTA = 0
+        Endif
+
+        If clalev([F:XXINFSIH]) : Close Local File  [F:XXINFSIH] : Endif
+        If clalev([F:XXINFSID]) : Close Local File  [F:XXINFSID] : Endif
+    Else
+        # TODO - UPDATE OF MESSAGE
+        Call ECR_TRACE("SALES ORDER AlREADY EXISTS : " - XINFPNUM,0) From GESECRAN
+    Endif
+
+    # IMPORT VARIABLE DISABLE - USED FOR LOGGING PURPOSES
+    GIMPORT = 0
+
+    If clalev([F:XXSOHA])   : Close Local File  [F:XXSOHA]   : Endif
+    If clalev([F:XXBPCA])   : Close Local File  [F:XXBPCA]   : Endif
+    If clalev([F:XXITMA])   : Close Local File  [F:XXITMA]   : Endif
+End
+
+###########################################################################################
+# UPDATE THE TRANSACTION AS COMPLETED
+###########################################################################################
+Subprog UPDATETRANS(XINFPNUM)
+    Value Char XINFPNUM
+    If !clalev([F:XUP]) : Local File XINFSOH [F:XUP] : Endif
+
+    Trbegin [F:XUP]
+        Update [F:XUP] Where [F:XUP]SOHNUM = XINFPNUM With [F:XUP]COMPLETED = 2
+
+        If fstat
+            Rollback
+        Else
+            Commit
+        Endif
+
+    If clalev([F:XUP]) : Close Local File   [F:XUP] : Endif
+End
+
+# DECLARATION OF DEFAULT VARIABLES
+#####################################################################################
+$OUVRE_OBJ
+    # OPENING OF TABLES NEEDED
+    ############################################################################################
+    If clalev([F:AOE])=0  : Local File AOBJEXT    [AOE]  : Endif
+    If clalev([F:AOD])=0  : Local File AOBJEXTD   [AOD]  : Endif
+    If clalev([F:APX])=0  : Local File APARIMPEXP [APX]  : Endif
+    If clalev([F:AOR])=0  : Local File AOBJEXTR   [AOR]  : Endif
+    If clalev([F:ACC_])=0 : Local File ACCES      [ACC_] : Endif
+    If clalev([F:AOB_])=0 : Local File AOBJET     [AOB_] : Endif
+    If clalev([F:AWI_])=0 : Local File AWINDOW    [AWI_] : Endif
+    If clalev([F:ATY_])=0 : Local File ATYPE      [ATY_] : Endif
+    If clalev([F:AMK_])=0 : Local File AMSK       [AMK_] : Endif
+    If clalev([F:AMZ_])=0 : Local File AMSKZON    [AMZ_] : Endif
+    If clalev([F:ATB_])=0 : Local File ATABLE     [ATB_] : Endif
+    If clalev([F:ATZ_])=0 : Local File ATABZON    [ATZ_] : Endif
+    If clalev([F:ATI_])=0 : Local File ATABIND    [ATI_] : Endif
+    If clalev([F:AMP_])=0 : Local File AMSKPAR    [AMP_] : Endif
+    If clalev([F:AFC_])=0 : Local File AFONCTION  [AFC_] : Endif
+    If clalev([F:ACV_])=0 : Local File ACTIV      [ACV_] : Endif
+    If clalev([F:ANM_])=0 : Local File ACODNUM    [ANM_] : Endif
+    If clalev([F:AOU])=0  : Local File AOBJEXTMPE [AOU]  : Endif
+    If clalev([F:AOV])=0  : Local File AOBJEXTMPD [AOV]  : Endif
+
+    # DECLARATION OF LOCAL MASKS
+    ###########################################################################################3
+    If clalev([M:AOE0])=0 : Local Mask AOE0       [AOE0] : Endif
+    If clalev([M:AOE1])=0 : Local Mask AOE1       [AOE1] : Endif
+    If clalev([M:AOE2])=0 : Local Mask AOE2       [AOE2] : Endif
+    If clalev([M:IEX])=0  : Local Mask IMPTEST    [IEX]  : Endif
+    If clalev([M:IMP2])=0 : Local Mask IMPOBJ2    [IMP2] : Endif
+
+    # LOCAL VARIABLES
+    ###########################################################################################3
+    Local  Integer IMPSTA
+    Local  Char    MESSAGE(250), BOITE_CRIT(GLONFEN) , FENETRE(GLONFEN)
+    Local  Integer K , NOFIC  , NOENR,NBCRE , TYP , ER , STA, NBMOD
+    Local  Integer C , NUMIMP , NBFIC , N   , L , OKTRT
+    Local  Char    NOMTRT(GLONADC) , NOMVAR(40) , CHAINE(250) , SUF(30)
+    Local  Char    TRTSRC(GDIMFIC)
+    Local  Char    CLE(30) , NOMZONE(30) , NOMSUB(GLONASU)
+    Local  Char    FIFO(GDIMFIC) , PRGBL(30)
+    Local  Integer OPTCAR , NOLIB
+    Local  Char    SAVFONC(GLONAFC) , SAVABR(GLONAOB) , SAVNAVIG(GLONANG)
+    Local  Char    SAVPROG(GLONADC), SGTUNCPT(250)
+    Local  Integer SAVPILNAV
+    Local  Char    FICTMP(GDIMFIC) , FICFIN(GDIMFIC) , FICERR(GDIMFIC)
+    Local  Char    REPTMP(GDIMFIC) , REPFIN(GDIMFIC) , REPERR(GDIMFIC)
+    Local  Char    REPTRA(GDIMFIC)
+    Local  Char    FICBAS(GDIMFIC) , REPERT(GDIMFIC) , FICORG(GDIMFIC)
+    Local  Char    FICCLI(GDIMFIC)
+    Local  Char    LISTEFIC(GDIMFIC)(1..1000)
+    Local  Char    MACHINE(GDIMFIC) , MACTMP(GDIMFIC) , OS(10)
+    Local  Char    BASPAG(GLONAVA)
+    Local  Char    MODELE(GLONAOE), FICHIER(GDIMFIC), ZONTABLO(GLONAVA)
+    Local  Char    SEPDEC(1) , CPTAOW(GLONANM)
+    Local  Integer STAT,NBRLIGS,LIG,AOWENR,AOWSTA,II
+    Local  Integer GESSAS
+    Local  Char    ABREV(GLONAOB)
+    Local  Integer PSTD,PSUB,PSPE,PSPV
+    Local  Char    SAVCLE1(250)
+    Local  Char    SAVCLE2(250)
+    Local  Integer XLINE,XLINCNT
+    Global Integer XTAX
+    Global Decimal XINFPRND
+
+    # CLEARING OF LOCAL VARIABLES
+    ###########################################################################################
+    Raz GLOTAOW,GIMP, REPTMP , REPFIN , REPERR, NOFIC, NOENR, NBCRE ,NBMOD, GPILNAV,GPILOBJ, GTUNCPT
+Return
+
+# FILLS BUFFER INFORMATION TO SCREEN
+#####################################################################################
+$IMP_ZONE
+    Case IMPZON
+        When "SOHNUM"     : [M]SOHNUM               = [F:XXINFSIH]INVREF  #[F:XXINFSIH]NUM    - CHANGE MADE ON 12-05-2017 - CHANGE TO DOCUMENT NUMBER
+        When "BPCORD"     : [M]BPCORD               = [F:XXINFSIH]BPCINV
+        When "CUSORDREF"  : [M]CUSORDREF            = [F:XXINFSIH]INFREF  #[F:XXINFSIH]INVREF - CHANGE MADE ON 12-05-2017 - CHANGE TO DOCUMENT NUMBER
+        When "ORDDAT"     : [M]ORDDAT               = [F:XXINFSIH]INVDAT
+        When "SHIDAT"     : [M]SHIDAT               = [F:XXINFSIH]INVDAT
+        When "SOHTYP"     : [M]SOHTYP               = [F:XXINFSIH]SOHTYP
+        When "SALFCY"     : [M]SALFCY               = [F:XXINFSIH]SALFCY
+        When "CUR"        : [M]CUR                  = [F:XXINFSIH]CUR
+
+        When "VACBPR"     : [M]VACBPR               = [F:XXBPCA]VACBPR
+
+        When "BPAADD"     : If [F:XXINFSIH]BPAADD <> ''
+                                [M]BPAADD           = [F:XXINFSIH]BPAADD
+                            Endif
+        When "REP1"       : [M]REP1                 = [F:XXINFSIH]REP1
+        When "REP2"       : [M]REP2                 = [F:XXINFSIH]REP2
+        When "STOFCY"     : [M]STOFCY               = [F:XXINFSIH]STOFCY
+
+        When "INVDTAAMT"  : [M]INVDTAAMT(indice)    = XINFPRND * -1
+    Endcase
+Return
+
+# FILLS BUFFER INFORMATION TO SCREEN
+#####################################################################################
+$IMP_TAB
+    Case IMPZON
+        When "DSTOFCY"    : [M]DSTOFCY(indice)      = [F:XXINFSID]DSTOFCY
+        When "ITMREF"     : [M]ITMREF(indice)       = [F:XXINFSID]ITMREF
+        When "ITMDES"     : [M]ITMDES(indice)       = [F:XXINFSID]ITMDES
+        When "SAU"        : [M]SAU(indice)          = [F:XXINFSID]SAU
+        When "QTY"        : [M]QTY(indice)          = abs([F:XXINFSID]QTY)
+        When "GROPRI"     : [M]GROPRI(indice)       = abs([F:XXINFSID]GROPRI)
+        When "DISCRGVAL1" : [M]DISCRGVAL1(indice)   = [F:XXINFSID]DISCRGVAL1
+        When "DISCRGVAL2" : [M]DISCRGVAL2(indice)   = [F:XXINFSID]DISCRGVAL2
+        When "DISCRGVAL3" : [M]DISCRGVAL3(indice)   = [F:XXINFSID]DISCRGVAL3
+        When "DISCRGVAL4" : [M]DISCRGVAL4(indice)   = [F:XXINFSID]DISCRGVAL4
+        When "DISCRGVAL5" : [M]DISCRGVAL5(indice)   = [F:XXINFSID]DISCRGVAL5
+        When "DISCRGVAL6" : [M]DISCRGVAL6(indice)   = [F:XXINFSID]DISCRGVAL6
+        When "DISCRGVAL7" : [M]DISCRGVAL7(indice)   = [F:XXINFSID]DISCRGVAL7
+        When "DISCRGVAL8" : [M]DISCRGVAL8(indice)   = [F:XXINFSID]DISCRGVAL8
+        When "DISCRGVAL9" : [M]DISCRGVAL9(indice)   = [F:XXINFSID]DISCRGVAL9
+        When "VACITM1"    : If [M]VACITM1(indice) = '' : [M]VACITM1(indice)  = [F:XXITMA]VACITM(0) : Endif
+        When "VACITM2"    : If [M]VACITM2(indice) = '' : [M]VACITM2(indice)  = [F:XXITMA]VACITM(1) : Endif
+        When "VACITM3"    : If [M]VACITM3(indice) = '' : [M]VACITM3(indice)  = [F:XXITMA]VACITM(2) : Endif
+        When "REP1"       : [M]REP1(indice)         = [F:XXINFSID]REP1
+        When "REP2"       : [M]REP2(indice)         = [F:XXINFSID]REP2
+    Endcase
+Return
+
+# FILLS THE ADDRESS SCREEN
+#####################################################################################
+$IMP_ADD
+    Case IMPZON
+        When "BPAADD"    : [M]BPAADD       = [F:XXINFSIH]BPAADD
+        When "BPAADDLIG" : If [F:XXINFSIH]BPAADDLIG1 <> '' : [M]BPAADDLIG(0) = [F:XXINFSIH]BPAADDLIG1 : Endif
+                           If [F:XXINFSIH]BPAADDLIG2 <> '' : [M]BPAADDLIG(1) = [F:XXINFSIH]BPAADDLIG2 : Endif
+                           If [F:XXINFSIH]BPAADDLIG3 <> '' : [M]BPAADDLIG(2) = [F:XXINFSIH]BPAADDLIG3 : Endif
+        When "CRY"       : #If [F:XXINFSIH]CRY        <> '' : [M]CRY          = [F:XXINFSIH]CRY        : Endif
+        When "SAT"       : If [F:XXINFSIH]SAT        <> '' : [M]SAT          = [F:XXINFSIH]SAT        : Endif
+        When "POSCOD"    : If [F:XXINFSIH]POSCOD     <> '' : [M]POSCOD       = [F:XXINFSIH]POSCOD     : Endif
+        When "CTY"       : If [F:XXINFSIH]CTY        <> '' : [M]CTY          = [F:XXINFSIH]CTY        : Endif
+
+     Endcase
+Return
+
+# CREATION OF SALES ORDER
+##################################################################################################
+Subprog TRANS_CRE
+    Gosub OUVRE_OBJ
+
+    ABREV = "SOH"
+    GFLAG = ""
+
+    # ADDED CODE TO OPEN THE WINDOW ASSOCIATED WITH ENTRY TRANSACTION, USING GENERATED SCREENS
+    # TO IMPORT DATA
+    ################################################################################################
+    If clalev([AWIZ]) = 0 :  Local File AWINDOW [AWIZ] : Endif
+    Filter [AWIZ] Where OBJ=ABREV and TRN = GFLAG and ENAFLG=2 and MDL<>2 Order By Key AWI0
+    Read [AWIZ]AWI0 First
+
+    If fstat
+        Call ECR_TRACE(mess(107,133,1),1) From GESECRAN
+        End
+    Endif
+
+    Read [AOB_]ABREV = ABREV
+
+    Call CONT_FEN(ABREV,FENETRE) From GOBJET
+    If FENETRE<>""
+        Read [AWI_]AWI0  = FENETRE
+    Else
+        Raz [F:AWI_]
+    Endif
+
+    GIMPORT = 1
+    GFLAG      = ""
+    GPILNAV    = 2
+    GIMPORT    = 1
+
+    NOENR += 1
+
+    GOBJET     = 1
+    GORITITCOL = 0
+    GABREV     = ABREV
+    GPROGRAMME = "GOBJSUB"
+    GTRAITE    = "GOBJET"
+    GFONCTION  = "GES"+ABREV
+
+    Gosub DEFVAR From GOBJET
+
+    RUPT     = 1
+    IMPORTYP = 1
+    OK = 1
+
+    Call CONT_FEN(GABREV,GBOITE) From GOBJET
+    If GBOITE=""
+        If IMPORTYP=2
+            WINPROG = ""
+        Else
+            Call ECR_TRACE(mess(107,133,1),1) From GESECRAN
+            OK = 0
+            Goto RETCLOSE
+        Endif
+    Else
+        If dim(WINPROG)<=0
+            Local Char WINPROG(GLONADC)
+        Endif
+        Call NOMTRTWIN(GBOITE,WINPROG) From MSKDIV
+    Endif
+
+    Call SETPROG(GABREV,PROGOBJ,PROGSUB,PROGSPE,PROGSPV,PSTD,PSUB,PSPE,PSPV) From CONTOBJ
+
+    TUNNEL = 0
+    Gosub NOMFIC From =PROGOBJ
+
+    If evalue("clalev([F:"+ABFIC+"])")=0 : Gosub OUVFIC From =PROGOBJ : Endif
+
+    ACTION = "AVANT_OUVRE" : Gosub ACTION From GOBJSUB : Gosub DEFAUT From =PROGOBJ
+    GPE = 0
+
+    Gosub OUVRE From =PROGOBJ
+    If clalev([F:ACC])=0 : Local File ACCES [ACC] : Endif
+    For MA=0 To dim(AMA)-1 : AMA(MA) = 1 : Next I
+
+    ACTION = "DEFTRANS" : Gosub ACTION From GOBJSUB : Gosub DEFAUT From =PROGOBJ
+
+    If clalev([F:AWI])=0 : Local File AWINDOW [AWI] : Endif
+    Read [AWI]AWI2(2) = GABREV;GFLAG
+    If !fstat
+        GBOITE = [F:AWI]WIN
+    Endif
+
+    If dim(WINPROG)<=0
+        Local Char WINPROG(GLONADC)
+    Endif
+
+    Call NOMTRTWIN(GBOITE,WINPROG) From MSKDIV
+
+    NBMASK = -1
+    If WINPROG<>"" : Gosub DEFVAR From =WINPROG : Endif
+    Gosub OUVRE_MSK From GOBJET
+
+    ACTION = "OUVRE" : Gosub ACTION From GOBJSUB : Gosub DEFAUT From =PROGOBJ
+    If OK=0 : Goto RETCLOSE : Endif
+
+    For MA=0 To NBMASK
+        If AMA(MA) : Gosub SETMASK From =WINPROG : Endif
+    Next MA
+
+    Gosub SETCLE From =PROGOBJ
+    If evalue("type([F:"+ABFIC+"]"+CLEPRIM+")")>10
+        TPCLE1 = 1
+    Else
+        TPCLE1 = 2
+    Endif
+    For CL=0 To dim(CLESEC)-1
+        If CLESEC(CL)<>""
+            If evalue("type([F:"+ABFIC+"]"+CLESEC(CL)+")")>10
+                TPCLE2(CL) = 1
+            Elsif evalue("type([F:"+ABFIC+"]"+CLESEC(CL)+")")=3
+                TPCLE2(CL) = 3
+            Else
+                TPCLE2(CL) = 2
+            Endif
+        Endif
+    Next CL
+
+    Gosub INIT_BOITE From =WINPROG
+
+    # SET OBJECT TO POINT TO NEW RECORD CREATION
+    ##################################################################################################
+    CLECUR = 0 : Gosub RELIT From GOBJSUB
+    REP = "C" : GREP = "C" : [L]SITCUR = ""
+    Gosub SETBOUT From GOBJSUB : ACTCRE=1
+    Gosub RAZCRE From GOBJNAV
+    ACTION = "RAZCRE" : Gosub ACTION From GOBJET
+
+    OK = 1 : GOK = 1 : GMODIF = 2
+
+    # TODO - UPDATE OF MESSAGE
+    # READ THE CUSTOMER RECORD
+    Filter [F:XXBPCA]
+    Read [F:XXBPCA]BPC0 =  [F:XXINFSIH]BPCINV
+
+    # IMPORT OF DATA FOR MASK SOH0
+    ##################################################################################################
+    Default Mask [SOH0]
+    mkstat = 0
+    GNBAFF = 0
+    Setmode INBAFF,IAFFCOD,IAFFMASK,IAFFCHP,IAFFIND,IAFFTXT,IAFFRANG,IAFFOPT1,IAFFOPT2
+
+    Call SAIMSK("SOH","IMP_ZONE","XINFP_SOHD") From W0SOH0
+    If mkstat
+        Setmode
+        # TODO - UPDATE OF MESSAGE
+        Call ECR_TRACE("ERROR ON THE IMPORT OF SOH0",1) From GESECRAN
+        GREP = "" : REP = "" : GOK = 0 : OK = 0
+        Goto RETCLOSE
+    Endif
+
+    Setmode
+
+    [M:SOH1]APPFLG = 5
+
+    # IMPORT OF DATA FOR MASK SOH1
+    ##################################################################################################
+    Default Mask [SOH1]
+    mkstat = 0
+    GNBAFF = 0
+    Setmode INBAFF,IAFFCOD,IAFFMASK,IAFFCHP,IAFFIND,IAFFTXT,IAFFRANG,IAFFOPT1,IAFFOPT2
+    Call SAIMSK("SOH","IMP_ZONE","XINFP_SOHD") From W0SOH1
+    If mkstat
+        Setmode
+        # TODO - UPDATE OF MESSAGE
+        Call ECR_TRACE("ERROR ON THE IMPORT OF SOH1",1) From GESECRAN
+        GREP = "" : REP = "" : GOK = 0 : OK = 0
+        Goto RETCLOSE
+    Endif
+    Setmode
+
+    # NEW ERROR IN THAT IS NOT INITIATING THE COMPANY CODE
+    # FORCE A INITIATE OF THE COMPANY CODE
+    GFCY = [M:SOH0]SALFCY
+    Call GETDEV([M:SOH0]SALFCY) From DEVSUB
+    GCUR = GLOCALDEV
+    [F:SOH]CPY = GSOCIETE
+
+    # V2018-688, R. HULSBOS
+    # MULTIPLE DELIVERY ADDRESSED, UPDATE OF THE DELIVERY ADDRESS
+    If [F:XXINFSIH]BPAADD <> ''
+        If [M:ADB2]BPAADDLIG(0) <> [F:XXINFSIH]BPAADDLIG1   |
+&          [M:ADB2]BPAADDLIG(1) <> [F:XXINFSIH]BPAADDLIG2   |
+&          [M:ADB2]BPAADDLIG(2) <> [F:XXINFSIH]BPAADDLIG3   |
+&          [M:ADB2]CRY          <> [F:XXINFSIH]CRY          |
+&          [M:ADB2]SAT          <> [F:XXINFSIH]SAT          |
+&          [M:ADB2]POSCOD       <> [F:XXINFSIH]POSCOD       |
+&          [M:ADB2]CTY          <> [F:XXINFSIH]CTY
+
+              If clalev([M:ADC]) = 0 : Local Mask ADRBPC      [M:ADC] : Endif
+              If clalev([M:TCY]) = 0 : Local File TABCOUNTRY  [M:TCY] : Endif
+
+              [M:ADC] = [M:ADB2]
+              [M:ADC]ADBFLG = 1
+              [M:ADC]ADBBPR = [F:XXINFSIH]BPCINV
+              [M:ADC]BPAADD = [F:XXINFSIH]BPAADD
+
+              Default Mask '[SOH0],[SOH1],[M:ADC]'
+              mkstat = 0
+              GNBAFF = 0
+              #Setmode INBAFF,IAFFCOD,IAFFMASK,IAFFCHP,IAFFIND,IAFFTXT,IAFFRANG,IAFFOPT1,IAFFOPT2
+              Call SAIMSK("SOH","IMP_ADD","XINFP_SOHD") From W0ADRBPC
+              If mkstat
+                #  Setmode
+                 # TODO - UPDATE OF MESSAGE
+                  Call ECR_TRACE("ERROR ON THE IMPORT OF ADDRESS",1) From GESECRAN
+                  GREP = "" : REP = ""
+                  Goto RETCLOSE
+              Endif
+              #Setmode
+
+              [M:ADB2]       = [M:ADC]
+              [M:ADB2]ADBFLG = 2
+
+              If clalev([M:ADC]) = 1 : Close Local Mask [M:ADC] : Endif
+              If clalev([M:TCY]) = 1 : Close Local File [M:TCY] : Endif
+        Endif
+    Endif
+
+    [M:SOH1]APPFLG = 5
+
+    # IMPORT OF DATA FOR MASK SOH2
+    ##################################################################################################
+    Default Mask [SOH2]
+    mkstat = 0
+    GNBAFF = 0
+    Setmode INBAFF,IAFFCOD,IAFFMASK,IAFFCHP,IAFFIND,IAFFTXT,IAFFRANG,IAFFOPT1,IAFFOPT2
+    Call SAIMSK("SOH","IMP_ZONE","XINFP_SOHD") From W0SOH2
+    If mkstat
+        Setmode
+        # TODO - UPDATE OF MESSAGE
+        Call ECR_TRACE("ERROR ON THE IMPORT OF SOH2",1) From GESECRAN
+        GREP = "" : REP = "" : GOK = 0 : OK = 0
+        Goto RETCLOSE
+    Endif
+    Setmode
+
+    # CAPTURE THE LINES OF THE SALES ORDER
+    If !clalev([F:XINFLIN]) : Local File XINFLIN  [F:XINFLIN] : Endif
+    If !clalev([F:XTXC])    : Local File TEXCLOB  [F:XTXC]    : Endif
+    If !clalev([F:XITS])    : Local File ITMSALES [F:XITS]    : Endif
+    If !clalev([F:XBOMD])   : Local File BOMD     [F:XBOMD]   : Endif
+
+    Raz XINFPRND, XLINCNT, GDACLOK
+
+    Delete [F:XINFLIN]XINFLIN0 = [F:XINFSIH]NUM
+
+    # IMPORT OF DATA FOR MASK SOH2
+    ##################################################################################################
+    Default Mask "[SOH0],[SOH1],[SOH4]"
+    nolign = 0
+
+    Filter [F:XXINFSID] Where  [F:XXINFSID]NUM = [F:XXINFSIH]NUM and [F:XXINFSID]ROUNDING <> 2
+&   Order By Key XINFSID0
+
+    For [F:XXINFSID]XINFSID0
+        Read [F:XXITMA]ITM0 = [F:XXINFSID]ITMREF
+
+        # RESET OF CLOB FILES COMMENTS
+        Call RAZ_CLOB From ACLOB
+
+        XLINCNT += 1
+
+        If nolign=0
+            [M]NBLIG += 1
+            nolign = [M]NBLIG
+            status = 73
+
+            indice = nolign-1 : mkstat = 0
+            GNBAFF = 0
+            Setmode INBAFF,IAFFCOD,IAFFMASK,IAFFCHP,IAFFIND,IAFFTXT,IAFFRANG,IAFFOPT1,IAFFOPT2
+            Call SAI_NBLIG("SOH","IMP_TAB","XINFP_SOHD") From W0SOH4
+
+            If mkstat
+                 Setmode
+                # TODO - UPDATE OF MESSAGE
+                Call ECR_TRACE("ERROR ON THE IMPORT OF SOH4",1) From GESECRAN
+                GREP = "" : REP = "" : GOK = 0
+                Break
+            Endif
+
+            Setmode : Raz GERREUR
+        Else
+            #Insa nolign-1,1,[M]NBLIG NBLIG
+            status = 73
+            [M]NBLIG += 1
+            nolign = [M]NBLIG
+            indice = nolign-1 : mkstat = 0
+            GNBAFF = 0
+            Setmode INBAFF,IAFFCOD,IAFFMASK,IAFFCHP,IAFFIND,IAFFTXT,IAFFRANG,IAFFOPT1,IAFFOPT2
+            Call SAI_NBLIG("SOH","IMP_TAB","XINFP_SOHD") From W0SOH4
+
+            If mkstat
+                 Setmode
+                # TODO - UPDATE OF MESSAGE
+                Call ECR_TRACE("ERROR ON THE IMPORT OF SOH4",1) From GESECRAN
+                GREP = "" : REP = "" : GOK = 0
+                Break
+            Endif
+
+            Setmode : Raz GERREUR
+        Endif
+
+        # ADD THE COMMENT TO THE LINE
+        If [F:XXINFSID]COMMENT <> ""
+            Delete [F:XTXC]TXC0 = [F:XXINFSID]NUM + "~"+ num$([F:XXINFSID]SIDLIN)
+
+            Raz [F:XTXC]
+            [F:XTXC]CODE  = [F:XXINFSID]NUM + "~"+ num$([F:XXINFSID]SIDLIN)
+            Setlob [F:XTXC]TEXTE  With [F:XXINFSID]COMMENT
+            [F:XTXC]CREUSR= GUSER
+            [F:XTXC]CREDAT= date$
+            [F:XTXC]CRETIM= time
+            Write [F:XTXC]
+
+            [M:SOH4]SOQTEX(indice) = [F:XXINFSID]NUM + "~"+ num$([F:XXINFSID]SIDLIN)
+        Endif
+
+        status = 72
+
+        If !clalev([F:XINFLIN]) : Local File XINFLIN [F:XINFLIN] : Endif
+
+        Raz [F:XINFLIN]
+
+        [F:XINFLIN]NUM     = [F:XXINFSIH]INVREF
+        [F:XINFLIN]INFPLIN = [F:XXINFSID]SIDLIN
+        [F:XINFLIN]X3LIN   = 1000 * XLINCNT
+
+        Write [F:XINFLIN]
+
+        # IN THE EVENT OF A BOM ITEM, WE NEED TO CATER FOR THE EXPLODED LINES, AND HENCE TAKE INTO CONSIDERATION THE LINES ADDED
+        # ONTO THE SALES ORDER
+        Columns [F:XITS] (ITMREF, ITMTYP)
+        Read [F:XITS]ITS0 = [F:XXINFSID]ITMREF
+
+        If [F:XITS]ITMTYP = 3
+
+            Columns [F:XBOMD] (ITMREF,BOMALTTYP)
+            Filter [F:XBOMD]
+            Filter [F:XBOMD] Where [F:XBOMD]ITMREF = [F:XXINFSID]ITMREF and [F:XBOMD]BOMALTTYP = 1 Order By Key BOD0
+
+            For [F:XBOMD]BOD0
+                XLINCNT += 1
+            Next
+
+        Endif
+
+        $SKIPT
+    Next
+
+    If clalev([F:XINFLIN]) : Close Local File [F:XINFLIN] : Endif
+    If clalev([F:XTXC])    : Close Local File [F:XTXC]    : Endif
+    If clalev([F:XITS])    : Close Local File [F:XITS]    : Endif
+    If clalev([F:XBOMD])   : Close Local File [F:XBOMD]   : Endif
+
+
+#    # CALCULATE ROUNDING ISSUE
+#    #############################################################################################
+#    Filter [F:XXINFSID] Where [F:XXINFSID]NUM = [F:XXINFSIH]NUM and [F:XXINFSID]ROUNDING = 2
+#&   Order By Key XINFSID0
+#
+#    For [F:XXINFSID]XINFSID0
+#            XINFPRND += [F:XXINFSID]GROPRI
+#    Next
+#
+#    # CALCULATE TOTALS FOR INVOICE LINES
+#    # Call VALTTC ("GESSOH") From TRTVENFACR
+#
+#    # IF THERE WAS ANY ROUNDING LEVEL DISCOUNT
+#    If XINFPRND <> 0
+#        # HEADER LEVEL DISCOUNT
+#        If find(99,[M:SOH3]INVDTA(0..[M:SOH3]NBFAC))
+#            nolign = find(99,[M:SOH3]INVDTA(0..[M:SOH3]NBFAC))
+#            indice = nolign-1 : mkstat = 0
+#            status = 75
+#
+#            Setmode INBAFF,IAFFCOD,IAFFMASK,IAFFCHP,IAFFIND,IAFFTXT,IAFFRANG,IAFFOPT1,IAFFOPT2
+#            Call SAI_NBFAC("SOH","IMP_TAB","XINFP_SOHD") From W0SOH3
+#
+#            If mkstat
+#                Setmode
+#                # TODO - UPDATE OF MESSAGE
+#                Call ECR_TRACE("ERROR DURING THE UPDATING OF THE INVOICING ELEMENT",1) From GESECRAN
+#                GREP = "" : REP = "" : OK = 0
+#            Endif
+#
+#            Setmode : Raz GERREUR
+#        Else
+#            # TODO - UPDATE OF MESSAGE
+#            Call ECR_TRACE("INVOICING ELEMENT DOES NOT EXIST",1) From GESECRAN
+#            OK = 0
+#        Endif
+#    Endif
+
+    # V2018-682, R. HULSBOS
+    # NEW WAY OF DEALING WITH INVOICING ELEMENTS
+    Default Mask "[SOH0],[SOH1],[SOH2],[SOH3],[SOH4]"
+    Local Integer XXXINV
+
+    For [L]XXXINV = 0 To dim([F:XXINFSIH]INVDTA) - 1
+        If [F:XXINFSIH]INVDTA([L]XXXINV) <> 0
+            XINFPRND =  [F:XXINFSIH]INVDTAAMT([L]XXXINV)
+
+            # HEADER LEVEL DISCOUNT
+            If find([F:XXINFSIH]INVDTA([L]XXXINV),[M:SOH3]INVDTA(0..[M:SOH3]NBFAC))
+                nolign = find([F:XXINFSIH]INVDTA([L]XXXINV),[M:SOH3]INVDTA(0..[M:SOH3]NBFAC))
+                indice = nolign-1 : mkstat = 0
+                status = 75
+
+                Setmode INBAFF,IAFFCOD,IAFFMASK,IAFFCHP,IAFFIND,IAFFTXT,IAFFRANG,IAFFOPT1,IAFFOPT2
+                Call SAI_NBFAC("SOH","IMP_ZONE","XINFP_SOHD") From W0SOH3
+
+                If mkstat
+                    Setmode
+                    # TODO - UPDATE OF MESSAGE
+                    Call ECR_TRACE("ERROR DURING THE UPDATING OF THE INVOICING ELEMENT",1) From GESECRAN
+                    GREP = "" : REP = "" : OK = 0
+                Endif
+
+                Setmode : Raz GERREUR
+            Else
+                # TODO - UPDATE OF MESSAGE
+                Call ECR_TRACE("INVOICING ELEMENT DOES NOT EXIST",1) From GESECRAN
+                OK = 0
+            Endif
+        Endif
+    Next
+
+    # CALCULATE TOTALS FOR INVOICE LINES
+    If val(left$(GVERSION,instr(instr(1,GVERSION,".")+1,GVERSION,".")-1)) > 1.7
+        Local    Char     PARAM_T (25) (0..10)
+        PARAM_T(0)="1"
+        PARAM_T(1)="1"
+        PARAM_T(2)="0"
+        Call VALTTC("GESSOH",PARAM_T) From TRTVENFACR
+    Else
+        Call VALTTC("GESSOH") From TRTVENFACR
+    Endif
+
+    [M:SOH1]APPFLG = 5
+
+    If !OK or !GOK:
+        GREP = ""
+        # TODO - UPDATE OF MESSAGE
+        Call XERR_TRANS("SIH", [F:XXINFSIH]NUM, [F:XXINFSIH]EXPNUM, 1, 0, "ERROR ON THE SALES ORDER CREATION - PLEASE REFER TO X3 LOG") From XINFP_ERR
+        Goto RETCLOSE
+    Endif
+
+    # IMPORT OF DATA COMPLETE - CREATE ITEMS
+    ##################################################################################################
+    ACTION = "VERIF_CRE"     : Gosub ACTION From GOBJSUB : Gosub DEFAUT From =PROGOBJ
+
+    If !OK :
+        GREP = ""
+        # TODO - UPDATE OF MESSAGE
+        Call XERR_TRANS("SIH", [F:XXINFSIH]NUM, [F:XXINFSIH]EXPNUM, 1, 0, "ERROR ON THE SALES ORDER CREATION - PLEASE REFER TO X3 LOG") From XINFP_ERR
+        Goto RETCLOSE
+    Endif
+
+    # VERIFY THAT THE TAXES ARE CORRECT BEFORE UPLOADING THE TRANSACTION
+#    If [M:SIHV]INVATI <> [F:XXINFSIH]INFTOTINCL - abs([F:XXINFSIH]INVDTAAMT(3))
+#        GREP = ""
+#        GOK = 0
+#        # TODO - UPDATE OF MESSAGE
+#        Call ECR_TRACE(num$([M:SIHV]INVATI) - num$([F:XXINFSIH]INFTOTINCL - abs([F:XXINFSIH]INVDTAAMT(3))),0) From GESECRAN
+#        Call ECR_TRACE("ERROR ON THE SALES ORDER CALCULATED TAXES VS INFOPOS DOCKET HEADER TAXES",1) From GESECRAN
+#
+#        # TODO - UPDATE OF MESSAGE
+#        Call XERR_TRANS("SIH", [F:XXINFSIH]NUM, [F:XXINFSIH]EXPNUM, 1, 0, "ERROR ON THE SALES ORDER CREATION - PLEASE REFER TO X3 LOG") From XINFP_ERR
+#        Goto RETCLOSE
+#    Endif
+
+    GOK = 1
+    Trbegin ADOVAL
+        Gosub DEFAUT From =PROGOBJ
+        Raz [F]
+        nolign = 1
+
+        Gosub CHARGEFIC From SUBIMPOBJ
+        Gosub INICRE From GOBJSUB
+        Gosub INIEXP From SUBIMPOBJ
+
+        ACTION = "INICRE"     : Gosub ACTION From GOBJSUB : Gosub DEFAUT From =PROGOBJ
+
+        [F:SOH]APPFLG = 5
+
+        If GOK < 0
+            Gosub ROLL_TR1
+            # TODO - UPDATE OF MESSAGE
+            Call XERR_TRANS("SIH", [F:XXINFSIH]NUM, [F:XXINFSIH]EXPNUM, 1, 0, "ERROR ON THE SALES ORDER CREATION - PLEASE REFER TO X3 LOG") From XINFP_ERR
+            Goto RETCLOSE
+        Elsif !GOK
+            Gosub AB_TR1
+            # TODO - UPDATE OF MESSAGE
+            Call XERR_TRANS("SIH", [F:XXINFSIH]NUM, [F:XXINFSIH]EXPNUM, 1, 0, "ERROR ON THE SALES ORDER CREATION - PLEASE REFER TO X3 LOG") From XINFP_ERR
+            Goto RETCLOSE
+        Endif
+
+        Write
+        If fstat
+            GOK=0 : Call FSTA(ABFIC) From GLOCK
+            Gosub AB_TR1
+            # TODO - UPDATE OF MESSAGE
+            Call XERR_TRANS("SIH", [F:XXINFSIH]NUM, [F:XXINFSIH]EXPNUM, 1, 0, "ERROR ON THE SALES ORDER CREATION - PLEASE REFER TO X3 LOG") From XINFP_ERR
+            Goto RETCLOSE
+        Endif
+
+        ACTION = "CREATION"     : Gosub ACTION From GOBJSUB : Gosub DEFAUT From =PROGOBJ
+        If GOK < 0
+            Gosub ROLL_TR1
+            # TODO - UPDATE OF MESSAGE
+            Call XERR_TRANS("SIH", [F:XXINFSIH]NUM, [F:XXINFSIH]EXPNUM, 1, 0, "ERROR ON THE SALES ORDER CREATION - PLEASE REFER TO X3 LOG") From XINFP_ERR
+            Goto RETCLOSE
+        Elsif !GOK
+            Gosub AB_TR1
+            # TODO - UPDATE OF MESSAGE
+            Call XERR_TRANS("SIH", [F:XXINFSIH]NUM, [F:XXINFSIH]EXPNUM, 1, 0, "ERROR ON THE SALES ORDER CREATION - PLEASE REFER TO X3 LOG") From XINFP_ERR
+            Goto RETCLOSE
+        Endif
+
+        Commit
+
+    CLECUR1 = num$(evalue("[F]"+CLEPRIM))
+    GCLE = num$(evalue("[F]"+CLEPRIM))
+    For I=0 To dim(CLESEC)-1
+        If CLESEC(I)<>""
+            CLECUR2(I) = num$(evalue("[F]"+CLESEC(I)))
+            GCLE += "\"+num$(evalue("[F]"+CLESEC(I)))
+        Endif
+    Next I
+
+    CLECUR = 1
+
+    ACTION = "APRES_CRE"     : Gosub ACTION From GOBJSUB : Gosub DEFAUT From =PROGOBJ
+
+    Call TRACE2(0,GCLE,-1) From SUBIMPOBJ
+    Call IDENT3(ABREV,IDENT,CLECUR1,CLECUR2) From GOBJTXT
+
+    #Call ECR_TRACE(CLECUR1,0) From GESECRAN
+
+    # END - RESTORE SAVED VARIABLES
+    ##################################################################################################
+    $RETCLOSE
+
+    GPILNAV   = SAVPILNAV
+    GNAVIG(1) = SAVNAVIG
+    GABREV    = SAVABR
+    GFONCTION = SAVFONC
+    GIMPORT   = 0
+    GREP      = ""
+
+    Unlock =GCLE
+    Unlock =CLECUR1
+    Unlock =CLECUR2
+
+    Kill XINFPRND
+
+    ACTION = "FIN" : Gosub ACTION From GOBJET
+    If VERROU : Gosub DEVERROU From GOBJET : Endif
+    OK = 1 : GOK = 1
+
+    ACTION = "FERME" : Gosub ACTION From GOBJET
+
+    If WINPROG <> ""
+        Gosub FERME_BOITE From =WINPROG
+        Gosub FERME_MASK From =WINPROG
+    Endif
+End
+
+# RECALCULATES THE TAXES
+##################################################################################################
+$RE_CALC_TAX
+    If val(left$(GVERSION,instr(instr(1,GVERSION,".")+1,GVERSION,".")-1)) > 1.7
+        Local    Char     PARAM_T (25) (0..10)
+        PARAM_T(0)="1"
+        PARAM_T(1)="1"
+        PARAM_T(2)="0"
+        Call VALTTC("GESSDH",PARAM_T) From TRTVENFACR
+    Else
+        Call VALTTC("GESSDH") From TRTVENFACR
+    Endif
+
+Return
+
+# SUBPROGRAM THAT FORCES A LINE ITEM
+########################################################################################################################
+$ALISOQSDH
+    [M:SDH1]ITMREF(NOL) = [F:SOQ]ITMREF
+Return
+
+# ERROR DURING CREATION PHASE - ROLLBACK
+##################################################################################################
+$AB_TR1
+    Rollback
+    ACTION = "AB_CREATION"     : Gosub ACTION From GOBJSUB : Gosub DEFAUT From =PROGOBJ
+Return
+
+$ROLL_TR1
+    Rollback
+    Call ROLL From GLOCK
+    If GROLL : Return : Endif
+Return
+
+# ERROR DURING MODIFICATION PHASE - ROLLBACK
+##################################################################################################
+$AB_TR2
+    Rollback
+    ACTION = "AB_MODIF"     : Gosub ACTION From GOBJSUB : Gosub DEFAUT From =PROGOBJ
+Return
+
+$ROLL_TR2
+    Rollback
+    Call ROLL From GLOCK
+    If GROLL : Return  : Endif
+Return
+
+
+
+
+
+
+
+
+
+

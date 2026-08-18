@@ -1,0 +1,22 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+# Mask management YBPC (Specific)
+
+######################################################################################
+## Section automatically added (screen YBPC) 08/01/2025 07:39:16 (MOZM)
+######################################################################################
+Subprog C_ZMARKETING(VALEUR)
+Variable Integer VALEUR
+If [M:BPAC]XWEB5="" and VALEUR=2 and GUSER="MOZM"
+    chgstl [M:BPAC]XWEB5 with "BACKRED"
+    GMESSAGE="Please enter a marketing email first!"
+    zonsui="[M:BPAC]XWEB5"
+    mkstat=2
+Endif
+End
+
+
+######################################################################################
+
+
+
+

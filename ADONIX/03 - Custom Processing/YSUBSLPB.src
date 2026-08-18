@@ -1,0 +1,19 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+   case action
+     when "ALISCRSLP" : gosub ALISCRSLP
+   endcase
+Return
+
+
+$ALISCRSLP
+   if GUSER="INFP"
+     [M]TRT(nolign-1) = 1
+     affzo [M]TRT(nolign-1) 
+   endif
+Return
+
+
+
+
+

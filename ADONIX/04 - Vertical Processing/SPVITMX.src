@@ -1,0 +1,41 @@
+#<AdxTL>@(#)1.0.0.0 $Revision$
+#-----------------------------------------------------------------------------------------------------------------------------------------------------
+# Vertical Processes for WHM Product Cross-ref tab on product screen
+#----------------------------------------------------------------------------------------------------------------------------------------------------
+# History - (At end of Source)
+#
+# Last Change was :
+# 15/03/2017    Tim Wilcox      V03.05.00   T2808   ORIGINAL RELEASE
+# 12/04/2017    Tim Wilcox      V03.05.01   T----   call new XMOXM5IT file (V03.05.02 not used)
+# 16/06/2017    Tim Wilcox      V03.05.03   L36430  entry of barcode needs to be forced caps
+#----------------------------------------------------------------------------------------------------------------------------------------------------
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "03.05.03 16/06/2017 XM5"
+
+#----------------------------------------------------------------------------------------------------------------------------------------------------
+# actions
+# v03.05.01, all actions moved to XMOXM5IT
+#
+$ACTION
+
+    #
+    # v03.05.01, call XMOXM5IT file
+    #
+    Gosub ACTION From XMOXM5IT
+
+Return
+
+######################################################################################
+# v03.05.02, bcode actions
+# requires a Control action on screen XM5ITM on BCODE field
+#
+Subprog C_BCODE(VALEUR)
+Variable Char    VALEUR()
+
+    If func AFNC.ACTIV("XM5")
+        Gosub C_BCODE From XMOXM5IT
+    Endif
+
+End
+

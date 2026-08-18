@@ -1,0 +1,11 @@
+ ( INVDAT_0 , SALFCY_0 , SIHNUM_0 , ITMREF_0 , SAU_0 , QTY_0 , DES_0 ) As 
+SELECT SIH.INVDAT_0 as InvoiceDate,
+       SIH.SALFCY_0, SIH.INVREF_0,
+          SID.ITMREF_0, SID.SAU_0,SID.QTY_0,
+          ED.DES_0
+  FROM [XINFSIH] as SIH
+  LEFT JOIN [XINFSID] as SID on SID.NUM_0 = SIH.NUM_0
+  LEFT JOIN [XINFED] as ED on ED.NUM_0 = SIH.NUM_0
+  where SIH.INVFLG_0 <> 2 and ED.TYP_0 = 'SIH' 
+and charindex('STOCK',ED.DES_0) <> 0
+  and SID.ITMREF_0 = Left(ED.DES_0, CHARINDEX(' :',ED.DES_0))

@@ -1,0 +1,40 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+###########################################################################################
+# Script            : XINFP_TAX
+# Creation date     : 03/12/2018
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : SALES
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : TAX CALCULATION INTEGRATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When Default
+    Endcase
+Return
+
+# SUBPROGRAM TO CALCULATE THE TAXES FOR THE LINE
+###########################################################################################
+Subprog CLC_TAX(XSDHNUM, XLINNUM, XTAX)
+    Value Char    XSDHNUM
+    Value Integer XLINNUM
+    Value Decimal XTAX(0..3)
+
+
+
+
+End
+
+
+
+

@@ -1,0 +1,70 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+    When Default
+Endcase
+Return
+
+Subprog AM_BPR(VALEUR)
+Variable Char    VALEUR()
+If !clalev([F:BPR]) : Local File BPARTNER[F:BPR] : Endif
+If [F:BPR]BPRNUM <> VALEUR
+    Read [F:BPR]BPR0 = VALEUR
+    If fstat <> [V]CTS_AOK : Return : Endif
+Endif
+
+End
+
+Subprog AV_FCY(VALEUR)
+Variable Char    VALEUR()
+If [M:LTR]SOLSNS = 'CREDIT'
+    [M:LTR]SOLCPT = [M:LTR]SOLCPT*-1
+    Chgstl [M:LTR]SOLCPT With "BACKORANGE"
+Elsif [M:LTR]SOLSNS = 'DEBIT'
+    Chgstl [M:LTR]SOLCPT With "BACKGREEN"
+Else
+    Chgstl [M:LTR]SOLCPT With "NORMAL"
+Endif
+End
+
+Subprog AM_ZEDDRPT(VALEUR)
+Variable Integer VALEUR
+If VALEUR = 2 & [M:LTR]BPR <> "" & [M:LTR]ACC <> ""
+
+    Global Char ZV_LTREML(240) : [V]ZV_LTREML = func AFNC.INTFLD('BPADDRESS','WEB(0)','1~'+[M:LTR]BPR+'~ADDR')
+    Global Char ZV_LTRBPR(240) : [V]ZV_LTRBPR = [M:LTR]BPR
+    Global Char ZV_LTR_CODE(240) : [V]ZV_LTR_CODE="MANUAL MATCHING"
+    Global Char ZV_LTR_FICHIER(240) : [V]ZV_LTR_FICHIER="Statement of account "+[M:LTR]BPR
+    Local Char TBPAR(15)(0..50),TBVAL(30)(0..50)
+
+    TBPAR(0) = "vcrdeb"	: TBVAL(0) = ""
+    TBPAR(1) = "vcrfin"	: TBVAL(1) = ""
+    TBPAR(2) = "datedeb"	: TBVAL(2) = format$("MM[/]DD[/]YYYY",date$-365*10)
+    TBPAR(3) = "datefin"	: TBVAL(3) = format$("MM[/]DD[/]YYYY",date$+365*10)
+    TBPAR(4) = "bpdeb"	: TBVAL(4) = [M:LTR]BPR
+    TBPAR(5) = "bpfin"	: TBVAL(5) = [M:LTR]BPR
+    TBPAR(6) = "balance"	: TBVAL(6) = "2"
+    TBPAR(7) = "edd"	: TBVAL(7) = "1"
+    TBPAR(8) = "duddeb"	: TBVAL(8) = format$("MM[/]DD[/]YYYY",date$-365*10)
+    TBPAR(9) = "dudfin"	: TBVAL(9) = num$(month(date$))+"/"+num$(day(date$))+"/"+num$(year(date$))
+    TBPAR(10) = "statement"	: TBVAL(10) = "2"
+    Call ETAT("MONK-INVOICE","EMAILX3","", 0,"",TBPAR,TBVAL) From AIMP3
+    Kill [V]ZV_LTREML, [V]ZV_LTRBPR, [V]ZV_LTR_CODE, [V]ZV_LTR_FICHIER
+Endif
+VALEUR = 1
+End
+######################################################################################
+## Section automatically added (screen LETTRAGE) 04/29/2025 07:57:15 (MOZM)
+######################################################################################
+
+Subprog AM_ACC(VALEUR)
+Variable Char    VALEUR()
+If VALEUR<>"20100"
+	Chgfmt [M:LTR]ZBPSVCR With "-K:10"
+Else
+	Chgfmt [M:LTR]ZBPSVCR With "K:10"
+Endif
+End
+
+
+######################################################################################

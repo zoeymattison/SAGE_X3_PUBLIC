@@ -1,0 +1,1089 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+GTEST=0
+Close Local Mask
+Call SAISIE_CHAR(VALEUR,PARAM,"FMTC","LETTRAGE","") From GSAISIE
+
+End
+
+##########################################################
+## Actions déclenchées par le lettrage
+##
+## MTCMONT : Recherche d'un montant
+## MTCDLTR : Délettrage manuel
+## MTCLET  : Lettrage manuel
+## MTCAUT  : Lettrage auto
+##########################################################
+
+
+$ACTION
+#If GUSER="MOZM" : Infbox "ACTION - "+ACTION : Endif
+Case ACTION
+ When "INIT"     : Gosub INIT
+ When "INIT_DIA" : Gosub INIT_DIA
+ When "CONTROLE" : Gosub CONTROLE
+ When "EXEC"     : Gosub EXEC
+ When "SORTIE"   : Gosub SORTIE
+
+ When "OK"       : Gosub BOK
+ When "END"      : Gosub BEND
+
+ When "DEBUT"    : Gosub DEBUT
+
+ When "TRT_DIV"  : Gosub TRT_DIV
+
+ When Default
+Endcase
+Return
+
+$INIT
+Case GACTION
+ When "MTCDLTR"
+  Local Integer LIGDEB
+  LIGDEB = nolign-1
+  If [M]MTC(LIGDEB)="" : FIN = 1 : Endif
+Endcase
+Return
+
+$INIT_DIA
+Case GACTION
+ When "MTCMONT"
+  If [M:LTR]CURLET<>""
+   [M:DIA]CUR = [M:LTR]CURLET
+   If [M:LTR]SOLDLET>0
+    [M:DIA]SNS = 2
+    [M:DIA]AMT = [M:LTR]SOLDLET
+   Else
+    [M:DIA]SNS = 1
+    [M:DIA]AMT = -[M:LTR]SOLDLET
+   Endif
+  Else
+   [M:DIA]CUR = [M:LTR]CURCPY
+   If [M:LTR]SOLDE>0
+    [M:DIA]SNS = 2
+    [M:DIA]AMT = [M:LTR]SOLDE
+   Else
+    [M:DIA]SNS = 1
+    [M:DIA]AMT = -[M:LTR]SOLDE
+   Endif
+  Endif
+ When "MTCDLTR"
+  Local Char    LETTRE(5)
+  Local Date    DATMIN, DATMAX
+  LETTRE = [M:LTR]MTC(LIGDEB)
+  Raz [M:DIA]
+  [M:DIA]MTC = LETTRE
+  If (LETTRE>="A" & LETTRE<="ZZZZZ") | (left$([M:LTR]REFINT(LIGDEB),3)="MTC")
+   [M:DIA]GRPFIX=2
+  Endif
+ When "MTCAUT"
+  Local Char SAV_GFONC(30)
+Endcase
+Return
+
+$CONTROLE
+Case GACTION
+ When "MTCDLTR"
+  Gosub DELETTRE
+ When "MTCLET"
+  Gosub VALIDATION From LETTRAGE
+ When "MTCMONT"
+  [M:LTM] = [M:DIA]
+ When "MTCAUT"
+  SAV_GFONC = GFONCTION
+  GFONCTION = "LETTRAUTO"
+  Call AUTORIS From EXEFNC
+  GFONCTION = SAV_GFONC
+  If GNBAUZ=0
+   GERR=1 : GMESSAGE = mess(1,123,1)   :# Fonction non autorisée
+   FIN=1
+   Call AUTORIS From EXEFNC
+   Return
+  Endif
+  TMP = 1
+Endcase
+Return
+
+$DEBUT
+Case GACTION
+ When "MTCLET","MTCDLTR"
+  Affzo [LTE]
+Endcase
+Return
+
+$BOK
+Gosub VERF_LTE From LETTRAGE
+Return
+
+$BEND
+If GACTION<>"MTCLET"
+ Gosub VERF_LTE From LETTRAGE
+Endif
+Return
+
+$EXEC
+Case GACTION
+ When "MTCDLTR"
+  Gosub SUITE_DELETMIN
+ When "MTCAUT"
+  Call OUVRE_TRACE(mess(9,110,1)) From LECFIC # Lettrage automatique
+  Call LETCPT([M:LTR]LEDTYP,[M:LTR]FCY,[M:LTR]ACC,[M:LTR]BPR,[M:LTC]MTCTRA,1,1,[M:LTR]DATDEB,[M:LTR]DATFIN)
+&   From LETTSUB
+  Call FERME_TRACE From LECFIC
+  TRA = 1
+Endcase
+Return
+
+$SORTIE
+Case GACTION
+ When "MTCDLTR"
+  GMODIF = 1 : mkstat = 4
+Endcase
+Return
+
+$TRT_DIV
+Case TRAIT
+ When "CONSPIEC" : Gosub B1_NBLIG
+ When "CONSFACT" : Gosub B8_NBLIG
+Endcase
+Return
+
+
+########################################
+## Ecran LETTRAGE                     ##
+########################################
+Subprog C_FCY(VALEUR)
+Variable Char    VALEUR()
+Local Integer OKSOC
+Call LECTURE("FCY",VALEUR,"") From CONTOBJ
+Call LOCKCPY([F:FCY]LEGCPY,OKSOC) From AX3MONO
+If !OKSOC
+ mkstat = 2
+Endif
+Call GETSOC(VALEUR) From DEVSUB
+End
+
+Subprog AS_LEDTYP(VALEUR)
+Variable Integer VALEUR
+Local Integer NBLED,TYPREF
+# Au niveau du filtre sur le Type de Référentiel
+If dim([M]FCY)>0
+ # pour le lettrage manuel, je sélectionne les référentiels cochés "non automatique" & référentiel coché "Lettrage" (F79507)
+ Call LECTURE("FCY",[M]FCY,"") From CONTOBJ
+ Call LEDTYP_CHOICE([F:FCY]LEGCPY,10) From CPTDIV
+Else
+ If [M]SOC(0)<>""
+  Call LEDTYP_CHOICE([M]SOC(0),10) From CPTDIV
+ Endif
+Endif
+End
+
+Subprog C_LEDTYP(VALEUR)
+Variable Integer VALEUR
+Local Char REFER(GLONLED)
+Local Char SOCCUR(GLONCPY)
+SOCCUR = ""
+If dim([M]FCY)>0
+ Call LECTURE("FCY",[M]FCY,"") From CONTOBJ
+ Call LECTURE("CPY",[F:FCY]LEGCPY,"") From CONTOBJ
+Else
+ If [M]GRPSOC<>"" & ([M]NBSOC = 0 | VALEUR<>[M]LEDTYP)
+  Raz [M]NBSOC, SOC
+  [M]LEDTYP = VALEUR
+  Gosub INISOC
+  Call LECTURE("CPY",[M]SOC(0),"") From CONTOBJ
+ Elsif [M]GRPSOC="" & dim([M]SITE)>0
+  Call LECTURE("FCY",[M]SITE,"") From CONTOBJ
+  Call LECTURE("CPY",[F:FCY]LEGCPY,"") From CONTOBJ
+ Endif
+Endif
+SOCCUR = [F:CPY]CPY
+If SOCCUR<>""
+ Call LECTURE("GCM",[F:CPY]ACM,"") From CONTOBJ
+ REFER = [F:GCM]LED(VALEUR-1)
+ If REFER=""
+  # Référentiel incorrect
+  GMESSAGE = mess(201,111,1)
+  mkstat = 2 : End
+ Endif
+ Call LECTURE("LED",REFER,"") From CONTOBJ
+ [M]COA   = [F:LED]COA
+ If dim([M]FLECH)>0
+  If VALEUR =  [F:GCM]GENLEDTYP
+   [M]FLECH = 2
+  Else
+   [M]FLECH = 1
+  Endif
+  [M]GENE  = [F:LED]GEN
+ Endif
+Endif
+End
+
+$INISOC
+If clalev([F:AGC])=0 : Local File AGRPCPY [AGC] : Endif
+[M]NBSOC = 0
+For [AGC] Where GRP=[M]GRPSOC
+ SOCIETE = [F:AGC]CPY
+ Gosub OKSOC
+ If OKSOC
+  Gosub CONTSOC
+ Endif
+ If OKSOC
+  [M]SOC([M]NBSOC) = SOCIETE
+  [M]NBSOC += 1
+ Endif
+Next
+Affzo 10
+Return
+
+$OKSOC
+Call LECTURE("CPY",SOCIETE,"") From CONTOBJ
+Call LECTURE("GCM",[F:CPY]ACM,"") From CONTOBJ
+Call LECTURE("LED",[F:GCM]LED([M]LEDTYP-1),"") From CONTOBJ
+If [M]NBSOC=0 & [F:LED]COA<>""
+ [M]COA = [F:LED]COA
+ OKSOC = 1
+Else
+ OKSOC = ([F:LED]COA=[M]COA)
+Endif
+Return
+
+
+Subprog C_ACC(VALEUR)
+Variable Char    VALEUR()
+Call LECTURE("GAC",VALEUR,[M]COA) From CONTOBJ
+If [F:GAC]MTC<>2
+ GMESSAGE = mess(17,110,1) : mkstat = 2 : End : # Compte non lettrable
+Endif
+Local Integer DROIT
+Call CONSACC([F:GAC]ACS,DROIT) From CPTSUB
+If !DROIT
+ Call MESSAGE(mess(4,104,1)) From GESECRAN :  mkstat=2 : End : # "Vous n'avez pas les droits pour ce code"
+Endif
+Call LECTEXTRA([M]ACCDES,"GACCOUNT","DESTRA",[M]COA,VALEUR) From ATEXTRA
+End
+
+Subprog AS_BPR(VALEUR)
+Variable Char    VALEUR()
+Call LECTURE("GAC",[M]ACC,[M]COA) From CONTOBJ
+If [F:GAC]SAC<>2 : VALEUR = "" : mkstat = 1 : End : Endif
+End
+
+Subprog IB_NBLIG
+Gosub SETNOL
+Raz GBOUT2, GBOUT4, GBOUT7
+If [M:LTR]ECRLET=0 & [M:LTR]VERROU & !([M:LTR]MTC(NOL)>="A" & [M:LTR]MTC(NOL)<="ZZZZZ")
+ GBOUT2 = mess(18,110,1) : # Sélect
+Endif
+If NOL>=0 & [M:LTR]MTC(NOL)<>"" & [M:LTR]VERROU
+ GBOUT4 = mess(10,110,1) : #  Délettrage
+Endif
+If [M]BPR<>""
+ If clalev([F:GTE])=0  : Local File GTYPACCENT [GTE]  : Endif : # Type de pièces
+ Call LEC_GTE_LEG(GCURLEG,[M]TYP(NOL)) From CPTLEC
+ If [F:GTE]DUDDATFLG=2
+  GBOUT7 = mess(39,117,1) : # Echéances
+ Endif
+Endif
+
+## Bouton 1 : Zoom sur pièce sur pièce déjà existant.
+Raz GBOUT1, GBOUT8
+If clalev([F:HAE])=0 : Local File GACCENTRY [HAE] : Endif
+Read [HAE]HAE0 = [M]TYP(NOL);[M]NUM(NOL)
+If !fstat
+ GBOUT1 = mess(18,109,1) : #  Pièce
+Endif
+## Bouton 8 : Zoom sur la facture
+If clalev([F:SIH])=0 : Local File SINVOICE  [SIH] : Endif
+If clalev([F:PIH])=0 : Local File PINVOICE  [PIH] : Endif
+Read [F:SIH]SIH2 = [M]TYP(NOL);[M]NUM(NOL)
+If !fstat
+ Case [F:SIH]ORIMOD
+  When 3 : GBOUT8 = mess(43,109,1) : # Facture tiers client
+  When 5 : GBOUT8 = mess(45,109,1) : # Facture vente
+ Endcase
+Elsif fstat=5
+ Read [F:PIH]PIH2 = [M]TYP(NOL);[M]NUM(NOL)
+ If !fstat
+  Case [F:PIH]ORIMOD
+   When 3 : GBOUT8 = mess(44,109,1) : # Facture tiers fournisseur
+   When 6 : GBOUT8 = mess(46,109,1) : # Facture achat
+  Endcase
+ Endif
+Endif
+End
+
+Subprog B2_NBLIG
+mkstat = 4 : # On force l'après modif, c'est tout
+GMODIF = 9
+End
+
+$B1_NBLIG
+Gosub SETNOL
+Raz GBIDC1, GBIDC2, GBIDC3
+If clalev([F:HAE])=0 : Local File GACCENTRY [HAE] : Endif
+Read [HAE]HAE0 = [M]TYP(NOL);[M]NUM(NOL)
+If !fstat
+ GBIDC1 = "GAS"
+ GBIDC2 = [M]NUM(NOL)
+ GBIDC3 = [M]TYP(NOL)
+Endif
+Return
+
+$B8_NBLIG
+Gosub SETNOL
+Raz GBIDC1, GBIDC2, GBIDC3
+Case GBOUT8
+ When mess(43,109,1) : # Facture tiers client
+  If clalev([F:SIH])=0 : Local File SINVOICE  [SIH] : Endif
+  Call LECTURE("BIC",[M]NUM(NOL),"") From CONTOBJ
+  If !fstat : GBIDC1  = "BIC" :  Endif
+  If func AFNC.ACTIV("INTCO") and func AFNC.PARAM("INTCPYINV",[F:SIH]CPY)="2" and [F:SIH]NBRCPY > 1
+   GFONC1 = "GESBICI"
+  Else
+   GFONC1 = ""
+  Endif
+ When mess(44,109,1) : # Facture tiers fournisseur
+  If clalev([F:PIH])=0 : Local File PINVOICE  [PIH] : Endif
+  Call LECTURE("BIS",[M]NUM(NOL),"") From CONTOBJ
+  If !fstat : GBIDC1  = "BIS" : Endif
+  If func AFNC.ACTIV("INTCO") and func AFNC.PARAM("INTCPYINV",[F:PIH]CPY)="2" and [F:PIH]NBRCPY > 1
+   GFONC1 = "GESBISI"
+  Else
+   GFONC1 = ""
+  Endif
+ When mess(45,109,1) : # Facture vente
+  If clalev([F:SIV])=0 : Local File SINVOICEV [SIV] : Endif
+  Call LECTURE("SIH",[M]NUM(NOL),"") From CONTOBJ
+  If !fstat : GBIDC1  = "SIH" : Endif
+ When mess(46,109,1) : # Facture achat
+  If clalev([F:PIH])=0 : Local File PINVOICE [PIH] : Endif
+  Call LECTURE("PIH",[M]NUM(NOL),"") From CONTOBJ
+  If !fstat : GBIDC1  = "PIH" : Endif
+Endcase
+GBIDC2  = [M]NUM(NOL)
+Return
+
+Subprog SEL_DESEL
+Gosub SETNOL
+If [M:LTR]ECRLET<>0 : End : Endif
+Local Integer X, SAV_TITCOL, NBAFF
+[L]NBAFF = 0
+If [M]FLG(NOL)=""
+ If [M]MTC(NOL)=""
+  NOL1 = NOL : Gosub SELECT
+ Else
+  NOL1 = find([M]MTC(NOL),[M]MTC(0..[M]NBLIG-1))-1
+  [L]NBAFF = sigma(NOL1,[M]NBLIG-1,[M]MTC(indcum)=[M]MTC(NOL))
+  While NOL1>=0
+   Gosub SELECT
+   NOL2 = find([M]MTC(NOL),[M]MTC(NOL1+1..[M]NBLIG-1))
+   If NOL2 : NOL1 = NOL1+NOL2 : Else : NOL1 = -1 : Endif
+  Wend
+ Endif
+Else
+ If [M]MTC(NOL)=""
+  NOL1 = NOL : Gosub DESELECT
+ Else
+  [L]NBAFF = sigma(0,[M]NBLIG-1,[M]MTC(indcum)=[M]MTC(NOL))
+  For NOL1=0 To [M]NBLIG-1
+   If [M]MTC(NOL1)=[M]MTC(NOL)
+    Gosub DESELECT
+   Endif
+  Next NOL1
+ Endif
+Endif
+Gosub SOLDE
+Affzo 15 : # Affichage des soldes
+End
+
+$SOLDE
+Raz [M:LTR]CURLET, [M:LTR]SOLDE , [M:LTR]SOLDLET
+If [M:LTP]NBLET>0 & [M:LTR]CURFLG=1
+ If [M:LTR]CUR([M:LTP]TBLET(1))<>[M:LTR]CURCPY
+  [M:LTR]CURLET = [M:LTR]CUR([M:LTP]TBLET(1))
+ Elsif !find([M:LTR]CURORG([M:LTP]TBLET(1)),"",[M:LTR]CURCPY)
+  [M:LTR]CURLET = [M:LTR]CURORG([M:LTP]TBLET(1))
+ Endif
+Endif
+For I=1 To [M:LTP]NBLET
+ [M:LTR]SOLDE += [M:LTR]DEBIT([M:LTP]TBLET(I))-[M:LTR]CREDIT([M:LTP]TBLET(I))
+ If [M:LTR]CURFLG=1 & [M:LTR]CUR([M:LTP]TBLET(I))=[M:LTR]CURLET
+  [M:LTR]SOLDLET += [M:LTR]DEBCUR([M:LTP]TBLET(I))-[M:LTR]CRECUR([M:LTP]TBLET(I))
+ Elsif [M:LTR]CURLET<>"" & !([M:LTR]CURFLG=1
+& &    [M:LTR]CUR([M:LTP]TBLET(I))=[M:LTR]CURCPY
+& &    [M:LTR]CURORG([M:LTP]TBLET(I))=[M:LTR]CURLET)
+  [M:LTR]CURLET = ""
+  [M:LTR]SOLDLET = 0
+ Endif
+Next I
+Local Integer NBAFF , STAT
+Local Decimal MINDEV
+If [M:LTR]CURLET<>"" & [M:LTR]SEUIL>0
+ Call CONVERT(GCURSHR,[M:LTR]CURLET,[M:LTR]CURCPY,GCHGTYP,datesyst,[M:LTR]SEUIL,MINDEV,STAT) From TRTDEV
+ If STAT : MINDEV = 0 : Endif
+Elsif [M:LTR]CURCPY<>"" & [M:LTR]SEUIL>0
+ Call CONVERT(GCURSHR,[M:LTR]CURCPY,[M:LTR]CURCPY,GCHGTYP,datesyst,[M:LTR]SEUIL,MINDEV,STAT) From TRTDEV
+ If STAT : MINDEV = 0 : Endif
+Else
+ MINDEV = 0
+Endif
+[L]NBAFF=0
+#*YYFIN_X3-38460  If  (abs([M:LTR]SOLDE)<=MINDEV & [M:LTR]CURLET="")
+#*YYFIN_X3-38460 & |  ([M:LTR]CURLET<>"" & abs([M:LTR]SOLDLET)<MINDEV)
+If  (abs([M:LTR]SOLDE)<=MINDEV & [M:LTR]CURLET="")
+& | ([M:LTR]CURLET<>"" & abs([M:LTR]SOLDLET)<=MINDEV)
+ [L]NBAFF = [M:LTP]NBLET
+ For I=1 To [M:LTP]NBLET
+  NOL1 = [M:LTP]TBLET(I)
+  [M:LTR]FLG(NOL1) = "="
+  Gosub AFFLIG
+ Next I
+Else
+ [L]NBAFF = sigma(0,max(0,[M:LTP]TBLET(1..[M:LTP]NBLET)),[M:LTR]FLG(indcum)="=")
+ For I=1 To [M:LTP]NBLET
+  NOL1 = [M:LTP]TBLET(I)
+  If [M:LTR]FLG(NOL1)="="
+   [M:LTR]FLG(NOL1) = "*"
+   Gosub AFFLIG
+  Endif
+ Next I
+Endif
+Return
+
+$SELECT
+[M:LTR]FLG(NOL1)  = "*"
+#[M:LTR]FLG1(NOL1) = 2
+[M:LTR]FLGMTC(NOL1)= 2
+[M:LTP]NBLET += 1
+[M:LTP]TBLET([M:LTP]NBLET) = NOL1
+Gosub AFFLIG
+Return
+
+$AFFLIG
+SAV_TITCOL = GORITITCOL
+GORITITCOL = 1
+Case [M:LTR]FLG(NOL1)
+ When "="     : Chgstl [LTR]NBLIG(NOL1) With "MTC2"
+ When ""      : Chgstl [LTR]NBLIG(NOL1) With ""
+ When Default : Chgstl [LTR]NBLIG(NOL1) With "MTC1"
+Endcase
+GORITITCOL = SAV_TITCOL
+Affzo [M:LTR]FLGMTC(NOL1)
+Return
+
+$AFFLTR
+Local Integer SAV_TITCOL
+SAV_TITCOL = GORITITCOL
+GORITITCOL = 1
+Affzo [M:LTR]
+GORITITCOL = SAV_TITCOL
+Return
+
+$DESELECT
+[M:LTR]FLG(NOL1)  = ""
+#[M:LTR]FLG1(NOL1) = 1
+[M:LTR]FLGMTC(NOL1)= 1
+X = find(NOL1,[M:LTP]TBLET(1..[M:LTP]NBLET))
+If X
+ Dela X,1,[M:LTP]NBLET [M:LTP]TBLET
+ [M:LTP]NBLET -= 1
+Endif
+Gosub AFFLIG
+Return
+
+Subprog AV_FLG(VALEUR)
+Variable Char    VALEUR()
+Gosub SETNOL
+[M]MTCAFF(NOL) = [M:LTR]MTC(NOL)+string$(left$([M:LTR]REFINT(NOL),3)="MTC","*")
+End
+
+$SETNOL
+Local Integer NOL
+NOL = nolign-1
+Return
+
+##################################################
+## Délettrage
+##################################################
+$DELETTRE
+Local Integer EFFACE, SAV_TITCOL
+Call LECTURE("FCY",[M:LTR]FCY,"") From CONTOBJ
+Call PREMEX([F:FCY]LEGCPY,[M:LTR]LEDTYP,DATMIN) From CPTSUB
+Call DEREX([F:FCY]LEGCPY,[M:LTR]LEDTYP,DATMAX) From CPTSUB
+If [M:LTR]ECRLET=1 | [M:DIA]GRP=2
+ Gosub DELETGRP
+ If GOK<1 : Return : Endif
+Else
+ Goto DELETMIN
+Endif
+OK=0 : I=0 : EFFACE=0
+Local Integer LIG, NBMTC
+[L]NBMTC = sigma(0,[M:LTR]NBLIG-1,[M:LTR]MTC(indcum)=LETTRE)
+Repeat
+ NOL=find(LETTRE,[M:LTR]MTC(I..[M:LTR]NBLIG-1))
+ If !NOL : Break : Endif
+ NOL+=I-1 : I=NOL+1
+ Look [DAE]DAE2 = [M:LTR]ACCNUM(NOL)
+ If fstat=0
+  [M:LTR]MTC(NOL) = "" : LIG=NOL : Gosub SETMTCAFF
+ Else
+  EFFACE = 1
+  [M:LTR]SOLCPT -= [M:LTR]DEBIT(NOL)-[M:LTR]CREDIT(NOL)
+  Dela NOL,1 [M:LTR]NBLIG
+  [M:LTR]NBLIG -= 1 : I-=1
+  OK = find(NOL,[M:LTP]TBLET(1..[M:LTP]NBLET))
+  If OK
+   Dela OK,1,[M:LTP]NBLET [M:LTP]TBLET
+   [M:LTP]NBLET -= 1
+  Endif
+  OK=1
+ Endif
+Until I>[M:LTR]NBLIG-1
+If OK
+ If [M:LTR]SOLCPT=0
+  [M:LTR]SOLSNS = ""
+ Elsif [M:LTR]SOLCPT>0
+  [M:LTR]SOLSNS = mess(1,626,1)
+ Else
+  [M:LTR]SOLSNS = mess(2,626,1)
+  [M:LTR]SOLCPT = -[M:LTR]SOLCPT
+ Endif
+ Affzo [LTR]SOLCPT, SOLSNS
+ Gosub SOLDE
+ If EFFACE
+  Affzo [LTR]20
+ Endif
+ Affzo [LTR]FLG, MTCAFF
+ Affzo [LTR]15 : # Affichage soldes
+Endif
+Return
+
+################################################################
+## Délettrage de tout le groupe par rapport a la Date Comptable
+################################################################
+$DELETGRP
+Local Integer OK
+OK=2
+For [DAE]DAE1 Where LEDTYP=[M:LTR]LEDTYP & CPY=[F:FCY]LEGCPY & FCYLIN=[M:LTR]FCY
+&                 & ACC=[M:LTR]ACC & BPR=[M:LTR]BPR & MTC=LETTRE
+ If DATMIN=[0/0/0] | DATMAX=[0/0/0] | [F:DAE]ACCDAT<DATMIN | [F:DAE]ACCDAT>DATMAX
+  OK=0 : Break
+ Endif
+Next
+# Délettrage sur une période non ouverte Month Year
+If !OK :
+ OK=2 : Call AVERTIR(mess(44,110,1)-format$("MMMM",[F:DAE]ACCDAT)-format$("YYYY",[F:DAE]ACCDAT),OK) From GESECRAN
+Endif
+If OK=2
+ GTRANS=0 : Call DELETTRE_PROP([F:FCY]LEGCPY,[M:LTR]FCY,[M:LTR]LEDTYP,[M:LTR]ACC,[M:LTR]BPR,LETTRE) From DELETTRAGE
+Else GOK=0
+Endif
+FIN = 1 : BOITE = "" : # Si on délettre tout, il n'y a plus rien à faire
+Return
+
+###################################
+## Délettrage d'une seule écriture
+###################################
+$DELETMIN
+Local Integer FLDEV, STA, NBLETAUT, LIG, NBMTC,ECHNEG
+Local Decimal IPTDEB, IPTCRE
+Local Char    MESSAGE(80), PCETYP(GLONGTE)(1..5), PCENUM(GLONVCR)(1..5)
+[M:LTP]NBLET=0
+For I=0 To [M:LTR]NBLIG-1
+ If I<>LIGDEB & [M:LTR]MTC(I)=LETTRE
+  [M:LTP]NBLET += 1
+  [M:LTP]TBLET([M:LTP]NBLET)  = I
+  If left$([M:LTR]REFINT(I),3)="MTC" : NBLETAUT += 1 : Endif
+ Endif
+Next I
+If [M:LTP]NBLET-NBLETAUT>1
+ If DATMIN=[0/0/0] | DATMAX=[0/0/0] | [M:LTR]ACCDAT(LIGDEB)<DATMIN | [M:LTR]ACCDAT(LIGDEB)>DATMAX
+  #  Délettrage sur une période non ouverte Month Year
+  OK=2 : Call AVERTIR(mess(44,110,1)-format$("MMMM",[M:LTR]ACCDAT(LIGDEB))-format$("YYYY",[M:LTR]ACCDAT(LIGDEB)),OK) From GESECRAN
+  If OK<>2 : GOK=0 : Goto FIN_DELETMIN : Endif
+ Endif
+ Gosub SOLDE
+ If [M:LTR]CURLET=""
+  [M:LTE]CUR = [M:LTR]CURCPY
+  FLDEV = 1
+ Else
+  [M:LTE]CUR = [M:LTR]CURLET
+  FLDEV = 2
+ Endif
+ Call CHARGECH([M:LTP]NBLET,[M:LTP]TBLET(1..[M:LTP]NBLET),FLDEV,[M:LTR]BPR,ECHNEG) From LETTRAGE
+ If ([M:LTR]BPR<>"" & !([M:LTR]SOLDE=0 |
+&                     ([M:LTR]CURLET<>"" & [M:LTR]SOLDLET=0))
+&                   &  [M:LTE]NBLIG>2)
+&   or ([M:LTR]BPR<>"" & ECHNEG)
+# Dans ce cas on va saisir la fenêtre d'imputations
+ Else
+  BOITE = "" : # Y'en a pas besoin
+ Endif
+Else
+ Gosub DELETGRP
+ Gosub FIN_DELETMIN
+Endif
+Return
+
+$SUITE_DELETMIN : # On a saisi la fenêtre d'imputation
+Call DEBTRANS From GLOCK
+Gosub TR1
+
+$FIN_DELETMIN
+OK = 0
+If GOK>0
+ Look [DAE]DAE2 = [M:LTR]ACCNUM(LIGDEB)
+ If fstat
+  [M:LTR]SOLCPT -= [M:LTR]DEBIT(LIGDEB)-[M:LTR]CREDIT(LIGDEB)
+  Dela LIGDEB,1 [M:LTR]NBLIG
+  [M:LTR]NBLIG -= 1 : OK = 1
+ Else [M:LTR]MTC(LIGDEB) = ""
+ Endif
+ For I=1 To [M:LTP]NBLET
+  K = [M:LTP]TBLET(I)
+  Look [DAE]DAE2 = [M:LTR]ACCNUM(K)
+  If fstat
+   [M:LTR]SOLCPT -= [M:LTR]DEBIT(K)-[M:LTR]CREDIT(K)
+   Dela K,1 [M:LTR]NBLIG
+   [M:LTR]NBLIG -= 1 : OK = 1
+  Elsif [M:LTP]NBLET-NBLETAUT<2
+   [M:LTR]MTC(K) = ""
+  Endif
+ Next I
+Endif : # GOK
+
+[M:LTP]NBLET = 0
+[L]NBMTC = sigma(0,[M:LTR]NBLIG-1,[M:LTR]FLG(indcum)<>"")
+For I = 0 To [M:LTR]NBLIG-1
+ If [M:LTR]FLG(I)="*" or [M:LTR]FLG(I)="="
+  [M:LTP]NBLET += 1
+  [M:LTP]TBLET([M:LTP]NBLET) = I
+  If [M:LTR]FLG(I)="=" & GOK>0
+   [M:LTR]MTC(I) = toupper([M:LTR]MTC(I)) : LIG=I : Gosub SETMTCAFF
+  Endif
+ Endif
+Next I
+If OK
+ If [M:LTR]SOLCPT=0
+  [M:LTR]SOLSNS = ""
+ Elsif [M:LTR]SOLCPT>0
+  [M:LTR]SOLSNS = mess(1,626,1)
+ Else
+  [M:LTR]SOLSNS = mess(2,626,1)
+  [M:LTR]SOLCPT = -[M:LTR]SOLCPT
+ Endif
+ Affzo [LTR]SOLCPT, SOLSNS
+Endif
+Gosub SOLDE
+Affzo [LTR]FLG, MTCAFF
+Affzo [LTR]15 : # Affichage des soldes
+Return
+
+$TR1
+GOK = 1 : GTRANS=1 : Raz PCETYP , PCENUM : STA=0
+Trbegin [DAE] , [DUD] , [MTC]
+ Call DELETECR_PROP([M:LTR]ACCNUM(LIGDEB)) From DELETTRAGE
+ If GOK>0
+  FLDEV = 1+([M:LTR]CURLET<>"")
+  Call LETTRAGE([M:LTE]NBLIG,[M:LTE]ACCNUM,[M:LTE]DUDLIG,[M:LTE]NIPT
+&              ,FLDEV,0,STA,MESSAGE,PCETYP,PCENUM) From CPTLET
+ Endif
+ If   GOK<0 : Goto ROLL_TR1
+ Elsif !GOK : Goto AB_TR1
+ Endif
+Commit
+GTRANS=0
+For I=1 To dim(PCENUM)
+ If PCENUM(I)<>""
+  Call AJOUTLIG(PCETYP(I),PCENUM(I))
+ Endif
+Next I
+Return
+
+$AB_TR1
+Rollback : GTRANS=0
+If STA & MESSAGE<>"" : GERR = 1 : GMESSAGE = MESSAGE : Endif
+Return
+
+$ROLL_TR1
+Rollback : GTRANS=0
+Call ROLL From GLOCK
+If GROLL
+ If STA & MESSAGE<>"" : GERR = 1 : GMESSAGE = MESSAGE : Endif
+ Return
+Else : Goto TR1
+Endif
+Return
+
+##############################
+Subprog AJOUTLIG(TYPPCE,PIECE)
+##############################
+Value Char TYPPCE
+Value Char PIECE
+
+# Local File [HAE], [DAE]
+Local Integer MAXECR, OK, FLG, NOL1, SAV_TITCOL
+MAXECR = dim([M:LTR]ACCNUM)
+
+If [M:LTR]NBLIG>=MAXECR  : End : Endif
+For [DAE]DAE0 Where LEDTYP=[M:LTR]LEDTYP & TYP=TYPPCE & NUM=PIECE
+&                 & ACC=[M:LTR]ACC & BPR=[M:LTR]BPR & FCYLIN=[M:LTR]FCY
+ OK=1
+ If [F:DAE]SNS>0
+  If [M:LTC]DEBDATDEB<>[0/0/0]
+   OK *= [F:DAE]ACCDAT>=[M:LTC]DEBDATDEB
+  Endif
+  If [M:LTC]DEBDATFIN<>[0/0/0]
+   OK *= [F:DAE]ACCDAT<=[M:LTC]DEBDATFIN
+  Endif
+ Else
+  If [M:LTC]CREDATDEB<>[0/0/0]
+   OK *= [F:DAE]ACCDAT>=[M:LTC]CREDATDEB
+  Endif
+  If [M:LTC]CREDATFIN<>[0/0/0]
+   OK *= [F:DAE]ACCDAT<=[M:LTC]CREDATFIN
+  Endif
+ Endif
+ If OK
+  Read [HAE]HAE0 = [F:DAE]TYP;[F:DAE]NUM
+  OK *= ([F:HAE]CAT=1)
+ Endif
+ If OK
+  NOL1 = [M:LTR]NBLIG
+  [M:LTR]NBLIG += 1
+  nolign = [M:LTR]NBLIG
+  Gosub CHARGE From LETTRAGE
+  [M:LTR]MTCAFF(NOL1) = [M:LTR]MTC(NOL1)+string$(left$([M:LTR]REFINT(NOL1),3)="MTC","*")
+  [M:LTR]SOLCPT += [M:LTR]DEBIT(NOL1)-[M:LTR]CREDIT(NOL1)
+  Gosub AFFLIG
+  Affzo [LTR]ACCDAT(NOL1),TYP(NOL1),NUM(NOL1),MTCAFF(NOL1),DEBIT(NOL1),CREDIT(NOL1),STA(NOL1),DES(NOL1)
+&     , JOU(NOL1),REF(NOL1),DUDDAT(NOL1),CUR(NOL1),DEBCUR(NOL1),CRECUR(NOL1),FREREF(NOL1)
+  FLG=1
+  If [M:LTR]NBLIG>=MAXECR : Break : Endif
+ Endif
+Next
+If FLG
+ If [M:LTR]SOLCPT=0
+  [M:LTR]SOLSNS = ""
+ Elsif [M:LTR]SOLCPT>0
+  [M:LTR]SOLSNS = mess(1,626,1)
+ Else
+  [M:LTR]SOLSNS = mess(2,626,1)
+  [M:LTR]SOLCPT = -[M:LTR]SOLCPT
+ Endif
+ Affzo [LTR]SOLCPT
+Endif
+End
+
+$SETMTCAFF
+[M:LTR]MTCAFF(LIG) = [M:LTR]MTC(LIG)+string$(left$([M:LTR]REFINT(LIG),3)="MTC","*")
+If NBMTC < 100
+ Affzo [LTR]MTCAFF(LIG)
+Endif
+Return
+
+########################################
+## Ecran DELETTRE                     ##
+########################################
+Subprog AS_GRP(VALEUR)
+Variable Integer  VALEUR
+If [M:DIA]GRPFIX=2
+ VALEUR=2 : mkstat=2 : End
+Endif
+End
+
+########################################
+## Ecran LETTRECH                     ##
+########################################
+Subprog AP_IPT(VALEUR)
+Variable Decimal VALEUR
+[M]NIPT(nolign-1) = VALEUR-[M]OIPT(nolign-1)
+End
+
+#######################################
+## Ecran DELETTRAGE / LETTAUTO       ##
+#######################################
+Subprog C_GRPSOC(VALEUR)
+Variable Char    VALEUR()
+If clalev([F:CPY])=0  : Local File COMPANY     [CPY]   : Endif
+If clalev([F:GCM])=0  : Local File GACM        [GCM]   : Endif
+If clalev([F:LED])=0  : Local File GLED        [LED]   : Endif
+Local Integer OKSOC
+Local Char    SOCIETE(GLONCPY)
+If VALEUR<>"" & VALEUR<>[M]GRPSOC
+ If clalev([F:AGC])=0 : Local File AGRPCPY [AGC] : Endif
+ Call CONTALLCPY(VALEUR) From CPTSUB
+ If mkstat : End : Endif
+ [M]NBSOC = 0
+ For [AGC] Where GRP=VALEUR
+  SOCIETE = [F:AGC]CPY
+  Gosub OKSOC
+  If OKSOC
+   Gosub CONTSOC
+  Endif
+  If OKSOC
+   [M]SOC([M]NBSOC) = SOCIETE
+   [M]NBSOC += 1
+  Endif
+ Next
+ Affzo 10
+Elsif VALEUR="" & dim([M]NBSOC)>0 & [M]NBSOC=0 & dim([M]SITE)>0 & [M]SITE=""
+ Raz [M]SOC
+ [M]NBSOC = 1
+ [M]SOC(0)=GDEFSOC
+ If dim([M]LEDTYP)>0 & [M]LEDTYP<>0
+  Call LECTURE("CPY",[M]SOC(0),"") From CONTOBJ
+  Call LECTURE("GCM",[F:CPY]ACM,"") From CONTOBJ
+  Call LECTURE("LED",[F:GCM]LED([M]LEDTYP-1),"") From CONTOBJ
+  [M]COA = [F:LED]COA
+ Endif
+ Affzo 10
+Endif
+End
+
+
+Subprog C_NBSOC
+Call C_NBSOC From CPTTRT
+End
+
+Subprog AS_SOC(VALEUR)
+Variable Char    VALEUR()
+If nolign=1 & VALEUR=""
+ If dim([M]LEDTYP)>0 & [M]LEDTYP<>0
+  If clalev([F:CPY])=0  : Local File COMPANY     [CPY]   : Endif
+  If clalev([F:GCM])=0  : Local File GACM        [GCM]   : Endif
+  Local Char SOCCUR(GLONCPY), REFER(GLONLED)
+  SOCCUR = GDEFSOC
+  If SOCCUR<>""
+   Call LECTURE("CPY",SOCCUR,"") From CONTOBJ
+   Call LECTURE("GCM",[F:CPY]ACM,"") From CONTOBJ
+   REFER = [F:GCM]LED([M]LEDTYP-1)
+   If REFER<>""
+    VALEUR = GDEFSOC
+   Endif
+  Endif
+ Else
+  VALEUR = GDEFSOC
+ Endif
+Endif
+End
+
+Subprog C_SOC(VALEUR)
+Variable Char    VALEUR()
+Call UNICITE(VALEUR,[M]SOC) From OBJDIV
+If mkstat : End : Endif
+Local Integer OKSOC
+Local Char    SOCIETE(GLONCPY)
+SOCIETE = VALEUR
+
+If nolign=1 & [M]NBSOC = 1 : [M]NBSOC = 0 : Endif
+Gosub OKSOC
+If nolign=1 & [M]NBSOC = 0 : [M]NBSOC = 1 : Endif
+If !OKSOC
+ # Plan de compte incompatible
+ GMESSAGE = mess(93,102,1)
+ mkstat = 2 : End
+Endif
+Gosub CONTSOC
+If !OKSOC
+ # Tous les sites ne sont pas accessibles
+ GMESSAGE = mess(32,104,1)
+ mkstat = 2 : End
+Endif
+If nolign=1
+ [M]SOC(0) = VALEUR
+ Call LECTURE("CPY",[M]SOC(0),"") From CONTOBJ
+ Call LECTURE("GCM",[F:CPY]ACM,"") From CONTOBJ
+ REFER = [F:GCM]LED([M]LEDTYP-1)
+ If REFER=""
+  # Référentiel incorrect
+  GMESSAGE = mess(201,111,1)
+  mkstat = 2 : End
+ Endif
+Endif
+End
+
+$CONTSOC
+If GUSRFCY(1)<>"\"
+ Local Integer I
+ Call LECTURE("CPY",SOCIETE,"") From CONTOBJ
+ For I=1 To GNBSITE
+  If SOCIETE=GSOCSITE(I) & !find(GSITE(I),GUSRFCY(1..GNBAUZ))
+   OKSOC = 0 : Break
+  Endif
+ Next I
+Endif
+Return
+
+Subprog AS_SITE(VALEUR)
+Variable Char    VALEUR()
+If [M]NBSOC>1 : mkstat = 1 : End : Endif
+End
+
+Subprog C_SITE(VALEUR)
+Variable Char    VALEUR()
+Local Integer OKSOC
+Local Char    SOCIETE(GLONCPY)
+If VALEUR=""
+ If [M]NBSOC=0
+  # Vous devez saisir une société ou un site
+  GMESSAGE = mess(9,109,1)
+  mkstat = 2 : End
+ Endif
+ End
+Endif
+Call LECTURE("FCY",VALEUR,"") From CONTOBJ
+SOCIETE = [F:FCY]LEGCPY
+If [M]NBSOC>0 & SOCIETE<>[M]SOC(0)
+ # Ce site est dans la société
+ GMESSAGE = mess(30,106,1)-SOCIETE
+ mkstat = 2 : End
+Endif
+Gosub OKSOC
+End
+
+Subprog C_CPTDEB(VALEUR)
+Variable Char    VALEUR()
+If VALEUR<>""
+ Read [GAC]GAC1 = [M]COA;VALEUR
+ If fstat=0
+  VALEUR = [F:GAC]ACC
+ Else
+  Read [GAC]GAC0 = [M]COA;VALEUR
+ Endif
+ If fstat=0 & [F:GAC]SAC=2
+  [M]CPTFIN = VALEUR
+  Affzo CPTFIN
+  Grizo CPTFIN
+  Actzo BPRDEB,BPRFIN
+ Else
+  Actzo CPTFIN
+  Grizo BPRDEB,BPRFIN
+ Endif
+Endif
+End
+
+
+
+
+Subprog AS_CPTFIN(VALEUR)
+Variable Char    VALEUR()
+Call LECTURE("GAC",[M]CPTDEB,[M]COA) From CONTOBJ
+If fstat=0 & [F:GAC]SAC=2
+ VALEUR = [M]CPTDEB : mkstat = 2
+Else
+ If VALEUR="" | VALEUR<[M]CPTDEB : VALEUR=[M]CPTDEB : Endif
+Endif
+End
+
+Subprog C_CPTFIN(VALEUR)
+Variable Char    VALEUR()
+If VALEUR<>"" & VALEUR<[M]CPTDEB
+ GMESSAGE = mess(44,199,1) :# La borne fin est inferieure a la borne debut
+ mkstat = 2
+Endif
+End
+
+Subprog AS_BPRDEB(VALEUR)
+Variable Char    VALEUR()
+Call LECTURE("GAC",[M]CPTDEB,[M]COA) From CONTOBJ
+If fstat | [F:GAC]SAC<>2
+ VALEUR = "" : mkstat = 1
+Endif
+End
+
+Subprog AS_BPRFIN(VALEUR)
+Variable Char    VALEUR()
+Call LECTURE("GAC",[M]CPTDEB,[M]COA) From CONTOBJ
+If fstat | [F:GAC]SAC<>2
+ VALEUR = "" : mkstat = 1
+Else
+ If VALEUR="" | VALEUR<[M]BPRDEB : VALEUR=[M]BPRDEB : Endif
+Endif
+End
+
+Subprog C_BPRFIN(VALEUR)
+Variable Char    VALEUR()
+If VALEUR<>"" & VALEUR<[M]BPRDEB
+ GMESSAGE = mess(44,199,1) :# La borne fin est inferieure a la borne debut
+ mkstat = 2
+Endif
+End
+
+Subprog AS_LETDEB(VALEUR)
+Variable Char    VALEUR()
+If [M]CPTDEB<>[M]CPTFIN | [M]BPRDEB<>[M]BPRFIN | [M]CPTDEB=""
+ VALEUR = "" : mkstat = 1
+Endif
+End
+
+Subprog C_LETDEB(VALEUR)
+Variable Char    VALEUR()
+Case [M]TYPLET
+ When 1 : # Majuscule
+  VALEUR = toupper(VALEUR)
+ When 2 : # Minuscule
+  VALEUR = tolower(VALEUR)
+Endcase
+End
+
+Subprog AS_LETFIN(VALEUR)
+Variable Char    VALEUR()
+If [M]CPTDEB<>[M]CPTFIN | [M]BPRDEB<>[M]BPRFIN | [M]CPTDEB=""
+ VALEUR = "" : mkstat = 1
+Else
+ If VALEUR="" | VALEUR<[M]LETDEB : VALEUR=[M]LETDEB : Endif
+Endif
+End
+
+Subprog C_LETFIN(VALEUR)
+Variable Char    VALEUR()
+Case [M]TYPLET
+ When 1 : # Majuscule
+  VALEUR = toupper(VALEUR)
+ When 2 : # Minuscule
+  VALEUR = tolower(VALEUR)
+Endcase
+If VALEUR<>"" & VALEUR<[M]LETDEB
+ GMESSAGE = mess(44,199,1) :# La borne fin est inferieure a la borne debut
+ mkstat = 1
+Endif
+End
+
+Subprog C_CRIT(VALEUR)
+Variable Integer VALEUR
+If VALEUR=2 & [M]SAVCRIT=0
+ Local Char SITE(GLONFCY)
+ If [M]NBSOC>1
+  SITE = ""
+ Elsif [M]SITE<>""
+  SITE = [M]SITE
+ Else
+  SITE = [M]SOC(0)
+ Endif
+ Gosub INIPAR From LETTRAGE
+ If  dim([M:LTA]LEDTYP)>0  [M:LTA] = [M:LTC] : Endif
+Endif
+[M]CRIT = VALEUR
+End
+
+# ajout nouveau chp Ecritures sur période close utilisé pour le délettrage massif
+Subprog IB_PERCLO
+End
+
+Subprog AM_FLGMTC(VALEUR)
+Variable Integer VALEUR
+If VALEUR = 2 or [M:LTR]FLG(nolign-1)<>""
+ Call SEL_DESEL From SUBLTR
+Endif
+End
+
+
+
+
+
+
+
+
+
+

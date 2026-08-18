@@ -1,0 +1,54 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+	When "OUVRE" : Gosub OUVRE
+    When "AVANT_OK" : Gosub OK
+    When "FINSAI" : Gosub FINSAI
+    When Default
+Endcase
+Return
+
+$OUVRE
+Return
+
+$FINSAI
+If [M:ZFRM]ZITM_LIN(0)<>""
+	For I=0 To [M:ZFRM]NBLIG-1
+		[M:SIH4]ITMREF(I)=[M:ZFRM]ZITM_LIN(I)
+		[M:SIH4]LINTYP(I)=1
+		[M:SIH4]QTY(I)=[M:ZFRM]ZQTY_LIN(I)
+		[M:SIH4]GROPRI(I)=[M:ZFRM]ZPRI_LIN(I)
+		Case [M:SIH1]VACBPR
+			When "BC"		: [M:SIH4]VAT1(I)="GST" : [M:SIH4]VACITM1(I)="GST" : [M:SIH4]VAT2(I)="BCPST" : [M:SIH4]VACITM2(I)="PST"
+			When "BCX"		: [M:SIH4]VAT1(I)="GST" : [M:SIH4]VACITM1(I)="GST" : [M:SIH4]VAT2(I)="NTA" : [M:SIH4]VACITM2(I)="PST"
+			When "NOTAX"	: [M:SIH4]VAT1(I)="NT" : [M:SIH4]VACITM1(I)="GST" : [M:SIH4]VAT2(I)="NTA" : [M:SIH4]VACITM2(I)="PST"
+			When "BCP"		: [M:SIH4]VAT1(I)="NT" : [M:SIH4]VACITM1(I)="GST" : [M:SIH4]VAT2(I)="BCPST" : [M:SIH4]VACITM2(I)="PST"
+		Endcase
+		If func AFNC.INTFLD("ITMMASTER","TSICOD(2)",[M:ZFRM]ZITM_LIN(I))<>""
+			[M:SIH4]VAT3(I)="EHF" : [M:SIH4]VACITM3(I)="EHF"
+		Endif
+	Next
+	[M:SIH4]NBLIG=I
+	Affzo [M:SIH4]
+	For I=0 To [M:SIH4]NBLIG-1
+		Call AM_ITMREF([M:SIH4]ITMREF(I)) From SUBSIH
+	Next
+Endif
+Raz [M:ZFRM]
+Affzo [M:ZFRM]
+Return
+
+$OK
+If [M:ZFRM]ZITM_SEL<>""
+    Local Integer NOL : [L]NOL=[M:ZFRM]NBLIG
+    [M:ZFRM]ZQTY_LIN(NOL)=[M:ZFRM]ZQTY_SEL
+    [M:ZFRM]ZITM_LIN(NOL)=[M:ZFRM]ZITM_SEL
+    [M:ZFRM]ZPRI_LIN(NOL)=[M:ZFRM]ZPRI_SEL
+    [M:ZFRM]ZTOT_LIN(NOL)=[M:ZFRM]ZQTY_SEL*[M:ZFRM]ZPRI_SEL
+    NOL+=1
+    [M:ZFRM]NBLIG=NOL
+    Affzo [M:ZFRM]
+    zonsui="[M:ZFRM]ZITM_SEL"
+Endif
+FIN=0
+Return

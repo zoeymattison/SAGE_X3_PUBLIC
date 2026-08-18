@@ -1,0 +1,37 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+# Mask management YSOH0 (Specific)
+
+
+
+Subprog IB_NBLIG
+End
+
+
+
+######################################################################################
+## Section automatically added (screen YSOH0) 08/13/2019 17:37:56 (ADMIN)
+######################################################################################
+Subprog AM_BPRNUM(VALEUR)
+Variable Char    VALEUR()
+local char REP
+local char ADDR
+
+ADDR = func AFNC.INTFLD("BPCUSTOMER", "BPDADD", VALEUR)
+REP = func AFNC.INTFLD("BPDLVCUST", "REP", VALEUR+"~"+ADDR)
+if REP = "" : REP = func AFNC.INTFLD("BPCUSTOMER", "REP", VALEUR) : endif
+
+[M]BPAADD = ADDR
+[M]REP = REP
+
+End
+
+
+######################################################################################
+
+
+
+
+
+
+
+

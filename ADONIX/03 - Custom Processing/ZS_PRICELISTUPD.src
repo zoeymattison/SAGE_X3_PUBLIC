@@ -1,0 +1,23 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+If !clalev([ZPLU]) : Local File ZVPRICUPD [ZPLU] : Endif
+If !clalev([ZSPF]) : Local File SPRICFICH [ZSPF] : Endif
+Filter [ZPLU] Order By PLICRD Asc
+Call OUVRE_TRACE("Automatic SPRICFISH Date Updates - "+format$("YYYY[-]MM[-]DD",date$)) From LECFIC
+Call ECR_TRACE("Price List 131 Expirey Date Updates",0) From GESECRAN
+Call ECR_TRACE("",0) From GESECRAN
+For [ZPLU]
+	Read [ZSPF]SPF0=[F:ZPLU]PLI;[F:ZPLU]PLICRD
+	If ![S]fstat
+		[F:ZSPF]PLISTRDAT=[F:ZPLU]LSTRDAT
+		[F:ZSPF]PLIENDDAT=[F:ZPLU]LENDDAT
+		Rewrite [ZSPF]
+		If ![S]fstat
+			Call ECR_TRACE([F:ZPLU]PLICRD+" Start Date: "+num$([F:ZPLU]HSRTDAT)+" -> "+num$([F:ZPLU]LSTRDAT),0) From GESECRAN
+			Call ECR_TRACE([F:ZPLU]PLICRD+" End Date: "+num$([F:ZPLU]HENDDAT)+" -> "+num$([F:ZPLU]LENDDAT),0) From GESECRAN
+		Endif
+	Endif
+	#Break
+Next
+
+Call FERME_TRACE From LECFIC
+If GUSER="MOZM" : Call LEC_TRACE From LECFIC : Endif

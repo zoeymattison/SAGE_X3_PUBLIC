@@ -1,0 +1,6 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+local integer STAT
+local char PATH2(250) : PATH2 = 'd:\Sage\X3\folders\X3\SRV\TRA\RQT03847806.tra'
+call COPCLI(PATH2,PATH2,STAT) from ORDSYS
+
+

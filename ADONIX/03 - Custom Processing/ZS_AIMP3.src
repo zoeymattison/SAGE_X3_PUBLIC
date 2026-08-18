@@ -1,0 +1,22 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+case ACTION
+When "PARAM" : Gosub PARAM
+When "IMPRIME" : Gosub IMPRIME
+when default
+Endcase
+Return
+
+$PARAM
+if GUSER="YMIRA"
+    PARAMETRE(14)="facturedeb=ZZZZZ"
+    PARAMETRE(15)="facturefin=ZZZZZ"
+Endif
+
+$IMPRIME
+If GUSER="MOZM"
+GOK=0
+endif
+Return
+
+

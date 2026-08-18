@@ -1,0 +1,93 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Counts
+# Mask management SNL0 (Vertical)
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#-------------------------------------------------------------------------------
+#
+# Vertical Processes for Counts (SNL0)
+#-------------------------------------------------------------------------------
+# Main History - (At end of Source)
+#
+# Last Change was :
+# 27/08/2019    Sweta Rai       v03.05.00   Created to support V7
+#
+#-------------------------------------------------------------------------------
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "03.05.00 27/08/2019 XM5"
+#-------------------------------------------------------------------------------
+################################################################################
+## Main Process
+## ~~~~~~~~~~~~
+##
+##  Called for each ACTION.
+##  In here we call additional processing for specific ACTION codes.
+################################################################################
+$ACTION
+Case ACTION
+ When Default
+Endcase
+Gosub ACTION From XM5SPVSNL
+Return
+###########################################################
+Subprog C_CUNLISNUM(VALEUR)
+Variable Char    VALEUR()
+Call C_CUNLISNUM(VALEUR) From XM5SPVSNL
+End
+###########################################################
+#v03.05.01, To Hide Unlocking Button
+###########################################################
+Subprog IB_NBLIGL
+  Gosub IB_NBLIGL  From XM5SPVSNL
+End
+###########################################################
+#v03.05.01, Unlock Count Location Table
+###########################################################
+Subprog B1_NBLIGL
+  Gosub B1_NBLIGL  From XM5SPVSNL
+End
+###########################################################
+#v03.05.02, Reset Location
+###########################################################
+Subprog B2_NBLIGL
+  Gosub B2_NBLIGL  From XM5SPVSNL
+End
+###########################################################
+#v03.05.01, Unlock Count Location Table for 2nd count
+###########################################################
+Subprog B3_NBLIGL
+  Gosub B3_NBLIGL  From XM5SPVSNL
+End
+###########################################################
+#v03.05.02, Reset Location for 2nd count
+###########################################################
+Subprog B4_NBLIGL
+Local Integer WOK
+  Gosub B4_NBLIGL  From XM5SPVSNL
+End
+###########################################################
+#v03.05.01, Unlock Count Location Table for 3rd count
+###########################################################
+Subprog B5_NBLIGL
+  Gosub B5_NBLIGL  From XM5SPVSNL
+End
+###########################################################
+#v03.05.02, Reset Location for 3rd count
+###########################################################
+Subprog B6_NBLIGL
+  Gosub B6_NBLIGL  From XM5SPVSNL
+End
+###########################################################
+# Suppression article
+Subprog B6_NBLIG
+  Gosub B6_NBLIG  From XM5SPVSNL
+End
+###########################################################
+Subprog B5_NBLIG
+ Gosub B5_NBLIG From XM5SPVSNL
+End
+#----------------------------------------------------------------------------------------------------------------#
+# History
+# ~~~~~~~
+# 27/08/2019    Sweta Rai       v03.05.00   Created to support V7
+#------------------------# End of SPVSNL source #----------------------------------------------------------------#
+

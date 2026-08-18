@@ -1,0 +1,409 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+###########################################################################################
+# Script            : XINFP_CBT
+# Creation date     : 27/10/2017
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : PAYMENTS
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : CBT PAYMENT INTEGRATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When "AUTORIS" : If GIMPORT and [V]GFONCTION = "GESPAY" and (clalev([F:XINFCBT]) or clalev([F:XINFPYH])) and [F:XINFFCY]LEGCPY = "PRIME" :   :
+                            Call GETSOC([F:XINFFCY]FINRSPFCY) From DEVSUB
+                            Call AUTORIS
+                         Endif
+        When Default
+    Endcase
+Return
+
+########################################################################################################################
+# SUBPROG THAT CREATES PAYMENT MOVEMENTS
+########################################################################################################################
+Subprog CBT_TRANS()
+    If !clalev([F:XINFCBT]) : Local File XINFCBT   [F:XINFCBT] : Endif
+    If !clalev([F:XPYHA])   : Local File PAYMENTH  [F:XPYHA]   : Endif
+    If !clalev([F:XDIE])    : Local File GDIE      [F:XDIE]    : Endif
+    If !clalev([F:XDIE])    : Local File GDIE      [F:XDIE]    : Endif
+    If !clalev([F:XTYPA])   : Local File TABPAYTYP [F:XTYPA]   : Endif
+    If !clalev([F:XINFFCY]) : Local File FACILITY  [F:XINFFCY] : Endif
+
+    # TODO - UPDATE OF MESSAGE
+    Call ECR_TRACE("GENERATION OF CBT TRANSACTIONS",0) From GESECRAN
+    Call ECR_TRACE("------------------------------",0) From GESECRAN
+
+   ## Filter [F:XINFCBT] Where [F:XINFCBT]NUM='CB0001036967'
+    Filter [F:XINFCBT] Where [F:XINFCBT]PAYFLG <> 2
+&   Order By Key XINFCBT0
+
+    For [F:XINFCBT]XINFCBT0
+        # TODO - UPDATE OF MESSAGE
+        Call ECR_TRACE("CBT TRANSACTION :" - [F:XINFCBT]NUM,0) From GESECRAN
+
+        # @RH@ - 08/01/2018 - CLEAR ALL ERRORS ASSOCIATED WITH THE CURRENT RECORD
+        ##############################################################################################################
+        Call DELETE_ERRORS([F:XINFCBT]NUM) From XINFP_ERR
+
+        # TODO - UPDATE OF MESSAGE
+        # DETERMINE IF PAYMENT REFUND EXISTS
+        Filter [F:XPYHA]
+        Columns [F:XPYHA] (NUM, BAN, STAFLG)
+
+        Filter [F:XPYHA] Where [F:XPYHA]REF = [F:XINFCBT]NUM Order By Key PYH0
+        Look [F:XPYHA]PYH0 First
+
+        If fstat
+            # CALL THE CREATION OF THE PAYMENT REFUND
+            Call TRANS_CRE From XINFP_CBT
+
+            GIMPORT = 0
+        Else
+            Filter [F:XPYHA] Where [F:XPYHA]REF = [F:XINFCBT]NUM and [F:XPYHA]STA = 9 Order By Key PYH0
+            Look [F:XPYHA]PYH0 First
+
+            If fstat
+                Call POST([F:XINFCBT]NUM) From XINFP_CBT
+            Else
+                Call UPDATETRANS([F:XINFCBT]NUM) From XINFP_CBT
+
+                # TODO - UPDATE OF MESSAGE
+                Call ECR_TRACE("CBT TRANSACTION EXISTS AND IS POSTED",0) From GESECRAN
+            Endif
+        Endif
+
+        Columns [F:XPYHA]
+
+        # TODO - UPDATE OF MESSAGE
+        Call ECR_TRACE("*****************************",0) From GESECRAN
+    Next
+
+    If clalev([F:XINFCBT]) : Close Local File  [F:XINFCBT] : Endif
+    If clalev([F:XPYHA])   : Close Local File  [F:XPYHA]   : Endif
+    If clalev([F:XDIE])    : Close Local File  [F:XDIE]    : Endif
+    If clalev([F:XTYPA])   : Close Local File  [F:XTYPA]   : Endif
+    If clalev([F:XINFFCY]) : Close Local File  [F:XINFFCY] : Endif
+End
+
+###########################################################################################
+# UPDATE THE TRANSACTION AS COMPLETED
+###########################################################################################
+Subprog UPDATETRANS(XINFPNUM)
+    Value Char    XINFPNUM
+
+    Call XERR_TRANS("CBT", XINFPNUM, [F:XINFCBT]EXPNUM, 2, 0, "SUCCESSFUL") From XINFP_ERR
+
+    If !clalev([F:XUP]) : Local File XINFCBT [F:XUP] : Endif
+
+    Trbegin [F:XUP]
+        Update [F:XUP] Where [F:XUP]NUM = XINFPNUM With [F:XUP]PAYFLG = 2
+
+        If fstat
+            Rollback
+        Else
+            Commit
+        Endif
+
+    If clalev([F:XUP]) : Close Local File   [F:XUP] : Endif
+End
+
+# CREATION OF PAYMENT REFUND
+##################################################################################################
+Subprog TRANS_CRE
+    Local Char    XLINE(255), XMESSAGE(255), XAUZ(30)
+
+    # DELETE OF CREATED FILE
+    #############################################################################################################
+    Local Integer STAT, XXOK
+
+    Call EFFACE(filpath("tmp",[F:XINFCBT]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFCBT]NUM,'TXT')+".err",STAT) From ORDSYS
+
+    GOK = 1
+
+    If [F:XINFFCY]FCY <> [F:XINFCBT]BANFCY
+        Read [F:XINFFCY]FCY0 = [F:XINFCBT]BANFCY
+    Endif
+
+    If [F:XTYPA]PAYTYP <>  [F:XINFCBT]PAYTYP
+        Read [F:XTYPA]TPY0 = [F:XINFCBT]PAYTYP;[F:XINFFCY]LEG
+
+        If fstat
+            Read [F:XTYPA]TPY0 = [F:XINFCBT]PAYTYP
+        Endif
+    Endif
+
+    ## CREATE FILE FOR IMPORT
+    #################################################################################
+    adxifs = ';' : adxirs = chr$(13)+chr$(10)
+
+    ## OPEN FILE
+    #################################################################################
+    Openo filpath("INFOPOS",[F:XINFCBT]NUM,'TXT') Using [FIC1]
+
+    XLINE  = "P;" + [F:XINFCBT]NUM
+    XLINE += ";"  + [F:XINFCBT]PAYTYP
+    XLINE += ";"  #+ [F:XINFPYH]BPR
+    XLINE += ";"  #+ [F:XINFPYH]COA
+    XLINE += ";"  + [F:XINFCBT]ACC
+    XLINE += ";"  + [F:XINFCBT]PAM
+    XLINE += ";"  + [F:XINFFCY]FINRSPFCY
+    XLINE += ";"  + [F:XINFCBT]BAN
+    XLINE += ";"  + num$([F:XTYPA]SNS)
+    XLINE += ";"  + [F:XINFCBT]CUR
+    XLINE += ";"  + num$([F:XINFCBT]AMTCUR)
+    XLINE += ";"  + format$("D:DDMMYYYY",[F:XINFCBT]ACCDAT)
+    XLINE += ";"  + [F:XINFCBT]DES
+    XLINE += ";"  + [F:XINFCBT]NUM #[F:XINFPYH]REF
+call ECR_TRACE(XLINE,0) from GESECRAN
+    Wrseq XLINE Using [FIC1]
+
+    # WRITE THE LINE DETAIL RECORD INFORMATION
+    ########################################################################################################
+    XLINE  = "D"
+    XLINE += ";" + [F:XINFCBT]PAYTYP
+    XLINE += ";"#+ [F:XINFPYD]COA
+    XLINE += ";"#+ [F:XINFPYD]ACC
+    XLINE += ";"#+ [F:XINFPYH]BPR
+    XLINE += ";"#+ [F:XINFPYD]VCRTYP
+    XLINE += ";"#+ [F:XINFPYD]VCRNUM
+    XLINE += ";" + [F:XINFCBT]CUR
+    XLINE += ";" + num$([F:XINFCBT]AMTCUR)
+    XLINE += ";" + [F:XINFCBT]DES
+call ECR_TRACE(XLINE,0) from GESECRAN
+    Wrseq XLINE Using [FIC1]
+
+    # WRITE THE LINE ANALITICAL RECORD INFORMATION
+    ########################################################################################################
+    If  [F:XINFFCY]LEGCPY = "GAP"
+        XLINE = "A;SIT;" +[F:XINFCBT]BANFCY + ";ORD;;EMP;;DEP;;REG;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;" + num$([F:XINFCBT]AMTCUR) + ";0"
+call ECR_TRACE(XLINE,0) from GESECRAN
+        Wrseq XLINE Using [FIC1]
+    Endif
+
+    #Wrseq XLINE Using [FIC1]
+
+    ## CLOSE FILE
+    #################################################################################
+    Openo Using [FIC1]
+
+    # WRITING OF FILE SUCCESSFUL, IMPORT THE FILE
+    #############################################################################################################
+    If GOK
+        # CALLS THE IMPORT PROCESS
+        # Call IMPORTSIL(IMPT, FIL) From GIMPOBJ
+        # @ IMPT - TEMPLATE TO BE USED
+        # @ FIL  - FILE + LOCATION
+        ###############################################################
+        If !clalev([M:IMP2]) : Local Mask IMPOBJ2[IMP2] : Endif
+        Raz [M:IMP2]
+
+        [M:IMP2]MODIMP = "XINFPPAYS"
+        [M:IMP2]NOMIMP = filpath("INFOPOS",[F:XINFCBT]NUM,'TXT')
+        [M:IMP2]TYPEXP = 2
+
+        Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+
+        # TODO - VERIFY THAT PAYMENT HAS BEEN INTEGRATED
+        Filter [F:XPYHA] Where [F:XPYHA]REF = [F:XINFCBT]NUM Order By Key PYH0
+        Look [F:XPYHA]PYH0 First
+
+        If fstat
+            # TODO - UPDATE OF MESSAGE
+            Call XERR_TRANS("CBT", [F:XINFCBT]NUM, [F:XINFCBT]EXPNUM, 1, 0, "ERROR ON THE CBT TRANSACTION CREATION - PLEASE REFER TO X3 LOG") From XINFP_ERR
+        Else
+            # VALIDATE PAYMENT
+            GIMPORT = 0
+            Call POST([F:XINFCBT]NUM) From XINFP_CBT
+
+            # TODO - UPDATE OF MESSAGE
+            Call ECR_TRACE("SUCCESS ON THE CBT TRANSACTION CREATION",0) From GESECRAN
+        Endif
+    Endif
+
+    # DELETE OF CREATED FILE
+    #############################################################################################################
+    Call EFFACE(filpath("INFOPOS",[F:XINFCBT]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("INFOPOS",[F:XINFCBT]NUM,'TXT')+".err",STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFCBT]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFCBT]NUM,'TXT')+".err",STAT) From ORDSYS
+End
+
+# PAYMENT POSTING PROCEDURE
+##################################################################################################
+Subprog POST (XINFPNUM)
+    Value     Char    XINFPNUM
+
+    If !clalev([F:TPY]) : Local File TABPAYTYP [TPY] : Endif
+    If !clalev([F:PYH]) : Local File PAYMENTH   [PYH] : Endif
+    If !clalev([F:PYD]) : Local File PAYMENTD   [PYD] : Endif
+    If !clalev([F:PYA]) : Local File PAYMENTA   [PYA] : Endif
+    If !clalev([F:PYL]) : Local File PAYLOT     [PYL] : Endif
+    If !clalev([F:DUD]) : Local File GACCDUDATE [DUD] : Endif
+    If !clalev([F:BID]) : Local File BID        [BID] : Endif
+    If !clalev([F:TCU]) : Local File TABCUR     [TCU] : Endif
+    If !clalev([F:BPC]) : Local File BPCUSTOMER [BPC] : Endif
+    If !clalev([F:BPS]) : Local File BPSUPPLIER [BPS] : Endif
+    If !clalev([F:CAC]) : Local File GACCCODE   [CAC] : Endif
+    If !clalev([F:GAC]) : Local File GACCOUNT   [GAC] : Endif
+    If !clalev([F:HAE]) : Local File GACCENTRY  [HAE] : Endif
+    If !clalev([F:DAE]) : Local File GACCENTRYD [DAE] : Endif
+    If !clalev([F:BPA]) : Local File BPADDRESS  [BPA] : Endif
+
+    Local Integer OK, STAT, OKTCA, SIGN, I, ADDGAC
+    Local Char    CODCPT(GLONCAC)
+    Local Char    DEVISE(GLONCUR)
+    Local Char    DEVLED(GLONCUR) : # Devise du référentiel principal général (celui qui gère les échéances)
+    Local Char    OLDCCE(GLONCCE)(dim([F:PYA]CCE)-1)
+    Local Char    COMPTE(GLONGAC)
+    Local Char    PLAN(GLONCOA)
+    Local Char    BAN(GLONBAN)
+    Local Decimal PYHAMTLOC, PYHAMTCUR, ARD
+    Local Char    IDT_LIN(5)
+    I=max(1,nbrecord([F:TPY]))
+    Local Char    LOTID(5)(I), LOTCOD(20)(I)
+    Local Integer LOTX(I), NBLOT
+    Local Decimal EXERCICE, PERIODE
+
+    Global Integer GNBPLAN                               : # Nb de plans comptables (max 10)
+    Global Integer GNBAXE                                : # Nb d'axes à saisir (max 20)
+    Global Char    GPLAN(GLONCOA)(1..10)                 : # Plans (COA)
+    Global Char    GAXE(GLONDIE)(1..max(GOPTCANA,20))    : # Axes (DIE)
+    Global Integer GOBLIG(1..max(GOPTCANA,20))           : # Obligatoire (O/N)
+    Global Integer GTYPLED(1..10)                        : # Types référentiels
+
+    If dim(GTYPGEN)<0
+        Global Integer GTYPGEN
+        Global Integer GTYPANA
+    Endif
+
+    Filter [F:PYH] Where [F:PYH]REF = XINFPNUM and [F:PYH]STA = 1  Order By Key PYH0
+    Read [F:PYH]PYH0 First
+
+    # TODO - IF MATCHING PAYMENT DOESNT EXIST, THEN DO NOTHING
+    If fstat
+        # TODO - UPDATE OF MESSAGE
+        Call ECR_TRACE("MATCHING PAYMENT DOESNT EXIST, UNABLE TO PROCESS POSTING",1) From GESECRAN
+        End
+    Endif
+
+    Call LECTURE("TPY",[F:PYH]PAYTYP,"") From CONTOBJ
+    Call GETSOC([F:PYH]FCY) From DEVSUB
+    Call LEC_TPY_LEG(GCURLEG,[F:PYH]PAYTYP) From CPTLEC
+    Call SETPLAN([F:PYH]CPY,GNBPLAN,GPLAN,GTYPLED,GNBAXE,GAXE,GOBLIG) From CPTDIV
+    Call SETCUR(1,[F:PYH]CPY,DEVLED) From CPTDIV
+    Call SETMAINREF([F:PYH]CPY,GTYPGEN,GTYPANA) From CPTDIV
+
+    Local Char VALBOUT(250) , PARBOUT(250)(1..20)
+    PARBOUT(1) = "9"
+    PARBOUT(2) = "3"
+    PARBOUT(3) = [F:PYH]NUM
+    FLGEXE = 1
+    GACTION = "PAYCPT"
+    Call TRAITE_CHAR(VALBOUT,PARBOUT,"","PAYCPT","DPAYCPT",3,"XYPAYCPT") From GTRAITE
+
+    Filter [F:PYH] Where [F:PYH]REF = XINFPNUM and [F:PYH]STA = 9 Order By Key PYH0
+    Read [F:PYH]PYH0 First
+
+    If !fstat
+        Call UPDATETRANS([F:XINFCBT]NUM) From XINFP_CBT
+    Else
+        # TODO - UPDATE OF MESSAGE
+        Call XERR_TRANS("BPC", [F:XINFCBT]NUM, [F:XINFCBT]EXPNUM, 1, 0, "ERROR ON THE CBT TRANSACTION POSTING - PLEASE REFER TO X3 LOG") From XINFP_ERR
+    Endif
+
+    If clalev([F:PYA])  : Close Local File [F:PYA]  : Endif
+    If clalev([F:PYD])  : Close Local File [F:PYD]  : Endif
+    If clalev([F:PYH])  : Close Local File [F:PYH]  : Endif
+    If clalev([F:PYHA]) : Close Local File [F:PYHA] : Endif
+    If clalev([F:BPR])  : Close Local File [F:BPR]  : Endif
+    If clalev([F:BPA])  : Close Local File [F:BPA]  : Endif
+    If clalev([F:CAC])  : Close Local File [F:CAC]  : Endif
+    If clalev([F:BPR])  : Close Local File [F:BPR]  : Endif
+    If clalev([F:CPY])  : Close Local File [F:CPY]  : Endif
+    If clalev([F:FCY])  : Close Local File [F:FCY]  : Endif
+    If clalev([F:CAC])  : Close Local File [F:CAC]  : Endif
+    If clalev([F:GAC])  : Close Local File [F:GAC]  : Endif
+    If clalev([F:BAN])  : Close Local File [F:BAN]  : Endif
+    If clalev([F:ADI])  : Close Local File [F:ADI]  : Endif
+    If clalev([F:TPY])  : Close Local File [F:TPY]  : Endif
+End
+
+Subprog AUTORIS
+Local Integer XI, XISITE, XISOC
+If clalev([F:AFC])=0 : Local File AFONCTION [AFC] : Endif
+If clalev([F:AFF])=0 : Local File AFCTFCY   [AFF] : Endif
+If clalev([F:AFP])=0 : Local File AFCTPRF   [AFP] : Endif
+If clalev([F:AFT])=0 : Local File AFCTFCT   [AFT] : Endif
+Call LECTURE("AFC","GESPAY","") From CONTOBJ
+If fstat
+ Raz [F:AFC]
+Endif
+
+Raz GUSRAUZ, GUSRFCY, GNBAUZ
+
+If dim(GUSRVID)>0 : Raz GUSRVID : Endif
+Read [AFT]AFT0 = GPROFIL
+
+  For XI= 1 To GNBSITE
+   GUSRAUZ(XI) = 'ACLMOSTV'
+   GUSRFCY(XI)  = GSITE(XI)
+  Next XI
+  GNBAUZ = 6
+
+GUSRFCY(1) = ''
+GUSRAUZ(1) = ''
+
+
+GUSRFCY(GNBSITE+1) = [F:XINFFCY]FINRSPFCY
+GUSRAUZ(GNBSITE+1) = 'ACLMOSTV'
+
+If [F:AFC]FCYAUZ<>2
+ GUSRFCT = ""
+Else
+ GUSRFCT = "GESPAY"
+Endif
+GFCYDEF(0) = GFCYDEF([F:AFC]MODULE) : # Le site par défaut du module
+XISITE      = find(GFCYDEF(0),GSITE(1..GNBSITE))
+If XISITE<>0
+ GDEFSOC = GSOCSITE(XISITE) : # Société par défaut
+Else
+ # mb 19.8.13 Ce paramètre n'existe plus
+ #GDEFSOC = func AFNC.PARAMUTIL("DEFSOC","","")
+ #If GDEFSOC<>"" & !find(GDEFSOC,GSOC(1..GNBSOC))
+ # GDEFSOC = ""
+ #Endif
+ If GDEFSOC=""
+  GDEFSOC = GSOCSITE(1)
+ Endif
+Endif
+XISOC = find(GDEFSOC,GSOC(1..GNBSOC))
+If XISOC
+ GLOCALDEV = GDEVSOC(XISOC)
+Else
+ GLOCALDEV = GSYSCUR
+Endif
+
+End
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,90 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+When "DEBUT" : Gosub DEBUT
+When "AVANT_BOUTON" : Gosub AVANT_BOUTON
+When "AVANT_OK" : Gosub AVANT_OK
+When Default
+Endcase
+Return
+
+$DEBUT
+Diszo [M:ZPOS0]
+Return
+
+$AVANT_BOUTON
+#Infbox BOUT
+Case BOUT
+	When "a" : Gosub CHECK_TRANS
+	When "b" : Gosub CHECK_TRANS
+Endcase
+Return
+
+$CHECK_TRANS
+Local Integer YN : YN=1
+# 1=CANCEL 2=OK #
+If [M:ZPOS0]ZPOS_EMP=""
+	Gosub CLEAR_SCREEN
+Else
+	Call OUINON("A transaction is already in progress, do you want to cancel it?", YN) From GESECRAN
+	If YN=1
+		Return
+	Else
+		Gosub CLEAR_SCREEN
+	Endif
+Endif
+Return
+
+$CLEAR_SCREEN
+Raz [M:ZPOS0]
+Case BOUT
+	When "a" : [M:ZPOS0]ZPOS_TYP="Invoice"
+	When "b" : [M:ZPOS0]ZPOS_TYP="Credit Memo"
+Endcase
+Affzo [M:ZPOS0]
+Actzo [M:ZPOS0]
+zonsui="[M:ZPOS0]ZPOS_EMP"
+Return
+
+Subprog AM_ZPOS_BPC(VALEUR)
+Variable Char    VALEUR()
+	[M:ZPOS0]ZPOS_BPC_NAM=func AFNC.INTFLD("BPCUSTOMER","BPCNAM",VALEUR)
+
+    # We only declare the new variable and our loop trackers
+    Local Char ZPOS_BPI(50)
+    Local Integer POS,LAST_POS
+
+    # Reset trackers for a clean execution
+    POS=0
+    LAST_POS=0
+
+    # Loop to find the last occurrence of "-"
+    Repeat
+        POS=instr(POS+1,VALEUR,"-")
+        If POS>0
+            LAST_POS=POS
+        Endif
+    Until POS=0
+
+    # Extract the substring
+    # If a dash exists, take the left portion; otherwise, clear the variable
+    If LAST_POS>0
+        [M:ZPOS0]ZPOS_BPI= mid$(VALEUR, 1, LAST_POS - 1)
+        [M:ZPOS0]ZPOS_BPI_NAM=func AFNC.INTFLD("BPCUSTOMER","BPCNAM",mid$(VALEUR, 1, LAST_POS - 1))
+    Else
+		[M:ZPOS0]ZPOS_BPI=VALEUR
+		[M:ZPOS0]ZPOS_BPI_NAM=func AFNC.INTFLD("BPCUSTOMER","BPCNAM",VALEUR)
+    Endif
+	Affzo [M:ZPOS0]
+End
+
+$AVANT_OK
+Infbox COUZON
+FIN=0
+Return
+######################################################################################
+## Section automatically added (screen ZPOS0) 05/01/2026 15:21:50 (MOZM)
+######################################################################################
+Subprog AM_ZPOS_BPI(VALEUR)
+Variable Char    VALEUR()
+End

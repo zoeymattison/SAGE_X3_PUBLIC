@@ -1,0 +1,21 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+WHEN 'FILSTO' : gosub FILSTO
+Endcase
+Return
+
+$FILSTO
+[M:ALP]FILSTO = "[F:STO1]LOC<>'RT01' & [F:STO1]LOC<>'RF01'"
+Return
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,23 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Mask management ITB (Vertical)
+
+######################################################################################
+## Label added by supervisor (screen ITB) 15/08/2017 09:36:23 (ADMIN)
+######################################################################################
+$ACTION
+Case ACTION
+ When default
+Endcase
+Return
+
+Subprog AM_CUOM(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog AM_UUSTUCOE(VALEUR)
+Variable Decimal VALEUR
+End
+
+
+######################################################################################
+

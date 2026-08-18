@@ -1,0 +1,147 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+CALL GASCRE()
+END
+
+Subprog GASCRE()
+If !clalev([F:XINFMTC]) : Local File XINFMTC    [F:XINFMTC] : Endif
+If !clalev([F:XSIHI])   : Local File SINVOICE   [F:XSIHI]   : Endif
+If !clalev([F:XSIHC])   : Local File SINVOICE   [F:XSIHC]   : Endif
+If !clalev([F:XSIVI])   : Local File SINVOICEV  [F:XSIVI]   : Endif
+If !clalev([F:XSIVC])   : Local File SINVOICEV  [F:XSIVC]   : Endif
+call OUVRE_TRACE('log') from LECFIC
+local integer  YCOUNT : YCOUNT = 0
+Local Char PATH1(150)
+Local Char PATH2(150)
+Local Char URL 
+local integer STAT
+Call SET_FICNAM(PATH1,PATH2,URL) From ORDSYS
+
+
+For [F:XINFMTC] where [F:XINFMTC]INVNUM = 'STR120007544-I'
+YCOUNT = YCOUNT + 1
+call ECR_TRACE(num$(YCOUNT)+ ' - ' + [F:XINFMTC]NUM,0) from GESECRAN
+Openo PATH2 Using [FACS]
+adxifs = "" : adxirs = chr$(13) + chr$(10) 
+local char YBPRI, YBPRC, YCURI, YCURC
+Local Char HEADER(200)
+Local Char DETAIL(200)
+Local Char DETAIL1(200)
+local decimal YAMT, YAMTI, YAMTC
+##local char YGASNUM :  YGASNUM = [F:XINFMTC]INVNUM
+YGASNUM= left$([F:XINFMTC]INVNUM,instr(1,[F:XINFMTC]INVNUM,"-")-1)
+
+	filter [XSIHI] where [XSIHI]NUM = [F:XINFMTC]INVNUM
+	Read [XSIHI]SIH0 first
+	if !fstat
+	  YBPRI = [XSIHI]BPR
+	  YCURI = [XSIHI]CUR
+	  YAMTI = [XSIHI]AMTATI
+	endif
+
+	filter [XSIHC] where [XSIHC]NUM = [F:XINFMTC]CRNNUM
+	Read [XSIHC]SIH0 first
+	if !fstat
+	  YBPRC = [XSIHC]BPR
+	  YCURC = [XSIHC]CUR 
+	  YAMTC = [XSIHC]AMTATI
+	endif
+
+if YAMTI <= YAMTC
+	YAMT = YAMTI
+else
+	YAMT = YAMTC
+endif
+
+
+## WRITING HEADER 
+HEADER = 'G'
+HEADER +=  ","   + 'INFPI'
+HEADER +=  ","   + 'T-'+YGASNUM
+HEADER +=  ","   + 'MAIN'
+HEADER +=  ","   + 'SALES'
+HEADER +=  ","   + num$(format$("D:YYYYMMDD",date$))
+HEADER +=  ","   + ''
+##HEADER +=  ","   + ''
+HEADER +=  ","   + YCURI
+HEADER +=  ","   + 'STDCO'
+
+WRSEQ HEADER  using [FACS]
+
+DETAIL = 'D'
+DETAIL +=  ","   + '1'
+DETAIL +=  ","   + '1'
+DETAIL +=  ","   + '1'
+DETAIL +=  ","   + 'MAIN'
+DETAIL +=  ","   + 'AR'
+DETAIL +=  ","   + ''
+DETAIL +=  ","   + YBPRI
+DETAIL +=  ","   + 'Invoice: ' + [F:XINFMTC]INVNUM
+DETAIL +=  ","   + '-1'
+DETAIL +=  ","   + num$(YAMT)
+DETAIL +=  ","   + YCURI
+DETAIL +=  ","   + ''
+DETAIL +=  ","   + ''
+
+
+WRSEQ DETAIL  using [FACS]
+
+DETAIL1 = 'D'
+DETAIL1 +=  ","   + '2'
+DETAIL1 +=  ","   + '1'
+DETAIL1 +=  ","   + '2'
+DETAIL1 +=  ","   + 'MAIN'
+DETAIL1 +=  ","   + 'AR'
+DETAIL1 +=  ","   + ''
+DETAIL1 +=  ","   + YBPRC
+DETAIL1 +=  ","   + 'Credit note: ' + [F:XINFMTC]CRNNUM
+DETAIL1 +=  ","   + '1'
+DETAIL1 +=  ","   + num$(YAMT)
+DETAIL1 +=  ","   + YCURC
+DETAIL1 +=  ","   + ''
+DETAIL1 +=  ","   + ''
+
+WRSEQ DETAIL1  using [FACS]
+
+
+Openo Using [FACS]
+
+call IMPORTSIL ('GAS',PATH2) from GIMPOBJ
+
+NEXT
+
+CALL LEC_TRACE() FROM LECFIC
+##call COPCLI(PATH2,PATH2,STAT) from ORDSYS
+
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

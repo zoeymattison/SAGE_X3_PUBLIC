@@ -1,0 +1,63 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+If !clalev([F:ZITV]) : Local File ITMMVT [ZITV] : Endif
+If !clalev([F:ZITM]) : Local File ITMMASTER [ZITM] : Endif
+
+# 1. Use Decimal instead of Integer to prevent fractional quantity truncation
+Local Decimal OLD_QTY
+Local Decimal NEW_QTY
+
+# 2. Trace log initialization
+Call OUVRE_TRACE("Novexco Quantity Updates "+num$(date$)) From LECFIC
+Call ECR_TRACE("Update in progress", 0) From GESECRAN
+Call ECR_TRACE("-----------------------------------------------------------------------", 0) From GESECRAN
+
+# 3. Buffer restrictions
+Columns [ZITM] (ITMREF, ZNOVEXCO, ZQTYNVX)
+Filter [ZITM] Where ZNOVEXCO <> ""
+
+# 4. Open transaction outside the loop to protect cursor lock integrity
+If adxlog <> 1 : Trbegin [ZITV] : Else : End : Endif
+
+For [ZITM]
+    # Fetch matching stock record for site DC30
+    Read [ZITV]ITV0 = [F:ZITM]ITMREF; "DC30"
+
+    If ![S]fstat
+        [L]OLD_QTY = [F:ZITV]ZQTYNVX
+        [L]NEW_QTY = ([F:ZITV]PHYSTO - [F:ZITV]PHYALL) + [F:ZITM]ZQTYNVX
+
+        If [L]OLD_QTY <> [L]NEW_QTY
+            [F:ZITV]ZQTYNVX = [L]NEW_QTY
+            Rewrite [ZITV]
+
+            If ![S]fstat
+                Call ECR_TRACE([F:ZITM]ITMREF + " updated: " + num$([L]OLD_QTY) + " >> " + num$([L]NEW_QTY), -1) From GESECRAN
+            Else
+                Call ECR_TRACE([F:ZITM]ITMREF + " error on rewrite! (Is the record locked?)", 1) From GESECRAN
+            Endif
+        Else
+            Call ECR_TRACE([F:ZITM]ITMREF + " not updated: " + num$([L]OLD_QTY) + " >> " + num$([L]NEW_QTY), -2) From GESECRAN
+        Endif
+    Endif
+Next
+
+# 5. Commit batch transaction
+If adxlog <> 1
+    If ![S]fstat
+        Commit
+    Else
+        Rollback
+        Call ECR_TRACE("Batch transaction failed and was rolled back!", 1) From GESECRAN
+    Endif
+Endif
+
+# 6. Reset filters and column limits to avoid corrupting session context
+Filter [ZITM]
+Columns [ZITM]
+
+# 7. Close and render log
+Call FERME_TRACE From LECFIC
+Call LEC_TRACE From LECFIC
+
+
+

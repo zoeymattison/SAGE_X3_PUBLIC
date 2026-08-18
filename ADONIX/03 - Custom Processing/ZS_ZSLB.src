@@ -1,0 +1,58 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+    When "OUVRE" : Gosub CHECK
+    When "AVANT_OK" : Gosub OK
+    When "SETBOUT" : Gosub LOAD
+    When Default
+Endcase
+Return
+
+$CHECK
+If [M:PREP]PRLNUM = '' : Infbox 'Please open a plan first!' : Gosub FIN From GSAISIE : Endif
+Return
+
+$LOAD
+If !clalev([ZPRH]) : Local File STOPREH[ZPRH] : Endif
+Local Integer I : I = 0
+Filter [ZPRH] Where STOFCY = [M:PREP]STOFCY & PRLNUM = [M:PREP]PRLNUM & DLVFLG = 1
+Read [ZPRH] First
+For [ZPRH]
+    I = I + 1
+Next
+
+[M:ZSLB]ZPREPNUM = [M:PREP]PRLNUM
+[M:ZSLB]ZNUMLBLS = num$(I)
+
+Affzo [M:ZSLB]ZPREPNUM
+Affzo [M:ZSLB]ZNUMLBLS
+Return
+
+$OK
+#Infbox 'OK :)'
+
+Local Char TBPAR_BP(15)(1..50),TBVAL_BP(30)(1..50)
+Local Char LAST_PRH(50) : [L]LAST_PRH=""
+Local Char ZL_DEST(240) : [L]ZL_DEST=func AFNC.INTFLD("APRTAUS", "PRT", GUSER+"~ZSHIPLAB~")
+If [L]ZL_DEST="" : [L]ZL_DEST="PREVIEW" : Endif
+TBPAR_BP(1) = "vcrdeb"
+TBPAR_BP(2) = "printcase" : TBVAL_BP(2)="1"
+TBPAR_BP(3) = "pagtot" : TBVAL_BP(3)="1"
+TBPAR_BP(4) = "pagcur" : TBVAL_BP(4)="1"
+
+If [L]ZL_DEST<>"PREVIEW"
+    For [ZPRH]
+    	If [F:ZPRH]PRHNUM<>[L]LAST_PRH
+    		[L]LAST_PRH=[F:ZPRH]PRHNUM
+        	TBVAL_BP(1)=[F:ZPRH]PRHNUM
+            Call ETAT("ZSHIPLAB",[L]ZL_DEST,"",0,"",TBPAR_BP,TBVAL_BP) From AIMP3
+            Sleep(1)
+        Endif
+    Next
+Else
+	Local Char TBPAR(15)(1..50),TBVAL(30)(1..50)
+	TBPAR(1) = "vcrdeb" : TBVAL(1)=[M:PREP]PRLNUM
+	TBPAR(2) = "printcase" : TBVAL(2)="1"
+	Call ETAT("ZSHIPLAB_BULK","PREVIEW","",0,"",TBPAR,TBVAL) From AIMP3
+Endif
+Return

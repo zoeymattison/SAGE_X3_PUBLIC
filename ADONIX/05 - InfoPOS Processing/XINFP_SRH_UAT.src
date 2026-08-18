@@ -1,0 +1,347 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+###########################################################################################
+# Script            : XINFP_SRH
+# Creation date     : 12/10/2017
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : SALES
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : CUSTOMER RETURN INTEGRATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When Default
+    Endcase
+Return
+
+###########################################################################################
+# SUBPROG THAT GENERATED RETURNS
+###########################################################################################
+Subprog SRH_TRANS
+
+    If !clalev([F:XINFSIH]) : Local File XINFSIH    [F:XINFSIH] : Endif
+    If !clalev([F:XINFSID]) : Local File XINFSID    [F:XINFSID] : Endif
+    If !clalev([F:XINFSIS]) : Local File XINFSIS    [F:XINFSIS] : Endif
+    If !clalev([F:XINFLIN]) : Local File XINFLIN    [F:XINFLIN] : Endif
+    If !clalev([F:XITMA])   : Local File ITMMASTER  [F:XITMA]   : Endif
+    If !clalev([F:XITFA])   : Local File ITMFACILIT [F:XITFA]   : Endif
+    If !clalev([F:XSTC])    : Local File STOLOC     [F:XSTC]    : Endif
+    If !clalev([F:XSTO])    : Local File STOCK      [F:XSTO]    : Endif
+    If !clalev([F:XSRHA])   : Local File SRETURN    [F:XSRHA]   : Endif
+    If !clalev([M:IMP2])    : Local Mask IMPOBJ2    [M:IMP2]    : Endif
+
+    # TODO - UPDATE OF MESSAGE
+    Call ECR_TRACE("GENERATION OF A CUSTOMER RETURNS",0) From GESECRAN
+    Call ECR_TRACE("--------------------------------",0) From GESECRAN
+
+    Filter [F:XINFSIH] Where  [F:XINFSIH]INVTYP = 2 and [F:XINFSIH]RETFLG <> 2
+&   Order By Key XINFSIH0
+
+    For [F:XINFSIH]XINFSIH0
+        # TODO - UPDATE OF MESSAGE
+        # @RH@ - 05/12/2017 , CHANGE OF DOCUMENT NUMBER BEING POPULATED FROM INFOPOS
+        # Call ECR_TRACE("CUSTOMER RETURN :" - [F:XINFSIH]NUM,0) From GESECRAN
+        Call ECR_TRACE("CUSTOMER RETURN :" - [F:XINFSIH]INVREF,0) From GESECRAN
+
+        # TODO - UPDATE OF MESSAGE
+        # DETERMINE IF RETURN EXISTS
+        # @RH@ - 05/12/2017 , CHANGE OF DOCUMENT NUMBER BEING POPULATED FROM INFOPOS
+        # Look [F:XSRHA]SRH0 = [F:XINFSIH]NUM
+        Look [F:XSRHA]SRH0 = [F:XINFSIH]INVREF
+
+        If fstat
+            Call TRANS_CRE From XINFP_SRH
+        Else
+            # TODO - UPDATE OF MESSAGE
+            Call ECR_TRACE("RETURN EXISTS",0) From GESECRAN
+            Call UPDATETRANS([F:XINFSIH]NUM) From XINFP_SRH
+        Endif
+
+        # IMPORT VARIABLE DISABLE - USED FOR LOGGING PURPOSES
+        GIMPORT = 0
+    Next
+
+    If clalev([F:XINFSIH]) : Close Local File  [F:XINFSIH] : Endif
+    If clalev([F:XINFSID]) : Close Local File  [F:XINFSID] : Endif
+    If clalev([F:XINFSIS]) : Close Local File  [F:XINFSIS] : Endif
+    If clalev([F:XSRHA])   : Close Local File  [F:XSRHA]   : Endif
+    If clalev([F:XITMA])   : Close Local File  [F:XITMA]   : Endif
+    If clalev([F:XITFA])   : Close Local File  [F:XITFA]   : Endif
+    If clalev([F:XSTC])    : Close Local File  [F:XSTC]    : Endif
+    If clalev([F:XSTO])    : Close Local File  [F:XSTO]    : Endif
+    If clalev([F:XINFLIN]) : Close Local File  [F:XINFLIN] : Endif
+    If clalev([M:IMP2])    : Close Local Mask  [M:IMP2]    : Endif
+
+End
+
+###########################################################################################
+# UPDATE THE TRANSACTION AS COMPLETED
+###########################################################################################
+Subprog UPDATETRANS(XINFPNUM)
+    Value Char XINFPNUM
+    If !clalev([F:XUP]) : Local File XINFSIH [F:XUP] : Endif
+
+    Trbegin [F:XUP]
+        Update [F:XUP] Where [F:XUP]NUM = XINFPNUM With [F:XUP]RETFLG = 2
+
+        If fstat
+            Rollback
+        Else
+            Commit
+        Endif
+
+    If clalev([F:XUP]) : Close Local File   [F:XUP] : Endif
+End
+
+# CREATION OF THE FLAT FILE FOR IMPORT
+###########################################################################################
+Subprog TRANS_CRE
+    Local Char    XLINE(255), XMESSAGE(255)
+    Local Integer XCNT
+    Local Decimal XQTY
+
+    # DELETE OF CREATED FILE
+    #############################################################################################################
+    Local Integer STAT
+
+    Call EFFACE(filpath("INFOPOS",[F:XINFSIH]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("INFOPOS",[F:XINFSIH]NUM,'TXT')+".ERR",STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFSIH]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFSIH]NUM,'TXT')+".ERR",STAT) From ORDSYS
+
+    ## CREATE CUSTOMER RETURN FILE
+    #################################################################################
+    adxifs = ';' : adxirs = chr$(13)+chr$(10)
+
+    ## OPEN FILE
+    #################################################################################
+    Openo filpath("INFOPOS",[F:XINFSIH]NUM,'TXT') Using [FIC1]
+
+    GOK = 1 : OK = 1
+
+    # WRITE DATA TO FILE FOR LINES OF THE RETURN
+    ##################################################################################################
+    XLINE  = "H;" + [F:XINFSIH]SALFCY
+    XLINE += ";"  + [F:XINFSIH]STOFCY
+
+    # IN THE EVENT THAT THE CUSTOMER DOES NOT SPECIFY A RETURN TYPE, THE DEFAULT WILL BE USED FROM THE
+    # SAGE SETUP
+    ##################################################################################################
+    If [F:XINFSIH]SRHTYP <> ''
+        XLINE += ";"  + [F:XINFSIH]SRHTYP
+    Else
+        Local Char WSRHTYP(GLONTRE) : Local Integer  WSRHCAT
+        Gosub SRHTYP From SUBSRH
+        XLINE += ";"  + WSRHTYP
+        Kill [L]WSRHTYP, [L]WSRHCAT
+    Endif
+
+    XLINE += ";"  + [F:XINFSIH]INVREF #[F:XXINFSIH]NUM    - CHANGE MADE ON 12-05-2017 - CHANGE TO DOCUMENT NUMBER
+    XLINE += ";"  + [F:XINFSIH]BPCINV
+    XLINE += ";"  + [F:XINFSIH]BPCINV
+    XLINE += ";"  + num$(format$("D:DDMMYYYY",[F:XINFSIH]INVDAT))
+
+    Wrseq XLINE Using [FIC1]
+
+    XCNT = 0
+
+    # LOADS THE CONTENT OF THE DETAILED LINES
+    Filter [F:XINFSID]
+    Filter [F:XINFSID] Where [F:XINFSID]NUM = [F:XINFSIH]NUM and [F:XINFSID]ROUNDING <> 2
+&   Order By Key XINFSID0
+
+    For [F:XINFSID]XINFSID0
+
+        XCNT += 1
+
+        [F:XINFLIN]NUM     = [F:XINFSIH]INVREF
+        [F:XINFLIN]INFPLIN = [F:XINFSID]SIDLIN
+        [F:XINFLIN]X3LIN   = 1000*[L]XCNT
+
+        Write [F:XINFLIN]
+
+        Read [F:XITMA]ITM0 = [F:XINFSID]ITMREF
+
+        # WRITE THE LINE DETAIL RECORD INFORMATION
+        ########################################################################################################
+        XLINE  = "L;" + [F:XINFSID]ITMREF
+        XLINE += ";"  + [F:XINFSID]ITMDES
+        XLINE += ";"  + [F:XINFSID]SAU
+        XLINE += ";"  + num$(abs([F:XINFSID]QTY))
+        XLINE += ";"  + num$([F:XINFSID]RETREN)
+        XLINE += ";2"  #+ num$([F:XINFSID]RETSTOUPD)
+        XLINE += ";0"  #+ num$([F:XINFSID]GROPRI)
+        XLINE += ";2"
+        XLINE += ";" + [F:XINFSIH]CUR
+
+        Wrseq XLINE Using [FIC1]
+
+        Read [F:XITFA]ITF0 = [F:XINFSID]ITMREF;[F:XINFSID]DSTOFCY
+        Read [F:XITMA]ITM0 = [F:XINFSID]ITMREF
+
+        # WRITE THE STOCK LINE
+        ########################################################################################################
+        If [F:XITFA]LOCMGTCOD = 2
+            Filter [F:XINFSIS] Where [F:XINFSIS]NUM    = [F:XINFSID]NUM   and
+&                                    [F:XINFSIS]SIDLIN = [F:XINFSID]SIDLIN
+&           Order By Key XINFSIS0
+
+            # VERIFIES THAT THERE IS SERIAL NUMBERS LINKED TO THE INVOICE, ELSE JUST BLANKS RECORDS IT
+            ########################################################################################################
+            If rowcount([F:XINFSIS]) <> 0
+                For [F:XINFSIS]XINFSIS0
+                    XLINE  = "S;A"
+                    XLINE += ";" + [F:XITMA]STU
+
+                     Raz [L]XQTY
+
+                    If [F:XITMA]STU = [F:XINFSID]SAU
+                        [L]XQTY = abs([F:XINFSID]QTY)
+                    Elsif [F:XITMA]SAU = [F:XINFSID]SAU
+                        [L]XQTY = abs([F:XINFSID]QTY)*[F:XITMA]SAUSTUCOE
+                    Elsif find([F:XINFSID]SAU,[F:XITMA]PCU)
+                        [L]XQTY = abs([F:XINFSID]QTY) * [F:XITMA]PCUSTUCOE(find([F:XINFSID]SAU,[F:XITMA]PCU)-1)
+                    Else
+                        # TODO - UPDATE OF MESSAGE
+                        Call ECR_TRACE("UNABLE TO DETERMINE THE SALES UNIT CONVERSION FACTOR FOR " - [F:XINFSID]SAU,1) From GESECRAN
+                        GOK = 0
+                        Break 2
+                    Endif
+
+                    XLINE += ";"+ num$([L]XQTY)
+
+                    If [F:XITMA]PCUSTUCOE = 0
+                        XLINE += ";" + num$(1)
+                    Else
+                        XLINE += ";" + num$(abs([F:XITMA]PCUSTUCOE))
+                    Endif
+
+                    If [F:XINFSIS]LOC <> ''
+                        XLINE += ";" + [F:XINFSIS]LOC
+                    Else
+                        If find(3,[F:XITFA]LOCNUM)
+                            XLINE += ";" + [F:XITFA]DEFLOC(find(3,[F:XITFA]LOCNUM) - 1)
+                        Else
+                            Filter [F:XSTO] Where [F:XSTO]ITMREF = [F:XINFSID]ITMREF and
+&                                                 [F:XSTO]STOFCY = [F:XINFSIH]STOFCY and
+&                                                 [F:XSTO]LOCTYP = [F:XINFSIS]LOCTYP and
+&                                                 [F:XSTO]PCU    = [F:XITMA]STU
+&                           Order By Key STO4
+                            Read [F:XSTO]STO4 First
+
+                            If !fstat
+                                XLINE += ";" + [F:XSTO]LOC
+                            Else
+                                # TODO - UPDATE OF MESSAGE
+                                Call ECR_TRACE("UNABLE TO DETERMINE THE SALES LOCATION" - [F:XINFSID]ITMREF,1) From GESECRAN
+                                GOK = 0
+                                Break 2
+                            Endif
+                        Endif
+                    Endif
+
+                    XLINE += ";" + [F:XINFSIS]LOT
+                    XLINE += ";" + [F:XINFSIS]SERNUM
+                    XLINE += ";" + [F:XINFSIH]MVTDES
+
+                    Wrseq XLINE Using [FIC1]
+                Next
+            Else
+                XLINE  = "S;A;"
+                XLINE += [F:XINFSID]SAU
+                XLINE += ";" + num$(abs([F:XINFSID]QTY))
+
+                If [F:XITMA]PCUSTUCOE = 0
+                    XLINE += ";" + num$(1)
+                Else
+                    XLINE += ";" + num$(abs([F:XITMA]PCUSTUCOE))
+                Endif
+
+                XLINE += ";;;;"
+                XLINE += [F:XINFSIH]MVTDES
+
+                Wrseq XLINE Using [FIC1]
+            Endif
+        Else
+
+            XLINE  = "S;A;"
+            XLINE += [F:XINFSID]SAU
+            XLINE += ";" + num$(abs([F:XINFSID]QTY))
+
+            If [F:XITMA]PCUSTUCOE = 0
+                XLINE += ";" + num$(1)
+            Else
+                XLINE += ";" + num$(abs([F:XITMA]PCUSTUCOE))
+            Endif
+
+            XLINE += ";;;;"
+            XLINE += [F:XINFSIH]MVTDES
+
+            Wrseq XLINE Using [FIC1]
+        Endif
+    Next
+
+
+    ## CLOSE FILE
+    #################################################################################
+    Openo Using [FIC1]
+
+    # WRITING OF FILE SUCCESSFUL, IMPORT THE FILE
+    #############################################################################################################
+    If GOK
+        # CALLS THE IMPORT PROCESS
+        # Call IMPORTSIL(IMPT, FIL) From GIMPOBJ
+        # @ IMPT - TEMPLATE TO BE USED
+        # @ FIL  - FILE + LOCATION
+        ###############################################################
+        Raz [M:IMP2]
+
+        [M:IMP2]MODIMP = "XINFPSRH"
+        [M:IMP2]NOMIMP = filpath("INFOPOS",[F:XINFSIH]NUM,'TXT')
+        [M:IMP2]TYPEXP = 2
+
+        Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+
+        # TODO - UPDATE OF MESSAGE
+        # DETERMINE IF RETURN EXISTS
+        # @RH@ - 05/12/2017 , CHANGE OF DOCUMENT NUMBER BEING POPULATED FROM INFOPOS
+        # Look [F:XSRHA]SRH0 = [F:XINFSIH]NUM
+        Look [F:XSRHA]SRH0 = [F:XINFSIH]INVREF
+
+        If fstat
+            # TODO - UPDATE OF MESSAGE
+            Call XERR_TRANS("CRN", [F:XINFSIH]NUM, [F:XINFSIH]EXPNUM, 1, 0, "ERROR ON THE CUSTOMER RETURN CREATION - PLEASE REFER TO THE X3 LOG") From XINFP_ERR
+        Else
+            # TODO - UPDATE OF MESSAGE
+            Call ECR_TRACE("SUCCESS ON THE CUSTOMER RETURN CREATION",0) From GESECRAN
+
+            Call UPDATETRANS([F:XINFSIH]NUM) From XINFP_SRH
+        Endif
+    Endif
+
+    # DELETE OF CREATED FILE
+    #############################################################################################################
+    Call EFFACE(filpath("INFOPOS",[F:XINFSIH]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("INFOPOS",[F:XINFSIH]NUM+".ERR",'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFSIH]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFSIH]NUM,'TXT')+".ERR",STAT) From ORDSYS
+End
+
+# HANDLES ERROR HANDLING, WRITES ERRORS TO TABLE
+##################################################################################################
+$ERROR_SRH
+    Call ERREUR(errmes$(errn)) From XRMSINT
+Resume
+
+
+
+

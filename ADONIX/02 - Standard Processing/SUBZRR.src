@@ -1,0 +1,65 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+# Mask management ZRR0 (Specific)
+
+######################################################################################
+## Section automatically added (screen ZRR0) 02/05/2025 13:51:43 (MOZM)
+######################################################################################
+$ACTION
+Case ACTION
+ When default
+Endcase
+Return
+
+Subprog C_PRHFCY(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog AM_PRHFCY(VALEUR)
+Variable Char    VALEUR()
+Infbox "Test SUBZRR"
+End
+
+Subprog C_BPSNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog AM_BPSNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog C_SDHNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog AM_SDHNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog C_ITMREF(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog AM_ITMREF(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog C_QTY(VALEUR)
+Variable Decimal VALEUR
+End
+
+Subprog AM_QTY(VALEUR)
+Variable Decimal VALEUR
+End
+
+
+######################################################################################
+
+
+
+
+
+
+
+
+
+

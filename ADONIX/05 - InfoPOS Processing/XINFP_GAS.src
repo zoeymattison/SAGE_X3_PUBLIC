@@ -1,0 +1,215 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Journals
+###########################################################################################
+# Script            : XINFP_GAS
+# Creation date     : 21/11/2017
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : GL
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : JOURNAL INTEGRATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When Default
+    Endcase
+Return
+
+########################################################################################################################
+# SUBPROG THAT CREATES GL TRANSACTIONS
+########################################################################################################################
+Subprog XGAS_TRANS()
+    If !clalev([F:XINFHAE]) : Local File XINFHAE   [F:XINFHAE] : Endif
+    If !clalev([F:XINFHED]) : Local File XINFHED   [F:XINFHED] : Endif
+    If !clalev([F:XHAE])    : Local File GACCENTRY [F:XHAE]    : Endif
+
+    # TODO - UPDATE OF MESSAGE
+    Call ECR_TRACE("GENERATION OF A JOURNALS",0) From GESECRAN
+
+    Filter [F:XINFHAE] Where [F:XINFHAE]COMPLETED <> 2
+&   Order By Key XINFHAE0
+
+    For [F:XINFHAE]XINFHAE0
+        # TODO - UPDATE OF MESSAGE
+        Call ECR_TRACE("JOURNAL : " + [F:XINFHAE]NUM ,0) From GESECRAN
+
+        # TODO - UPDATE OF MESSAGE
+        # DETERMINE IF JOURNAL EXISTS
+        Look [F:XHAE]HAE0 = [F:XINFHAE]TYP;[F:XINFHAE]NUM
+
+        If fstat
+            # CALL THE CREATION OF THE JOURNAL
+            Call TRANS_CRE From XINFP_GAS
+        Else
+            # TODO - UPDATE OF MESSAGE
+            Call ECR_TRACE("JOURNAL EXISTS",0) From GESECRAN
+            Call UPDATETRANS([F:XINFHAE]NUM) From XINFP_GAS
+        Endif
+
+        # IMPORT VARIABLE DISABLE - USED FOR LOGGING PURPOSES
+        GIMPORT = 0
+    Next
+
+
+    If clalev([F:XINFHAE]) : Close Local File [F:XINFHAE] : Endif
+    If clalev([F:XINFHED]) : Close Local File [F:XINFHED] : Endif
+    If clalev([F:XHAE])    : Close Local File [F:XHAE]    : Endif
+End
+
+###########################################################################################
+# UPDATE THE TRANSACTION AS COMPLETED
+###########################################################################################
+Subprog UPDATETRANS(XINFPNUM)
+    Value Char XINFPNUM
+    If !clalev([F:XUP]) : Local File XINFHAE [F:XUP] : Endif
+
+    Trbegin [F:XUP]
+        Update [F:XUP] Where [F:XUP]NUM = XINFPNUM With [F:XUP]COMPLETED = 2
+
+        If fstat
+            Rollback
+        Else
+            Commit
+        Endif
+
+    If clalev([F:XUP]) : Close Local File   [F:XUP] : Endif
+End
+
+# CREATION OF JOURNAL
+##################################################################################################
+Subprog TRANS_CRE
+    Local Char    XLINE(255), XMESSAGE(255), XACC(30)
+
+    # DELETE OF CREATED FILE
+    #############################################################################################################
+    Local Integer STAT
+
+    Call EFFACE(filpath("tmp",[F:XINFHAE]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFHAE]NUM,'TXT')+".err",STAT) From ORDSYS
+
+    GOK = 1
+
+    ## CREATE JOURNAL FILE FOR IMPORT
+    #################################################################################
+    adxifs = ';' : adxirs = chr$(13)+chr$(10)
+
+    ## OPEN FILE
+    #################################################################################
+    Openo filpath("INFOPOS",[F:XINFHAE]NUM,'TXT') Using [FIC1]
+
+    XLINE =   "G;"  + [F:XINFHAE]TYP
+    XLINE +=  ";"   + [F:XINFHAE]NUM
+    XLINE +=  ";"   + [F:XINFHAE]FCY
+    XLINE + = ";"   + [F:XINFHAE]JOU
+    XLINE +=  ";"   + num$(format$("D:MMDDYYYY",[F:XINFHAE]ACCDAT))
+    XLINE +=  ";"   + [F:XINFHAE]REF
+    XLINE +=  ";"   + [F:XINFHAE]DESVCR
+    XLINE +=  ";"   + [F:XINFHAE]CUR
+    XLINE +=  ";"   + [F:XINFHAE]DACDIA
+
+    Wrseq XLINE Using [FIC1]
+
+    # LOADS THE CONTENT OF THE DETAILED JOURNAL LINES
+    Filter [F:XINFHED] Where [F:XINFHED]NUM = [F:XINFHAE]NUM
+&   Order By Key XINFHED0
+
+    For [F:XINFHED]XINFHED0
+        If [F:XINFHED]BAN <> ""
+            [L]XACC = func XINFP_GAS.XGLACCOUNT([F:XINFHED]BAN)
+            If [L]XACC = "" : GOK = 0 : Break : Endif
+        Endif
+
+        # WRITE THE LINE DETAIL RECORD INFORMATION
+        ########################################################################################################
+        XLINE =   "D;"  + num$([F:XINFHED]LINNUM)
+        XLINE +=  ";"   + [F:XINFHED]FCYLIN
+        XLINE + = ";"   + [F:XINFHED]ACC
+        XLINE +=  ";"   + [F:XINFHED]BPR
+        XLINE +=  ";"   + [F:XINFHED]DES
+        XLINE +=  ";"   + num$([F:XINFHED]SNS)
+        XLINE +=  ";"   + num$([F:XINFHED]AMTCUR)
+        XLINE +=  ";"   + [F:XINFHED]CUR
+        XLINE +=  ";"   + [F:XINFHED]FREREF
+
+        Wrseq XLINE Using [FIC1]
+
+        # WRITE THE ANALYTICS LINE
+        ########################################################################################################
+
+    Next
+
+    ## CLOSE FILE
+    #################################################################################
+    Openo Using [FIC1]
+
+    # WRITING OF FILE SUCCESSFUL, IMPORT THE FILE
+    #############################################################################################################
+    If GOK
+        # CALLS THE IMPORT PROCESS
+        # Call IMPORTSIL(IMPT, FIL) From GIMPOBJ
+        # @ IMPT - TEMPLATE TO BE USED
+        # @ FIL  - FILE + LOCATION
+        ###############################################################
+        Raz [M:IMP2]
+
+        [M:IMP2]MODIMP = "XINFPGAS"
+        [M:IMP2]NOMIMP = filpath("INFOPOS",[F:XINFHAE]NUM,'TXT')
+        [M:IMP2]TYPEXP = 2
+
+        Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+
+        Look [F:XHAE]HAE0 = [F:XINFHAE]TYP;[F:XINFHAE]NUM
+
+        If fstat
+            # TODO - UPDATE OF MESSAGE
+            Call ECR_TRACE("ERROR ON THE JOURNAL CREATION",1) From GESECRAN
+        Else
+            # TODO - UPDATE OF MESSAGE
+            Call ECR_TRACE("SUCCESS ON THE JOURNAL CREATION",0) From GESECRAN
+
+            Call UPDATETRANS([F:XINFHAE]NUM) From XINFP_GAS
+        Endif
+    Endif
+
+    # DELETE OF CREATED FILE
+    #############################################################################################################
+    Call EFFACE(filpath("INFOPOS",[F:XINFHAE]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("INFOPOS",[F:XINFHAE]NUM,'TXT')+".err",STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFHAE]NUM,'TXT'),STAT) From ORDSYS
+    Call EFFACE(filpath("tmp",[F:XINFHAE]NUM,'TXT')+".err",STAT) From ORDSYS
+End
+
+#
+# PAYING BANK ACCOUNT CODE
+#####################################################################################
+Funprog XGLACCOUNT(XINFPBAN)
+    Value Char XINFPBAN
+    Local Char XINFPACC(30)
+
+    If !clalev([F:XBANA]) : Local File BANK [F:XBANA] : Endif
+
+    Read [F:XBANA]BAN0 = XINFPBAN
+
+    If !fstat
+        [L]XINFPACC = [F:BANA]TREACC(find(1,[F:BANA]JOUTYP)-1)
+    Else
+        # TODO - UPDATE OF MESSAGE
+        Call ECR_TRACE("BANK DOES NOT EXIST",1) From GESECRAN
+        [L]XINFPACC = ""
+    Endif
+
+    If clalev([F:XBANA]) : Close Local File [F:XBANA] : Endif
+
+End [L]XINFPACC
+
+
+
+

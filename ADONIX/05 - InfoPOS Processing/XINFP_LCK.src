@@ -1,0 +1,107 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#<AdxTL>@(#)0.0.0.0 $Revision$
+###########################################################################################
+# Script            : XINFP_LCK
+# Creation date     : 19/10/2018
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : SALES
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : SALES ORDER INTEGRATION - LOCKING AND UNLOCKING OF RECORD
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When Default
+    Endcase
+Return
+
+# LOCKING METHOD
+###########################################################################################
+# XOK VALUES
+# 1   = LOCK/UNLOCK SUCESSFUL
+# 0   = LOCK/UNLOCK UNSUCESSFUL
+# -1  = RECORD ALREADY LOCKED
+# -2  = RECORD DOESNT EXIST
+###########################################################################################
+Subprog LOCK_RECORD(XSOHNUM, XOPERATION, XOK)
+    Value    Char    XSOHNUM
+    Value    Char    XOPERATION
+    Variable Integer XOK
+
+    Local    Char    LLOCK(80)
+
+    If clalev([F:XSOH]) = 0 : Local File SORDER [F:XSOH] : Endif
+    If clalev([F:XAPL]) = 0 : Local File APLLCK [F:XAPL] : Endif
+
+    GTRACE = XSOHNUM
+
+    Call OUVRE_TRACE("LOG FILE") From LECFIC
+
+    Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+    Call ECR_TRACE("LOCKING TRACE FILE FOR LOCK OF SALES ORDER:" - XSOHNUM - " |" - time$, 0) From GESECRAN
+    Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+
+    Call ECR_TRACE("", 0) From GESECRAN
+
+    Columns [F:XSOH] (SOHNUM, CPY)
+    Look [F:XSOH]SOH0 = XSOHNUM
+
+    If fstat :
+        XOK = -2
+        Call ECR_TRACE("SALES ORDER DOES NOT EXIST", 1) From GESECRAN
+    Else
+        Case XOPERATION
+            When "L" : If func GLOBIENS.IS_SYMBOLE_ALREADY_LOCKED("SOH", [F:XSOH]CPY, XSOHNUM) = 1
+                          [L]LLOCK = func GLOBIENS.PRIVATE_GET_STRING_LOCK("SOH", [F:XSOH]CPY, XSOHNUM)
+
+                          Lock =[L]LLOCK With lockwait = 0
+                          If [S]fstat Then
+                            XOK = 0
+                            Call ECR_TRACE("UNABLE TO LOCK SALES ORDER", 1) From GESECRAN
+                          Else
+                            XOK = 1
+                            Call ECR_TRACE("LOCK SUCCESSFUL", 0) From GESECRAN
+                          Endif
+                       Else
+                          XOK = -1
+                       Endif
+            When "U" : [L]LLOCK = func GLOBIENS.PRIVATE_GET_STRING_LOCK("SOH", [F:XSOH]CPY, XSOHNUM)
+
+                       Delete [F:XAPL]LCKCLE = [L]LLOCK
+                       If [S]fstat
+                          XOK = 0
+                          Call ECR_TRACE("UNABLE TO UNLOCK SALES ORDER", 1) From GESECRAN
+                       Else
+                          XOK = 1
+                          Call ECR_TRACE("UNLOCK SUCCESSFUL", 0) From GESECRAN
+                       Endif
+        Endcase
+    Endif
+
+    Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+    Call ECR_TRACE("COMPLETION TIME : " + num$(time$),0) From GESECRAN
+    Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+
+    Call FERME_TRACE From LECFIC
+
+    If clalev([F:XSOH]) = 1 : Close Local File [F:XSOH] : Endif
+End
+
+
+
+
+
+
+
+
+
+

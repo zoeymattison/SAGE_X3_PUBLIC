@@ -1,0 +1,257 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Products
+#########################################################################
+# SPVITM :           Specifics for 'Enter Items'                        #
+# Author:  Sage UKI     -                                               #
+#                                                                       #
+# Version  :  Date        : Comments                                    #
+# v03.05.04   Michael Roblin  28/02/2019  T4678   Moved to Object vertical from Specific
+#########################################################################
+#
+Funprog VERTEST() : End "03.05.04 28/02/2019 XM5"
+
+$ACTION
+
+    Case ACTION
+        When "RAZCRE"      Gosub RAZCRE
+        When "RAZDUP"      Gosub RAZDUP
+        When "LIENS"       Gosub LIENS
+        When "CREATION"    Gosub TR_CRE
+        When "MODIF"       Gosub TR_MOD
+    Endcase
+
+    #
+    # v03.05.00, call the WHM object so that XMXREF is populated correctly
+    #
+    If func AFNC.ACTIV("XM5")
+        Gosub ACTION From XMOXM5IT
+    Endif
+
+Return
+
+#----------------------------------------------------------#
+#                  Object Actions                          #
+#-----------------------------------------------
+#**
+# RAZCRE
+#    Executed when Main Record is Initalised
+#
+#*!
+$RAZCRE
+    If func AFNC.ACTIV("ZPUR")
+        Gosub SET_SERNUM_TYP
+    Endif
+Return
+
+#**
+# RAZDUP
+#    Executed when Main Record is Duplicated
+#
+#*!
+$RAZDUP
+    If func AFNC.ACTIV("ZPUR")
+        Gosub SET_SERNUM_TYP
+    Endif
+Return
+
+#-----------------------------------------------
+#**
+# LIENS
+#    Executed when Main Record Read
+#
+#*!
+$LIENS
+
+    #
+    # v03.05.01, remove commented out code
+    #
+    If func AFNC.ACTIV("ZPUR")
+        Gosub SET_SERNUM_TYP
+    Endif
+
+Return
+
+#-----------------------------------------------
+#**
+# TR_CRE
+#    Executed when CREATION event called
+#    (In transacion)
+#
+#*!
+$TR_CRE
+
+    #
+    # v03.05.01, remove commented out code
+    #
+
+Return
+
+#-----------------------------------------------
+#**
+# TR_MOD
+#    Executed when MODIF event called
+#    (In transacion)
+#
+#*!
+$TR_MOD
+
+    #
+    # v03.05.01, remove commented out code
+    #
+
+Return
+
+#-----------------------------------------------
+#**
+#* SET_SERNUM_TYP
+#*    Enables/Disables Serial Number Type on ITM2 Screen
+#*!
+#
+# V03.05.01, use new screen template + actzo/diszo/affzo specific fields
+#
+$SET_SERNUM_TYP
+
+    #
+    # v03.05.02, field exists
+    #
+    If dim([M:XM5ITM2]XM5_SERIND) > 0
+        #
+        # optional lot and serialised selected
+        #
+        If [M:ITM2]STOMGTCOD=2 and [M:ITM2]SERMGTCOD>=2
+            Actzo [M:XM5ITM2]XM5_SERIND(indice), XM5_SERTYP(indice),XM5_SMNLN(indice),XM5_ISMAXLN(indice),XM5_PREF(indice)
+
+            If dim(ACTION)>0
+                If ACTION="RAZCRE" or ACTION="RAZDUP"
+                    [M:XM5ITM2]XM5_SERREQ(0) = 2
+                    [M:XM5ITM2]XM5_SERIND(0) = 1
+                    [M:XM5ITM2]XM5_SERTYP(0) = 1
+
+                    For ZI=1 To dim([M:XM5ITM2]XM5_SERREQ,1)-1
+                        [M:XM5ITM2]XM5_SERREQ(ZI) = 1
+                        Raz [M:XM5ITM2]XM5_SERTYP(ZI),XM5_SMNLN(ZI),XM5_ISMAXLN(ZI),XM5_PREF(ZI)
+                    Next
+                Endif
+            Endif
+        Else
+            If dim(ACTION)>0
+                For ZI=0 To dim([M:XM5ITM2]XM5_SERREQ,1)-1
+                    [M:XM5ITM2]XM5_SERREQ(ZI) = 1
+                    Raz [M:XM5ITM2]XM5_SERTYP(ZI),XM5_SMNLN(ZI),XM5_ISMAXLN(ZI),XM5_PREF(ZI)
+                Next
+            Endif
+
+            Diszo [M:XM5ITM2]XM5_SERIND(indice), XM5_SERTYP(indice),XM5_SMNLN(indice),XM5_ISMAXLN(indice),XM5_PREF(indice)
+        Endif
+
+        Affzo [M:XM5ITM2]XM5_SERIND(indice), XM5_SERTYP(indice),XM5_SMNLN(indice),XM5_ISMAXLN(indice),XM5_PREF(indice)
+    Endif
+Return
+
+
+######################################################################################
+## Label added by supervisor (screen ITM2) 15/05/2017 13:16:13 (ADMN2)
+######################################################################################
+Subprog AP_SERMGTCOD(VALEUR)
+Variable Integer VALEUR
+
+    If func AFNC.ACTIV("XM5")
+        Gosub SET_SERNUM_TYP
+    Endif
+
+End
+
+#---------------------------------------
+Subprog AM_XM5_SERREQ(VALEUR)
+Variable Integer VALEUR
+
+End
+
+#---------------------------------------
+# V03.05.01, use new screen template
+#
+Subprog AP_XM5_SERREQ(VALEUR)
+Variable Integer VALEUR
+
+    If VALEUR=1
+        Raz [M:XM5ITM2]XM5_SERIND(indice),XM5_SERTYP(indice),XM5_SMNLN(indice),XM5_ISMAXLN(indice),XM5_PREF(indice)
+        Diszo [M:XM5ITM2]XM5_SERIND(indice),XM5_SERTYP(indice),XM5_SMNLN(indice),XM5_ISMAXLN(indice),XM5_PREF(indice)
+    Else
+        Actzo [M:XM5ITM2]XM5_SERIND(indice), XM5_SERTYP(indice),XM5_SMNLN(indice),XM5_ISMAXLN(indice),XM5_PREF(indice)
+    Endif
+
+    Affzo [M:XM5ITM2]XM5_SERIND(indice),XM5_SERTYP(indice),XM5_SMNLN(indice),XM5_ISMAXLN(indice),XM5_PREF(indice)
+
+End
+
+#---------------------------------------
+# V03.05.01, use new screen template
+#
+Subprog AM_XM5_SERIND(VALEUR)
+Variable Integer VALEUR
+
+    Case VALEUR
+        When 1 # serno
+            [M:XM5ITM2]XM5_SERTYP(indice)=1
+            [M:XM5ITM2]XM5_SMNLN(indice)=1
+            [M:XM5ITM2]XM5_ISMAXLN(indice)=20
+            Actzo [M:XM5ITM2]XM5_SERTYP, XM5_SMNLN(indice), XM5_ISMAXLN(indice),XM5_PREF(indice)
+        When 2 # IMIE
+            [M:XM5ITM2]XM5_SERTYP(indice)=2
+            [M:XM5ITM2]XM5_SMNLN(indice)=15    # min 15
+            [M:XM5ITM2]XM5_ISMAXLN(indice)=15  # Max 15
+            Diszo [M:XM5ITM2]XM5_SERTYP, XM5_SMNLN(indice), XM5_ISMAXLN(indice),XM5_PREF(indice)
+    Endcase
+
+    Affzo [M:XM5ITM2]XM5_SERTYP, XM5_SMNLN(indice), XM5_ISMAXLN(indice),XM5_PREF(indice)
+
+End
+
+#---------------------------------------
+# V03.05.01, use new screen template
+#
+Subprog AV_XM5_SERTYP(VALEUR)
+Variable Integer VALEUR
+
+    If VALEUR=1
+        Actzo [M:XM5ITM2]XM5_SMNLN(indice), XM5_ISMAXLN(indice),XM5_PREF(indice)
+    Else
+        [M:XM5ITM2]XM5_SMNLN(indice)=15    # min 15
+        [M:XM5ITM2]XM5_ISMAXLN(indice)=15  # Max 15
+        Diszo [M:XM5ITM2]XM5_SMNLN(indice), XM5_ISMAXLN(indice),XM5_PREF(indice)
+    Endif
+
+    Affzo [M:XM5ITM2]XM5_SMNLN(indice), XM5_ISMAXLN(indice),XM5_PREF(indice)
+
+End
+
+#---------------------------------------
+Subprog AV_XM5_SMNLN(VALEUR)
+Variable Decimal VALEUR
+
+End
+
+
+#---------------------------------------
+Subprog AV_XM5_ISMAXLN(VALEUR)
+Variable Decimal VALEUR
+End
+
+
+#---------------------------------------
+Subprog AV_XM5_PREF(VALEUR)
+Variable Decimal VALEUR
+End
+
+######################################################################################
+#-------------------------------------------------------------------------------
+# History
+# ~~~~~~~
+#------------------------------------------------------------------------
+# v03.05.00   Tim Wilcox      22/06/2018  T----   WHM XREF table not being populated correctly
+# v03.05.01   Tim Wilcox      12/10/2018  T3830   whm serial number data moved to new tab + tidy up code
+# v03.05.02   Tim Wilcox      15/11/2018  T4377   detect if XM5ITMX screen has been attached
+# v03.05.03   Tim Wilcox      20/11/2018  T4377   screen name change xm5itmx to xm5itm2
+#                                                 as xm5itmx name causes function ACTCCC to fail
+# v03.05.04   Michael Roblin  28/02/2019  T4678   Moved to Object vertical from Specific
+#-------------------------------------------------------------------------------
+

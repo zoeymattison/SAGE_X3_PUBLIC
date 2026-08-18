@@ -1,0 +1,490 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Stock Count Generation Vertica
+#-------------------------------------------------------------------------------
+#
+# Stock Count Generation Vertical Processing (SPVXM5STKINV)
+#-------------------------------------------------------------------------------
+# History
+# ~~~~~~~
+# 30/07/2020    Michael Roblin V3.9.6.001  T6208 Do not clear STOCK.CUNLISNUM to stop Sage deleting STOCK after issue
+#-------------------------------------------------------------------------------
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "3.9.6.001 30/07/2020 T6208"
+#-------------------------------------------------------------------------------
+
+################################################################################
+## Main Process
+## ~~~~~~~~~~~~
+##
+##  Called for each ACTION.
+##  In here we call additional processing for specific ACTION codes.
+################################################################################
+# V03.05.01, Added FILGENMAN, FILLOALIG, RUPLOCMAN and AFTREASTO Entry Points
+#
+$ACTION
+    If func AFNC.ACTIV("XM5")
+      #
+      # entry points
+      #
+     #Infbox "SPVXM5STKINV.ACTION"-ACTION
+     Case ACTION
+        When "WRICUD"     : Gosub XM5_UNLOCK
+        When "FINGENSNU1" : If GOK <> 0 and [M:SNU1]CUNSSSTYP = 1 :Gosub XM5_CULUNLOCK :Endif
+        When "FINGENSNU"  : If GOK <> 0 and [M:SNU1]CUNSSSTYP = 2 :Gosub XM5_CULUNLOCK :Endif
+        When "FILGENMAN"  : If [M:SNU1]CUNSSSTYP = 2 : Gosub XM5_UPD_WFILEMP: Endif
+        When "FILLOALIG"  : If [M:SNU1]CUNSSSTYP = 2 : Gosub XM5_UPD_WFILSTO: Endif
+        When "RUPLOCMAN"  : If dim([M:SNU1]XM_INCALLLOC) > 0 and [M:SNU1]XM_INCALLLOC = 2 and [M:SNU1]CUNSSSTYP = 2 : Gosub XM5_INSXM5CUNLOC : Endif
+        When "AFTREASTO"  : If dim([M:SNU1]XM_INCALLLOC) > 0 and [M:SNU1]XM_INCALLLOC = 1 and [M:SNU1]CUNSSSTYP = 2 : Gosub XM5_INSXM5CUNLOC : Endif
+      Endcase
+    Endif
+
+Return
+
+################################################################################
+# Release Lock for WHM count in Stock and Item facility tables
+#
+$XM5_UNLOCK
+    # If release for WHM count is set to yes
+    If dim([M:SNU0]XM_RELFRCNT) > 0 and  [M:SNU0]XM_RELFRCNT = 2
+      [F:CUD]CUNLOKFLG = 1
+      [F:CUL]CUNLOKFLG = 1
+      # Release Lock in ITMFACILIT table
+      Readlock [ITF1]ITF0=[F:CUD]ITMREF;[M:SIW]STOFCY
+      Case fstat
+        When 0 :
+        When 1 :
+          GOK = -1
+          GMESSAGE = mess(20,100,1)-"ITMFACILIT"-[F:CUD]ITMREF-[M:SIW]STOFCY
+          Return
+        When Default :
+          GOK = 0
+          Call FSTA("ITF") From GLOCK
+          Return
+      Endcase
+
+      [F:ITF1]CUNLISNUM =  ""
+      [F:ITF1]CUNFLG    = 1
+      Rewrite [ITF1]
+      If fstat
+        GOK = 0
+        Call FSTA("ITF") From GLOCK
+        Return
+      Endif
+
+      # Release Lock in STOCK table
+      If [M:SIW]STOCOU (I) <> 0
+        Readlock [STO1]STO0=[M:SIW]STOFCY;[M:SIW]STOCOU (I)
+        Case fstat
+          When 0 :
+          When 1 :
+             GMESSAGE = mess(20,100,1)-"STOCK"-[F:CUD]ITMREF-[M:SIW]STOCOU (I)
+             GOK = -1
+             Return
+          When 5 :
+             Return                  # hcb 43817
+          When Default :
+             GOK = 0
+             Call FSTA("STO") From GLOCK
+             Return
+        Endcase
+
+        [F:STO1]CUNLOKFLG = 1
+        # V3.9.6.001, keep value
+        #[F:STO1]CUNLISNUM = ""
+        Rewrite [STO1]
+        If fstat
+          GOK = 0
+          Call FSTA("STO") From GLOCK
+          Return
+        Endif
+      Endif
+    Endif
+
+    # V03.05.01, Update new count location table
+    # Update Count Worksheet Number in new count location table
+    If dim([M:SNU1]XM_INCALLLOC) > 0 and [M:SNU1]CUNSSSTYP = 2
+      # Open Count Location Table
+      If clalev([F:XM5CUNL]) = 0 : Local File XM5CUNLOC [XM5CUNL] : Endif
+
+      #
+      #V03.05.03, Fixed issue of overriding CUNLISNUM in count location table
+      #
+      #Filter [XM5CUNL] Where CUNSSSNUM = [M:SNU0]CUNSSSNUM Order By Key XM5CUD0
+      Filter [XM5CUNL] Where CUNSSSNUM = [M:SNU0]CUNSSSNUM and LOC = [F:CUD]LOC and [F:XM5CUNL]CUNLISNUM = "" Order By Key XM5CUD0
+      For [XM5CUNL]
+        Readlock [XM5CUNL]XM5CUD0 Curr
+
+        Case fstat
+          When 0 :
+          When 1 :
+            GOK = -1
+            GMESSAGE = mess(20,100,1)-"CUNLISTE"-[M:SNU0]CUNSSSNUM-[F:XM5CUNL]LOC
+            Break
+          When Default :
+            GOK = 0
+            Call FSTA("XM5CUNL") From GLOCK
+            Break
+        Endcase
+
+        [F:XM5CUNL]CUNLISNUM = [M:SIW]CUNLISNUM
+        Rewrite [XM5CUNL]
+        If fstat
+          GOK = 0
+          Call FSTA("XM5CUNL") From GLOCK
+          Break
+        Endif
+      Next
+
+      #Clear the filter
+      Filter [XM5CUNL]
+
+      #
+      #V03.05.03, Add the same location again if it is in different Worksheet
+      #
+      Gosub XM5_INSXM5CUNLOCNEW
+
+
+    Endif
+Return
+################################################################################
+# Release Lock for WHM count in CUL table
+#
+$XM5_CULUNLOCK
+    # If release for WHM count is set to yes
+    If dim([M:SNU0]XM_RELFRCNT) > 0 and  [M:SNU0]XM_RELFRCNT = 2
+      Filter [CUL] Where CUNSSSNUM = [M:SNU0]CUNSSSNUM Order By Key CUL0
+      For [CUL]
+        # Release Lock in CUL table
+        Readlock [CUL]CUL0 Curr
+        Case fstat
+          When 0 :
+          When 1 :
+            GOK = -1
+            GMESSAGE = mess(20,100,1)-"CUNLISTE"-[M:SNU0]CUNSSSNUM-[F:CUL]CUNLISNUM
+            Break
+          When Default :
+            GOK = 0
+            Call FSTA("CUL") From GLOCK
+            Break
+        Endcase
+
+        [F:CUL]CUNLOKFLG = 1
+        [F:CUL]XM_RELEASED = 2
+        Rewrite [CUL]
+        If fstat
+          GOK = 0
+          Call FSTA("CUL") From GLOCK
+          Break
+        Endif
+
+      Next
+
+      #Clear the filter
+      Filter [CUL]
+
+      # Refresh the screen
+      #chargement onglet listes
+      Call LOAD_SNU3 From SUBSNXA
+    Endif
+
+    # V03.05.01, Update new count location table
+    #Check if any worksheet is generated
+    If [M:SNU3]NBLIG <> 0
+
+      #Update last list number in the new count location table having blank list number
+      # Open Count Location Table
+      If clalev([F:XM5CUNL]) = 0 : Local File XM5CUNLOC [XM5CUNL] : Endif
+
+      Filter [XM5CUNL] Where CUNSSSNUM = [M:SNU0]CUNSSSNUM and CUNLISNUM = "" Order By Key XM5CUD0
+      For [XM5CUNL]
+        Readlock [XM5CUNL]XM5CUD0 Curr
+
+        Case fstat
+          When 0 :
+          When 1 :
+            GOK = -1
+            GMESSAGE = mess(20,100,1)-"XM5CUNLOC"-[M:SNU0]CUNSSSNUM-[F:XM5CUNL]LOC
+            Break
+          When Default :
+            GOK = 0
+            Call FSTA("XM5CUNL") From GLOCK
+            Break
+        Endcase
+        [F:XM5CUNL]CUNLISNUM = [M:SNU3]CUNLISNUM
+        Rewrite [XM5CUNL]
+        If fstat
+          GOK = 0
+          # Error updating count loation record
+          GMESSAGE = mess(136,20120,1)-"XM5CUNLOC"-[M:SNU0]CUNSSSNUM-[M:SNU3]CUNLISNUM-[F:XM5CUNL]LOC
+          Call FSTA("XM5CUNL") From GLOCK
+          Break
+        Endif
+      Next
+
+      #Clear the filter
+      Filter [XM5CUNL]
+    Else
+
+      #Update last list number in the new count location table having blank list number
+      # Open Count Location Table
+      If clalev([F:XM5CUNL]) = 0 : Local File XM5CUNLOC [XM5CUNL] : Endif
+
+      # Delete record from the new count location table if no list is generated
+      Filter [XM5CUNL] Where CUNSSSNUM = [M:SNU0]CUNSSSNUM and CUNLISNUM = "" Order By Key XM5CUD0
+      For [XM5CUNL]
+        Readlock [XM5CUNL]XM5CUD0 Curr
+
+        Case fstat
+          When 0 :
+          When 1 :
+            GOK = -1
+            GMESSAGE = mess(20,100,1)-"CUNLISTE"-[M:SNU0]CUNSSSNUM-[F:XM5CUNL]LOC
+            Break
+          When Default :
+            GOK = 0
+            Call FSTA("XM5CUNL") From GLOCK
+            Break
+        Endcase
+
+        Delete [XM5CUNL]
+        If fstat
+          GOK = 0
+          Call FSTA("XM5CUNL") From GLOCK
+          Break
+        Endif
+      Next
+
+      #Clear the filter
+      Filter [XM5CUNL]
+    Endif
+Return
+
+################################################################################
+# V03.05.01, Update location filter for STC table from new location ranges
+#
+$XM5_UPD_WFILEMP
+
+   WFILEMP = "STOFCY=[M:SNU0]STOFCY"
+# Type emplacement
+   If dim([M:SNU2]LOCTYPSTR) > 0
+      If [M:SNU2]LOCTYPSTR <> "" | [M:SNU2]LOCTYPEND <> ""
+         WFILEMP += "&LOCTYP>='"+[M:SNU2]LOCTYPSTR+"'&LOCTYP<='"+[M:SNU2]LOCTYPEND+"'"
+      Endif
+   Endif
+# Emplacement
+   If dim([M:SNU2]LOCSTR) > 0
+      If [M:SNU2]LOCSTR <> "" | [M:SNU2]LOCEND <> ""
+         WFILEMP += "&((LOC>='"+[M:SNU2]LOCSTR+"'&LOC<='"+[M:SNU2]LOCEND+"')"
+      Else
+         WFILEMP += "&((1=0)"
+      Endif
+   Else
+     WFILEMP += "&((1=0)"
+   Endif
+
+   If dim([M:SNU2]XM_LOCSTR1) > 0 and dim([M:SNU2]XM_LOCEND1) > 0
+      If [M:SNU2]XM_LOCSTR1 <> "" | [M:SNU2]XM_LOCEND1 <> ""
+         WFILEMP += " or (LOC>='"+[M:SNU2]XM_LOCSTR1+"'&LOC<='"+[M:SNU2]XM_LOCEND1+"')"
+      Else
+         WFILEMP += " or (1=0)"
+      Endif
+   Else
+         WFILEMP += " or (1=0)"
+   Endif
+
+   If dim([M:SNU2]XM_LOCSTR2) > 0 and dim([M:SNU2]XM_LOCEND2) > 0
+      If [M:SNU2]XM_LOCSTR2 <> "" | [M:SNU2]XM_LOCEND2 <> ""
+         # 03.05.02 added ")"
+         WFILEMP += " or (LOC>='"+[M:SNU2]XM_LOCSTR2+"'&LOC<='"+[M:SNU2]XM_LOCEND2+"'))"
+      Else
+         WFILEMP += " or (1=0))"
+      Endif
+   Else
+         WFILEMP += " or (1=0))"
+   Endif
+
+ # WFILEMP += ")"
+
+Return
+################################################################################
+# V03.05.01, Update location filter for STO table from new location ranges
+#
+$XM5_UPD_WFILSTO
+
+If GCOD_EMP = 2
+  WFILSTO    = "1=1"
+
+  # type emplacement
+  If dim([M:SNU2]LOCTYPSTR) > 0
+    If [M:SNU2]LOCTYPSTR <> "" | [M:SNU2]LOCTYPEND <> ""
+       WFILSTO += "&[F:STO]LOCTYP>='"+[M:SNU2]LOCTYPSTR+"'&[F:STO]LOCTYP<='"+[M:SNU2]LOCTYPEND+"'"
+    Endif
+  Endif
+
+  # emplacement
+  If dim([M:SNU2]LOCSTR) > 0
+     If [M:SNU2]LOCSTR <> "" | [M:SNU2]LOCEND <> ""
+        WFILSTO += "&((LOC>='"+[M:SNU2]LOCSTR+"'&LOC<='"+[M:SNU2]LOCEND+"')"
+     Else
+        WFILSTO += "&((1=0)"
+     Endif
+  Else
+    WFILSTO += "&((1=0)"
+  Endif
+
+  If dim([M:SNU2]XM_LOCSTR1) > 0 and dim([M:SNU2]XM_LOCEND1) > 0
+     If [M:SNU2]XM_LOCSTR1 <> "" | [M:SNU2]XM_LOCEND1 <> ""
+         WFILSTO += " or (LOC>='"+[M:SNU2]XM_LOCSTR1+"'&LOC<='"+[M:SNU2]XM_LOCEND1+"')"
+     Else
+         WFILSTO += " or (1=0)"
+     Endif
+  Else
+         WFILSTO += " or (1=0)"
+  Endif
+
+  If dim([M:SNU2]XM_LOCSTR2) > 0 and dim([M:SNU2]XM_LOCEND2) > 0
+      If [M:SNU2]XM_LOCSTR2 <> "" | [M:SNU2]XM_LOCEND2 <> ""
+         #03.05.02 added ")"
+         WFILSTO += " or (LOC>='"+[M:SNU2]XM_LOCSTR2+"'&LOC<='"+[M:SNU2]XM_LOCEND2+"'))"
+      Else
+         WFILSTO += " or (1=0))"
+      Endif
+  Else
+         WFILSTO += " or (1=0))"
+  Endif
+
+ # WFILSTO += ")"
+
+  # tiers  recherche sur Bpdlvcust si emplacement de type client
+  If [M:SNU2]BPRNUMSTR <> "" | [M:SNU2]BPRNUMEND <> ""
+     WFILSTO += "&[F:STO]LOCCAT>=3 &[F:STO]LOCCAT<=4 "
+  Endif
+
+Endif
+Return
+
+################################################################################
+# V03.05.01, Insert new record in count location table for given session
+#
+$XM5_INSXM5CUNLOC
+
+Local Integer LN_LOCFOUND: LN_LOCFOUND = 0
+
+  # Open Count Location Table
+  If clalev([F:XM5CUNL]) = 0 : Local File XM5CUNLOC [XM5CUNL] : Endif
+
+  Filter [XM5CUNL] Where CUNSSSNUM = [M:SNU0]CUNSSSNUM and LOC = [F:STC]LOC Order By Key XM5CUD0
+  For [XM5CUNL]
+    LN_LOCFOUND = 1
+    Break
+  Next
+
+  #Clear the filter
+  Filter [XM5CUNL]
+
+  #Check if location record exists for given Session
+  If LN_LOCFOUND = 0
+    # Location not added in Count Location table so add it
+    Raz [F:XM5CUNL]
+    [F:XM5CUNL]CUNSSSNUM = [M:SNU0]CUNSSSNUM
+
+    #
+    #V03.05.03, Update CUNLISNUM in count location table for given session
+    #
+    [F:XM5CUNL]CUNLISNUM = [M:SIW]CUNLISNUM
+
+    [F:XM5CUNL]LOC = [F:STC]LOC
+    [F:XM5CUNL]STOFCY = [F:STC]STOFCY
+    [F:XM5CUNL]CUNDAT = date$
+    [F:XM5CUNL]WRH = [F:STC]WRH
+    [F:XM5CUNL]CREDAT = date$
+    [F:XM5CUNL]CREUSR = GUSER
+    [F:XM5CUNL]LCNSTAT = 1
+    [F:XM5CUNL]CNTSTAT = 1
+
+    #
+    #v03.05.04, Added 3 states for V11 and more to support multi count feature
+    #
+    If func XMTOOLS.VERS() >= 11
+      [F:XM5CUNL]LCNSTAT(1) = 1
+      [F:XM5CUNL]LCNSTAT(2) = 1
+      [F:XM5CUNL]CNTSTAT(1) = 1
+      [F:XM5CUNL]CNTSTAT(2) = 1
+    Endif
+
+    Write [XM5CUNL]
+    If fstat
+      GOK = 0
+      #Error creating count loation record
+      GMESSAGE = mess(134,20120,1)
+      Call FSTA("XM5CUNL") From GLOCK
+      Return
+    Endif
+  Endif
+
+Return
+################################################################################
+# V03.05.03, Insert new record in count location table for same location if
+# work sheet is different
+$XM5_INSXM5CUNLOCNEW
+
+Local Integer LN_LOCFOUND: LN_LOCFOUND = 0
+
+  # Open Count Location Table
+  If clalev([F:XM5CUNL]) = 0 : Local File XM5CUNLOC [XM5CUNL] : Endif
+
+  Filter [XM5CUNL] Where CUNSSSNUM = [M:SNU0]CUNSSSNUM and LOC = [F:CUD]LOC and [F:XM5CUNL]CUNLISNUM = [M:SIW]CUNLISNUM Order By Key XM5CUD0
+  For [XM5CUNL]
+    LN_LOCFOUND = 1
+    Break
+  Next
+
+  #Clear the filter
+  Filter [XM5CUNL]
+
+  #Check if location record exists for given Session
+  If LN_LOCFOUND = 0
+    # Location not added in Count Location table so add it
+    Raz [F:XM5CUNL]
+    [F:XM5CUNL]CUNSSSNUM = [M:SNU0]CUNSSSNUM
+    [F:XM5CUNL]CUNLISNUM = [M:SIW]CUNLISNUM
+    [F:XM5CUNL]LOC = [F:CUD]LOC
+    [F:XM5CUNL]STOFCY = [F:CUD]STOFCY
+    [F:XM5CUNL]CUNDAT = date$
+    [F:XM5CUNL]WRH = [F:CUD]WRH
+    [F:XM5CUNL]CREDAT = date$
+    [F:XM5CUNL]CREUSR = GUSER
+    [F:XM5CUNL]LCNSTAT = 1
+    [F:XM5CUNL]CNTSTAT = 1
+    #
+    #v03.05.04, Added 3 states for V11 and more to support multi count feature
+    #
+    If func XMTOOLS.VERS() >= 11
+      [F:XM5CUNL]LCNSTAT(1) = 1
+      [F:XM5CUNL]LCNSTAT(2) = 1
+      [F:XM5CUNL]CNTSTAT(1) = 1
+      [F:XM5CUNL]CNTSTAT(2) = 1
+    Endif
+    Write [XM5CUNL]
+    If fstat
+      GOK = 0
+      #Error creating count loation record
+      GMESSAGE = mess(134,20120,1)
+      Call FSTA("XM5CUNL") From GLOCK
+      Return
+    Endif
+  Endif
+
+Return
+#----------------------------------------------------------------------------------------------------------------#
+# History
+# ~~~~~~~
+# 18/09/2018    Sweta Rai      V03.05.00   T---- original release
+# 24/09/2018    Sweta Rai      V03.05.01   T---- Modified to insert, update or delete data to/from the new
+#                                                count location (XM5CUNLOC) table
+# 28/01/2019    Will Collins   V03.05.02   T4573 Missing ")" when third location selected
+# 29/01/2019    Sweta Rai      V03.05.03   T4583 To support multi-list
+# 06/04/2019    Sweta Rai      v03.05.04   T4821   Modified to support multi count feature
+# 30/07/2020    Michael Roblin V3.9.6.001  T6208 Do not clear STOCK.CUNLISNUM to stop Sage deleting STOCK after issue
+#------------------------# End of SPVXM5STKINV source #----------------------------------------------------------#
+

@@ -1,0 +1,563 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Tote Maintenance
+#-------------------------------------------------------------------------------
+# Vertical Processes for WHM Tote Maintenance (XTOT)
+#     - Traitement : SPVXTOT       (Vertical File)                             #
+#                                                                              #
+# Created by GT SRAI 20SEP17 For Tote Maintenance                              #
+#-------------------------------------------------------------------------------
+# History - (At end of Source)
+#
+# Last Change was :
+# 20/09/2017    GT Sweta Rai    V03.05.00   S----   Original release
+# 06/03/2018    Tim Wilcox      V03.05.00a  T----   clear eclipse warnings
+# 27/02/2020    Tim Wilcox      V3.9.1.001  T6056   clear tote from pick ticket header
+#-------------------------------------------------------------------------------
+# Version Control
+# ~~~~~~~~~~~~~~~
+Funprog VERTEST() : End "03.05.00a 06/03/2018 XM5"
+#-------------------------------------------------------------------------------
+# actions
+#
+$ACTION
+
+  If !func AFNC.ACTIV("XM5")
+    # Gosub ACTION From XMOXM5MP
+    mkstat = 2
+    GOK = 0
+    Return
+  Endif
+
+  Case ACTION
+    When "OUVRE"     : Gosub OUVRE
+    When "RAZCRE"    : Gosub RAZCRE
+    When "RAZDUP"    : Gosub RAZCRE
+    When "SETBOUT"   : Gosub SETBOUT
+    When "AVANTBOUT" : Gosub AVANTBOUT
+    When "EXEBOUT"   : Gosub EXEBOUT
+    When "APRES_MOD" : Gosub APRES_MOD
+    When "ANNULE"    : Gosub ANNULE
+    When "APRES_CRE" : Gosub APRES_CRE
+    When Default
+  Endcase
+
+Return
+################################################################################
+# Get default tote assigned to the site
+Funprog GETDEFTOTE()
+
+Local   Char WDEFTOTE (30)
+Raz WDEFTOTE
+Local Char WPARAM(20)
+Call PARAM([M:XTOT0]STOFCY,"XMDEFTOTE",WPARAM) From ADOVAL
+WDEFTOTE = WPARAM
+End WDEFTOTE
+################################################################################
+# Get default tote Types: Don't create locations if Type 2
+Funprog GETTOTTYP()
+
+Local Char WTOTPROC(30)
+Raz WTOTPROC
+Local Char WPARAM(20)
+Call PARAM([M:XTOT0]STOFCY,"XMTOTEPROC",WPARAM) From ADOVAL
+WTOTPROC = WPARAM
+End WTOTPROC
+
+################################################################################
+$OUVRE
+
+If !clalev ([F:STC]) : Local File STOLOC[STC] : Endif
+If !clalev ([F:XM5TOT1]): Local File XM5TOTE [XM5TOT1]: Endif
+If !clalev ([F:XMA]): Local File XMAUDIT [XMA]: Endif
+
+#
+# v3.9.1.001, add STOPREH
+#
+If !clalev ([F:PRH]) : Local File STOPREH [F:PRH] : Endif
+
+Return
+################################################################################
+$RAZCRE
+  If func GETTOTTYP() = "2" and ACTION = "RAZDUP"
+     GMESSAGE = "Can't Duplicate Records"
+     mkstat = 2
+     Return
+  Endif
+  [M:XTOT0]TOTACT = 2
+  [M:XTOT0]TOTSTAT = 1
+  [M:XTOT1]PCK = func GETDEFTOTE()
+  [M:XTOT1]LOC = 'FREE'
+  Raz  [M:XTOT1]PRLNUM,  [M:XTOT1]PRLSEQ,  [M:XTOT1]PRHNUM,  [M:XTOT1]TRLLICPLATE
+  Affzo [M:XTOT1]1-99
+  Affzo [M:XTOT0]TOTCOD
+Return
+################################################################################
+$SETBOUT
+
+If [M:XTOT1]PRLNUM<> '' or [M:XTOT1]PRLSEQ <> 0 or  [M:XTOT1]PRHNUM <> ''
+&  or  [M:XTOT1]TRLLICPLATE<> ''
+  #-- Disable delete/save button
+  Call VIREBOUT(CHAINE,"AM") From GOBJET
+Else
+  #-- Disable clear button
+  Call VIREBOUT(CHAINE,"1") From GOBJET
+Endif
+Return
+################################################################################
+$AVANTBOUT
+
+#
+# v3.9.1.001, save pick ticket
+#
+Local Char L_PRHNUM (GLONVCR)
+
+Case BOUT
+  When "1": # Clear the Tote
+            Local Integer YWRN
+            Call AVERTIR(mess(5,20120,1),YWRN)From GESECRAN # "Do you want to clear Tote?"
+            If YWRN<>2: Return: Endif
+            Read [XM5TOT1]TOT0=[M:XTOT0]STOFCY;[M:XTOT0]TOTCOD
+            If !fstat
+              Readlock [XM5TOT1]Curr
+              Case fstat
+                When 1 :
+                  GOK = -1
+                  GMESSAGE = mess(4,20120,1) ## Unable to clear Tote
+                  Call FSTA("XM5TOT1") From GLOCK
+                  Return
+                When 0 :
+                  #
+                  # v3.9.1.001, save pick ticket
+                  #
+                  L_PRHNUM = [F:XM5TOT1]PRHNUM
+
+                  [F:XM5TOT1]PRLNUM = ''
+                  [F:XM5TOT1]PRLSEQ = 0
+                  [F:XM5TOT1]PRHNUM = ''
+                  [F:XM5TOT1]PRELIN = 0
+                  [F:XM5TOT1]ITMREF = ''
+                  [F:XM5TOT1]QTYSTU = 0
+                  [F:XM5TOT1]TRLLICPLATE = ''
+                  [F:XM5TOT1]LOC = 'FREE'
+                  Rewrite [XM5TOT1]
+                  If fstat
+                    GMESSAGE = mess(4,20120,1) ## Unable to clear Tote
+                    Call FSTA("XM5TOT1") From GLOCK
+                    GOK = 0
+                  Else
+                    #
+                    # v3.9.1.001, we have a pick ticket
+                    # clear it from ticket header
+                    #
+                    If L_PRHNUM <> ""
+                        Gosub CLEAR_PRHNUM
+                    Endif
+                  Endif
+                  Unlock [XM5TOT1]
+              Endcase
+            Endif
+  When Default
+Endcase
+
+Return
+
+################################################################################
+# v3.9.1.001, clear tote from pick ticket
+# BUT only clear if the tote on header matches the tote being cleared
+#
+$CLEAR_PRHNUM
+
+    Read [F:PRH]PRH0=L_PRHNUM
+    If !fstat
+        If [F:PRH]XM5_TOTCOD = [M:XTOT0]TOTCOD
+            Readlock [F:PRH]Curr
+            If fstat = 0
+                [F:PRH]XM5_TOTCOD = ""
+                Rewrite [F:PRH]
+                If fstat
+                    GMESSAGE = mess(4,20120,1) ## Unable to clear Tote
+                    Call FSTA("PRH") From GLOCK
+                    GOK = 0
+                Endif
+
+                Unlock [F:PRH]
+            Endif
+        Endif
+    Endif
+
+Return
+
+################################################################################
+$EXEBOUT
+If GOK <> 1:Return: Endif
+Case REP
+  When "1": # Write the data in XMAUDIT Table upon Clear
+            Read [XM5TOT1]TOT0=[M:XTOT0]STOFCY;[M:XTOT0]TOTCOD
+            If [F:XM5TOT1]PRLNUM = '' and [F:XM5TOT1]PRLSEQ = 0 and [F:XM5TOT1]PRHNUM = ''
+&             and [F:XM5TOT1]TRLLICPLATE = ''
+              Call WRITEAUDIT('CLR')
+              Raz  [M:XTOT1]PRLNUM,  [M:XTOT1]PRLSEQ,  [M:XTOT1]PRHNUM,  [M:XTOT1]TRLLICPLATE
+              [M:XTOT1]LOC = 'FREE'
+              Affzo [M:XTOT1]1-99
+            Endif
+
+  When Default
+Endcase
+
+Return
+################################################################################
+$ANNULE
+
+# Write the data in XMAUDIT Table upon Delete
+Call WRITEAUDIT('DEL')
+
+Return
+
+######################################################################################
+## Label added by supervisor (screen XTOT1) 18/09/2017 14:25:45 (ADMIN)
+######################################################################################
+Subprog AM_PCK(VALEUR)
+Variable Char    VALEUR()
+
+If !clalev([F:TPA2]): Local File TABPACKAGE[TPA2] : Endif: Filter [TPA2]
+Read [TPA2]TPA0 = VALEUR
+
+If !fstat and [TPA2]XM5_TOTE <> 2
+  GMESSAGE = mess(1,20120,1) + ' ' + [F:TPA2]PCK + ' ' + mess(2,20120,1) + "\" + mess(3,20120,1)
+  mkstat = 2
+  End
+Endif
+
+End
+######################################################################################
+
+
+
+######################################################################################
+## Label added by supervisor (screen XTOT0) 18/09/2017 17:30:59 (ADMIN)
+######################################################################################
+Subprog AM_STOFCY(VALEUR)
+Variable Char    VALEUR()
+
+If GREP = 'C'
+  [M:XTOT0]STOFCY = VALEUR
+  [M:XTOT1]PCK = func GETDEFTOTE()
+  Affzo [M:XTOT1]PCK
+Endif
+
+End
+######################################################################################
+
+
+
+
+######################################################################################
+## Label added by supervisor (screen XTOT1) 20/09/2017 10:53:18 (ADMIN)
+######################################################################################
+Subprog C_PCK(VALEUR)
+Variable Char    VALEUR()
+
+If !clalev([F:TPA2]): Local File TABPACKAGE[TPA2] : Endif: Filter [TPA2]
+Read [TPA2]TPA0 = VALEUR
+
+If !fstat and [TPA2]XM5_TOTE <> 2
+  GMESSAGE = mess(1,20120,1) + ' ' + [F:TPA2]PCK + ' ' + mess(2,20120,1) + "\" + mess(3,20120,1)
+  mkstat = 2
+  End
+Endif
+
+End
+
+######################################################################################
+# Write to the audit table
+Subprog WRITEAUDIT(LC_ACTION)
+Value Char    LC_ACTION
+
+Local Char RMESSAGE (30)
+Local Char RRTN     (30)
+Local Char LINTSUM  (30)
+Local Char LACT     (30)
+
+RMESSAGE = ''
+RRTN = ''
+LINTSUM = LC_ACTION + ' ' + [M:XTOT0]TOTCOD
+LACT = ''
+
+Call WMAUDTOTLOG(GUSER,"TOT",LACT,'SPVXTOT',LINTSUM,'0',[M:XTOT1]PRLNUM,num$([M:XTOT1]PRLSEQ),'','','',
+&                [M:XTOT0]STOFCY,'',[M:XTOT1]LOC,'','','','','','',num$([M:XTOT0]TOTACT),'','',
+&                [M:XTOT0]STOFCY,'',[M:XTOT1]LOC,'','','','','','',num$([M:XTOT0]TOTACT),'','',
+&                '','','','','','','','',[M:XTOT0]TOTCOD,[M:XTOT1]TRLLICPLATE,RRTN,RMESSAGE) From XMBAUDIT
+
+If RRTN <> "0"
+  GOK = 0
+  GMESSAGE = RMESSAGE
+Endif
+End
+######################################################################################
+Subprog AM_TOTSTAT(VALEUR)
+Variable Integer VALEUR
+If VALEUR > 1
+   [M:XTOT0]TOTACT = 1
+   [F:XM5TOT1]TOTACT = 1
+Else
+   [M:XTOT0]TOTACT = 2
+   [F:XM5TOT1]TOTACT = 2
+Endif
+End
+#######################################################################################
+$APRES_MOD
+Local Char RMESSAGE (30)
+Local Char RRTN     (30)
+Local Char LINTSUM  (60)
+Local Char LACT     (30)
+
+##If THE status CHANGES - CHANGE THE ACTIVITY CODE
+If [M:XTOT0]TOTSTAT > 1
+   [M:XTOT0]TOTACT = 1
+   [F:XM5TOT1]TOTACT = 1
+Else
+   [M:XTOT0]TOTACT = 2
+   [F:XM5TOT1]TOTACT = 2
+Endif
+RMESSAGE = ''
+RRTN = ''
+LINTSUM = "Status Change" + ' ' + [M:XTOT0]TOTCOD + ' To ' + mess([M:XTOT0]TOTSTAT,20121,1)
+
+Call WMAUDTOTLOG(GUSER,"TOT","STA",'SPVXTOT',LINTSUM,'0',[M:XTOT1]PRLNUM,num$([M:XTOT1]PRLSEQ),'','','',
+&                [M:XTOT0]STOFCY,'',[M:XTOT1]LOC,'','','','','','',num$([M:XTOT0]TOTACT),'','',
+&                [M:XTOT0]STOFCY,'',[M:XTOT1]LOC,'','','','','','',num$([M:XTOT0]TOTACT),'','',
+&                '','','','','','','','',[M:XTOT0]TOTCOD,[M:XTOT1]TRLLICPLATE,RRTN,RMESSAGE) From XMBAUDIT
+
+Return
+
+######################################################################################
+$APRES_CRE
+
+#-- Create location using tot code
+If clalev([F:FCY])  = 0 : Local File FACILITY   [FCY]  : Endif
+If clalev([F:TLO]) = 0 : Local File TABLOCTYP  [TLO] : Endif
+If clalev([F:TLO1]) = 0 : Local File TABLOCTYP  [TLO1] : Endif
+If clalev([F:STC1]) = 0 : Local File STOLOC     [STC1] : Endif
+If GWRHACT=2
+   If !clalev([F:WRH])  : Local File WAREHOUSE  [WRH]  : Endif
+Endif
+
+# Create location using tote code
+#-- Get default dispatch location type
+Local   Char WXMSOPDSPT (30)
+Raz WXMSOPDSPT
+Local Char WPARAM(20)
+Call PARAM([M:XTOT0]STOFCY,"XMSOPDSPT",WPARAM) From ADOVAL
+WXMSOPDSPT = WPARAM
+
+If WXMSOPDSPT = ''
+  Return
+Endif
+If [M:XTOT0]TOTSTAT > 1
+ [M:XTOT0]TOTACT = 1
+Else
+   [M:XTOT0]TOTACT = 2
+Endif
+  #
+  #   if Tote Proc Type 2 don't create locations
+  #
+
+If func GETTOTTYP() = "2" : Return : Endif
+Read [FCY]FCY0=[M:XTOT0]STOFCY
+If fstat
+  Return
+Else
+  Read [TLO1]TLO0=[F:FCY]FCY;WXMSOPDSPT
+  If fstat
+    Return
+  Endif
+Endif
+
+Read [STC1]STC0=[M:XTOT0]STOFCY;[M:XTOT0]TOTCOD
+If !fstat
+  Return
+Endif
+
+Local Mask TLO0 [TLO0]
+Local Mask TLO1 [TLO1]
+Local Mask TLO2 [TLO2]
+
+Raz [TLO0], [TLO1], [M:TLO2]
+
+[M:TLO0] = [F:FCY]
+[M:TLO0] = [F:TLO1]
+[M:TLO1] = [F:FCY]
+[M:TLO1] = [F:TLO1]
+[M:TLO2] = [F:FCY]
+[M:TLO2] = [F:TLO1]
+
+Filter [STC1] Where STOFCY = [M:TLO2]STOFCY &
+&                   LOCTYP = [M:TLO2]LOCTYP
+&             Order By Key STC3
+Read [STC1] First
+If fstat = 0
+  [M:TLO2]FIRLOC = [F:STC1]LOC
+Endif
+Read [STC1] Last
+If fstat = 0
+  [M:TLO2]LASLOC = [F:STC1]LOC
+Endif
+Filter [STC1]
+
+[M:TLO2]STRLOCCRE = [M:XTOT0]TOTCOD
+[M:TLO2]ENDLOCCRE = [M:XTOT0]TOTCOD
+
+Gosub ENR_CREEMP
+
+Close Local Mask [M:TLO0]
+Close Local Mask [M:TLO1]
+Close Local Mask [M:TLO2]
+
+Close Local File [F:TLO]
+Close Local File [F:TLO1]
+Close Local File [F:STC1]
+
+Return
+######################################################################################
+$ENR_CREEMP
+
+# Dépôt obligatoire si gestion dépôt et emplacement interne ou quai
+If GWRHACT=2 & [F:FCY]WRHGES=2 & find([M:TLO2]LOCCAT,1,2)
+   If [M:TLO2]WRH="" GERR=1 : Return Endif
+Endif
+
+  Local Decimal LOCEXT
+  Local Char    WWRK(GLONLOC)  : WWRK   = [M:TLO2]STRLOCCRE
+  Local Decimal WCRE
+  WCRE = 0
+  Trbegin [STC1]
+  GOK = 1
+  Call DEBTRANS From GLOCK
+# Création des emplacements
+
+  Gosub CRE_EMP
+  Case GOK
+    When 1 :
+      Commit
+    When -1 :
+      Rollback
+      Call ROLL From GLOCK
+      If GROLL
+        GMESSAGE = mess(20,100,1)-"STOLOC"
+        GERR = 1
+        Return
+      Endif
+    When Default :
+      Rollback
+      GMESSAGE = mess(12,100,1)-"STOLOC"
+      GERR = 1
+      Return
+  Endcase
+
+  #--- mise à jour du nombre d'emplacements libres -----#
+  Trbegin [TLO]
+  Readlock [F:TLO]TLO0=[M:TLO2]STOFCY;[M:TLO2]LOCTYP
+  [F:TLO]FRGLOC += WCRE
+  If [F:TLO]FRGLOC+[F:TLO]OCPLOC+[F:TLO]FULLOC <> 0
+    [F:TLO]PERLOA = ([F:TLO]OCPLOC+[F:TLO]FULLOC)/([F:TLO]FRGLOC+[F:TLO]OCPLOC+[F:TLO]FULLOC)
+  Endif
+  Rewrite [TLO]
+  Commit
+
+Return
+###########################################################
+# Ecriture d'un emplacement (pas d'erreur si existe déja)
+$CRE_EMP
+
+Raz [F:STC1]
+[F:STC1]          = [M:TLO0]
+[F:STC1]          = [M:TLO1]
+If dim([M:TLO2]WRH)>0 [F:STC1]WRH=[M:TLO2]WRH Endif
+[F:STC1]LOC       = WWRK
+[F:STC1]OCPCOD    = 1
+[F:STC1]LOKSTA    = 1
+[F:STC1]CREUSR    = GUSER
+[F:STC1]PCU       = ""
+[F:STC1]QTYPCU    = 0
+[F:STC1]MAXQTYPCU = 0
+[F:STC1]CUNLOKFLG = 1
+[F:STC1]AVADAT    = date$
+[F:STC1]AVAHOU    = mid$(time$,1,2)+mid$(time$,4,2)
+[F:STC1]ALLDAT    = date$
+[F:STC1]ALLHOU    = mid$(time$,1,2)+mid$(time$,4,2)
+[F:STC1]CREDAT    = date$
+[F:STC1]EXPNUM    = [C]EXPORT
+Call MAJ_SEQ([F:STC1]LOC,[F:STC1]PPSSEQ,[F:STC1]LOCNUMFMT,[F:STC1]PPSSEQ)
+
+GPOINT = "BEFWRISTC"                 # hcb 43829
+Gosub ENTREE From EXEFNC             # hcb 43829
+
+Write [STC1]
+Case fstat
+  When 0 :
+    WCRE += 1
+  When 3 :
+  When Default :
+    GOK = 0
+    Call FSTA("STC1") From GLOCK
+Endcase
+Return
+###########################################################
+Subprog MAJ_SEQ(LLOC,LSEQ,LFOR,LRES)
+Value    Char LLOC
+Value    Char LSEQ
+Value    Char LFOR
+Variable Char LRES
+#
+Local Char WLOC(GLONLOC) : WLOC = LLOC
+Local Char WSEQ(GLONLOC) : WSEQ = LSEQ
+Local Char WFOR(GLONLOC) : WFOR = LFOR
+Local Char WRES(GLONLOC) : WRES = ""
+Local Integer I,J
+#
+For I = 1 To len(WSEQ)
+  For J = 1 To len(WFOR)
+    If mid$(WSEQ,I,1) = mid$(WFOR,J,1) Break
+    Endif
+  Next J
+  WFOR = left$(WFOR,J-1)+"Z"+right$(WFOR,J+1)
+  WRES = left$(WRES,I-1)+mid$(WLOC,J,1)+right$(WRES,I+1)
+Next I
+LRES = WRES
+End
+######################################################################################
+
+Subprog C_TOTCOD(VALEUR)
+Variable Char    VALEUR()
+VALEUR = toupper(VALEUR)
+   # test for type 2 processing
+If func GETTOTTYP() <> "2" : End : Endif
+   # if so code has to be unique
+If !clalev([F:XMTOT2]): Local File XM5TOTE[XMTOT2] : Endif:
+Filter [F:XMTOT2] Where [F:XMTOT2]TOTCOD = VALEUR and [F:XMTOT2]STOFCY <> [M:XTOT0]STOFCY
+
+For [F:XMTOT2]
+  GMESSAGE = mess(69,104,1) + mess(748,4910,1)
+  mkstat = 2
+  End
+Next
+
+End
+
+######################################################################################
+Subprog AP_TOTCOD(VALEUR)
+Variable Char    VALEUR()
+VALEUR = toupper(VALEUR)
+   # test for type 2 processing
+If func GETTOTTYP() <> "2" : End : Endif
+   # if so code has to be unique
+If !clalev([F:XMTOT2]): Local File XM5TOTE[XMTOT2] : Endif:
+Filter [F:XMTOT2] Where [F:XMTOT2]TOTCOD = VALEUR
+
+For [F:XMTOT2]
+  GMESSAGE = mess(69,104,1) + mess(748,4910,1)
+  mkstat = 2
+  End
+Next
+
+End
+

@@ -1,0 +1,60 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Products - site
+$ACTION
+Case ACTION
+	When Default
+Endcase
+Return
+
+Subprog AM_ITMREF(VALEUR)
+Variable Char VALEUR
+End
+
+Subprog AM_STOFCY(VALEUR)
+Variable Char VALEUR
+End
+
+$SET_DEFLOC
+[M:ITF1]LOCNUM(0) = 1
+[M:ITF1]LOCNUM(1) = 2
+[M:ITF1]LOCNUM(2) = 5
+[M:ITF1]LOCNUM(3) = 7
+[M:ITF1]LOCNUM(4) = 3
+
+If !clalev([F:ZVB2BCK]) : Local File ZVB2BCHK [ZVB2BCK] : Endif
+Read [ZVB2BCK]ZVB2BCK0 = [M:ITF0]ITMREF
+If !fstat
+    [M:ITF1]DEFLOCTYP(0) = 'WHS2'
+    [M:ITF1]DEFLOC(0)    = 'B2BRC'
+Else
+    [M:ITF1]DEFLOCTYP(0) = 'RECF'
+    [M:ITF1]DEFLOC(0)    = 'RF01'
+Endif
+
+[M:ITF1]DEFLOCTYP(1) = "WHS*"
+[M:ITF1]DEFLOCTYP(2) = "WHS*"
+[M:ITF1]DEFLOCTYP(3) = "RTNQ"
+[M:ITF1]DEFLOCTYP(4) = "WHS*"
+
+[M:ITF1]DEFLOC(1) = "*"
+[M:ITF1]DEFLOC(2) = "*"
+[M:ITF1]DEFLOC(3) = "RTNQ"
+[M:ITF1]DEFLOC(4) = "*"
+
+For I=0 To 4
+	Affzo [M:ITF1]LOCNUM(I)
+	Affzo [M:ITF1]DEFLOCTYP(I)
+	Affzo [M:ITF1]DEFLOC(I)
+Next
+
+[M:ITF1]NBLOC=5
+Affzo [M:ITF1]NBLOC
+
+Return
+
+Subprog AM_LOCMGTCOD(VALEUR)
+Variable Integer VALEUR
+#Infbox num$(VALEUR)
+If VALEUR=2
+	Gosub SET_DEFLOC
+Endif
+End

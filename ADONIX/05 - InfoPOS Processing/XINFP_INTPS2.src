@@ -1,0 +1,221 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#<AdxTL>@(#)0.0.0.0 $Revision$
+###########################################################################################
+# Script            : XINFP_INTPS
+# Creation date     : 18/09/2018
+# Version           : 1.0.0
+# Authors (Company) : RH (InfoPOS)
+# Module            : SUPERVISOR - SINGLE PROCESS EXECUTION
+# ----------------------------------------------------------------------------------------
+# Project code      : InfoPOS X3 INTEGRATION
+# Description       : MAIN ACTION OF THE INTEGRATION COMPONENT INTEGRATION
+#-----------------------------------------------------------------------------------------
+#
+# Evolutions        : (sequence, reference (Bug reference),) date, author, description
+#                   : @nn@ – DD/MM/YYYY , XXXXX , NMA
+###########################################################################################
+
+###########################################################################################
+# ACTION METHOD
+###########################################################################################
+$ACTION
+    Case ACTION
+        When "INIT"    : Gosub INIT    From XINFP_INTPS
+        When "EXEC"    : Gosub EXEC    From XINFP_INTPS
+        When "TERMINE" : Gosub TERMINE From XINFP_INTPS
+        When Default
+    Endcase
+Return
+
+# INIT OF THE VARIABLES AND TABLES THAT IS USED FOR THE STD PROCESS
+###########################################################################################
+$INIT
+
+Return
+
+# EXECUTION OF THE MAIN PROCESS CODE
+###########################################################################################
+$EXEC
+    # READ THE RUNNING INDICATOR, IF THERE IS A DOWNLOAD IN PROGRESS DO NO START THE INTEGRATION
+    If !clalev([F:XINFINT]) : Local File XINFINT     [F:XINFINT] : Endif
+
+    Filter [F:XINFINT] Where [F:XINFINT]RUNNING = 2 Order By Key XINFINT0
+    Read [F:XINFINT]XINFINT0 First
+
+    # RECORD EXISTS, DO NOT RUN INTEGRATION
+    If !fstat
+        Call ECR_TRACE("DOWNLOAD IN PROGRESS UNABLE TO RUN THE INTEGRATION", 1) From GESECRAN
+    Else
+        # RECORD DOES NOT EXIST, RUN THE INTEGRATION
+        #TODO - PRINT APPROPRIATE MESSAGE FOR THE LOG HEADER
+        If !GSERVEUR
+            Call OUVRE_TRACE("TESTING OF THE INTEGRATION MODULES" - time$) From LECFIC
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+        Else
+            Call ECR_TRACE("INFOPOS TRANSACTION INTEGRATION PROCESS", 0) From GESECRAN
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call ECR_TRACE("PARAMETERS    : " - XINFPF,0) From GESECRAN
+            Call ECR_TRACE("COMPANY GROUP : NONE",0) From GESECRAN
+            Call ECR_TRACE("SITE GROUP    : NONE",0) From GESECRAN
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call ECR_TRACE("START TIME : " + num$(time$),0) From GESECRAN
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call ECR_TRACE("", 0) From GESECRAN
+            Call ECR_TRACE("", 0) From GESECRAN
+        Endif
+
+        # LIST OF FUNCTIONS
+        ###########################################################################################
+        # A.  CUSTOMERS
+        # B.  SALES ORDERS
+        # C.  SALES INVOICES
+        # D.  CREDIT NOTES
+        # E.  AP/AR REFUNDS / PAYMENT
+        # F.  AP/AR RECEIPTS
+        # G.  PURCHASE RECEIPTS
+        # H.  STOCK TRANSFERS - IBT'S
+        # I.  STOCK ADJUSTMENTS - NEGATIVE
+        # J.  STOCK ADJUSTMENTS - POSITIVE
+        # K.  CBT TRANSACTIONS
+        # L.  AR ADJUSTMENT - MATCHING PROCESS
+        ###########################################################################################
+
+        # STOCK
+        ##########################################################################################
+        If instr(1,XINFPF,"G") <> 0
+            #TODO - PRINT APPROPRIATE MESSAGE FOR PURCHASE RECEIPTS
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call PTH_TRANS From XINFP_PTH
+        Endif
+
+        #TODO - PRINT APPROPRIATE MESSAGE FOR POSITIVE ADJUSTMENTS
+        If instr(1,XINFPF,"J") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call SMR_TRANS From XINFP_SMR
+        Endif
+
+        #TODO - PRINT APPROPRIATE MESSAGE FOR NEGATIVE ADJUSTMENTS
+        If instr(1,XINFPF,"I") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call SMO_TRANS From XINFP_SMO
+        Endif
+
+        If instr(1,XINFPF,"H") <> 0
+            #TODO - PRINT APPROPRIATE MESSAGE FOR MOVEMENT OUT OF SITE A to GIT
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call GTO_TRANS From XINFP_GTO
+
+            #TODO - PRINT APPROPRIATE MESSAGE FOR MOVEMENT OUT GIT TO SITE B
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call GTI_TRANS From XINFP_GTI
+
+            #TODO - PRINT APPROPRIATE MESSAGE FOR MOVEMENT OUT USING INTERSITE TRANSFERS - PO/SO/SDH/PTH
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call IBS_TRANS From XINFP_IBS
+
+            #TODO - PRINT APPROPRIATE MESSAGE FOR MOVEMENT IN USING INTERSITE TRANSFERS - PO/SO/SDH/PTH
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call IBR_TRANS From XINFP_IBR
+        Endif
+
+        # COMMON DATA
+        ##########################################################################################
+        #TODO - PRINT APPROPRIATE MESSAGE FOR CUSTOMERS
+        If instr(1,XINFPF,"A") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call BPC_TRANS From XINFP_BPC
+        Endif
+
+        # SALES
+        ##########################################################################################
+        #TODO - PRINT APPROPRIATE MESSAGE FOR SALES ORDERS
+        If instr(1,XINFPF,"B") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call SOH_TRANS From XINFP_SOH
+        Endif
+
+        #TODO - PRINT APPROPRIATE MESSAGE FOR SALES INVOICES
+        If instr(1,XINFPF,"C") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call SIH_TRANS From XINFP_SIHD
+        Endif
+
+        #TODO - PRINT APPROPRIATE MESSAGE FOR CUSTOMER RETURNS
+        If instr(1,XINFPF,"D") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call SRH_TRANS From XINFP_SRH
+
+            #TODO - PRINT APPROPRIATE MESSAGE FOR SALES CREDIT MEMOS
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call CRN_TRANS From XINFP_CRN
+        Endif
+
+
+        # AP/AR ACCOUNTING
+        ##########################################################################################
+        #TODO - PRINT APPROPRIATE MESSAGE FOR EXPENSES DOCUMENTS
+        If instr(1,XINFPF,"E") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call PAYE_TRANS From XINFP_PAYE
+        Endif
+
+        #TODO - PRINT APPROPRIATE MESSAGE FOR REVENUE DOCUMENTS
+        If instr(1,XINFPF,"F") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call PAYR_TRANS From XINFP_PAYR
+        Endif
+
+        #TODO - PRINT APPROPRIATE MESSAGE FOR CBT TRANSACTIONS
+        If instr(1,XINFPF,"K") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call CBT_TRANS From XINFP_CBT
+        Endif
+
+        # AR ADJUSTMENTS - MATCHING
+        ##########################################################################################
+        #TODO - PRINT APPROPRIATE MESSAGE FOR MATCHING OF DOCUMENTS
+        If instr(1,XINFPF,"L") <> 0
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call MTC_TRANS From XINFP_MTC
+        Endif
+
+        #TODO - IF NOT IN BATCH MODE, CLOSE THE LOG FILE AND PRINT IT OUT
+        If !GSERVEUR
+            Call OUVRE_TRACE("COMPLETION OF INTEGRATION RUN" - time$) From LECFIC
+
+            Call FERME_TRACE From LECFIC
+            Call LEC_TRACE From LECFIC
+        Else
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+            Call ECR_TRACE("COMPLETION TIME : " + num$(time$),0) From GESECRAN
+            Call ECR_TRACE("----------------------------------", 0) From GESECRAN
+        Endif
+    Endif
+Return
+
+# TERMINATION OF THE PROCESS CODE, CLOSING OF OPEN TABLES AND KILLING OFF OF VARIABLES
+###########################################################################################
+$TERMINE
+
+Return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

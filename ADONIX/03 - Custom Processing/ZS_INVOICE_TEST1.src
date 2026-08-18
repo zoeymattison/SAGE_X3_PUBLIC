@@ -1,0 +1,13 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+    Local Char FONCTION(30)
+    Local Char TBPAR(150)(150)
+    Local Char TBVAL(150)(150)
+
+    TBPAR(1) = "vcrdeb"		: TBVAL(1) = "DIR509664"
+    TBPAR(2) = "vcrfin"		: TBVAL(2) = "DIR509664"
+    TBPAR(3) = "edd"            : TBVAL(3) = "1"
+    TBPAR(4) = "balance"        : TBVAL(4) = "3"
+
+    Call ETAT("MONK-INVOICE-V3", "PREVIEW" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
+
+
