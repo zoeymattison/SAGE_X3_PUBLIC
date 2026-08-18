@@ -1,5 +1,3 @@
-## Languages & Code Breakdown
-
 | Language | Extension | Files | Share |
 | :--- | :--- | :--- | :--- |
 | **Sage X3 (Adonix 4GL)** | `.src` | 266 | **63.5%** |
