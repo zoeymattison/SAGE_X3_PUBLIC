@@ -1,0 +1,1 @@
+The folder contains SQL that is actively being used in crystal reports. Older deprecated SQL for crystal reports has been moved into the categories in the other category folders.
