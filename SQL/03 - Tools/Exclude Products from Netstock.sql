@@ -2,7 +2,7 @@ UPDATE i
 SET i.ZNETEXCL_0 = 2
 FROM LIVE.ITMMASTER i
 WHERE 
-    -- Condition 1: Item exists in ITMBPS with specific vendors and PIO=0
+    /* Condition 1: Item exists in ITMBPS with specific vendors and PIO=0 */
     EXISTS (
         SELECT 1 
         FROM LIVE.ITMBPS b 
@@ -11,7 +11,7 @@ WHERE
           AND b.PIO_0 = 0
     )
     OR 
-    -- Condition 2: Item does not exist in ITMBPS at all
+    /* Condition 2: Item does not exist in ITMBPS at all */
     NOT EXISTS (
         SELECT 1 
         FROM LIVE.ITMBPS b2 

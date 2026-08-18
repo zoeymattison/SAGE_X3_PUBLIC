@@ -1,3 +1,4 @@
+-- NOTE: This only works if the default location setup already exists.
 -- 1. Updates default status by Category/Facility/Transaction Type
 -- Note: This applies to ALL items sharing these categories at DC30
 UPDATE LIVE.TABSTORUL

@@ -1,3 +1,7 @@
+-- WARNING: ONLY RUN THIS IF NO PAYMENTS EXIST THAT HAVE BEEN POSTED. If payments exist, you must fully reverse the entire
+-- payment process (unmatch / accounting cancellation / void credit cards etc) before you can unpost the invoice. This script
+-- is really only helpful if you need to unpost an invoice right after posting it (ie you made a mistake and need to change the invoice date)
+
 -- Declare a table variable to hold the NUM_0 values
 DECLARE @Nums TABLE (NUM_0 VARCHAR(20));
 

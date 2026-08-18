@@ -1,1 +1,1 @@
-This repository contains a collection of Sage X3 customisations, business logic scripts, reports, and support modules developed by Zoey Mattison.
+This repository contains a collection of Sage X3 customisations, business logic scripts, reports, and support modules developed by Zoey Mattison (Z, SPE, SUB, Views), TAC (Y, SPE, SUB, Views), and InfoPOS (X).
