@@ -42,8 +42,8 @@ For [ZBIE]
                 [V]ZG_SIHMES+="Thank you,"+chr$(10)+chr$(10)
                 [V]ZG_SIHMES+="Accounts Receivable"+chr$(10)
                 [V]ZG_SIHMES+="Monk Office"+chr$(10)
-                [V]ZG_SIHMES+="800 Viewfield Road"+chr$(10)
-                [V]ZG_SIHMES+="Victoria, BC V9A4V1"+chr$(10)
+                [V]ZG_SIHMES+="123 Fake Street"+chr$(10)
+                [V]ZG_SIHMES+="City, PV A0A 0A0"+chr$(10)
                 [V]ZG_SIHMES+="P: 123-456-7890 E: email@example.com"
                 Call ETAT("MONK-INVOICE", "EMAILX3" , "eng", 0, FONCTION, TBPAR, TBVAL) From AIMP3
                 Raz [V]ZG_SIHEML,[V]ZG_SIHECC,[V]ZG_SIHSBJ,[V]ZG_SIHMES,[V]ZG_SIHSND,TBPAR,TBVAL,[L]BPC_EML

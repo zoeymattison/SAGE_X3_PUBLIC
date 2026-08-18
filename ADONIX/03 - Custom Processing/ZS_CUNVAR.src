@@ -7,7 +7,7 @@ For [ZCUL]
 	If [S]fstat
 		[F:ZCUL]ZVARSTA=2 : Rewrite [ZCUL]
 		If ![S]fstat
-    		Local Char WNOMFIC(250) : WNOMFIC="sageemmain.monk.ca@D:\Sage\X3\folders\LIVE\ZATTACH\"+[F:ZCUL]CUNLISNUM+".csv"	# File path and name
+    		Local Char WNOMFIC(250) : WNOMFIC="your.server.com@D:\Sage\X3\folders\LIVE\ZATTACH\"+[F:ZCUL]CUNLISNUM+".csv"	# File path and name
     		Openo WNOMFIC Using [ZZZ]
     		adxifs=chr$(9)
     		adxirs=chr$(13)+chr$(10)

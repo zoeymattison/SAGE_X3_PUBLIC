@@ -5,7 +5,7 @@ with po_header as (
 		upper(
 			isnull(
 				t.TEXTE_0,
-				'MONK OFFICE' +
+				'COMPANY NAME' +
 				case when nullif(ltrim(rtrim(b.BPAADDLIG_0)), '') is not null then char(10) + ltrim(rtrim(b.BPAADDLIG_0)) else '' end +
 				case when nullif(ltrim(rtrim(b.BPAADDLIG_1)), '') is not null then char(10) + ltrim(rtrim(b.BPAADDLIG_1)) else '' end +
 				case when nullif(ltrim(rtrim(b.BPAADDLIG_2)), '') is not null then char(10) + ltrim(rtrim(b.BPAADDLIG_2)) else '' end +

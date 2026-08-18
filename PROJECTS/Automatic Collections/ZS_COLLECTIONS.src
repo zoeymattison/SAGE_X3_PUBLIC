@@ -133,15 +133,15 @@ For I=1 To [L]ZL_BPR_I-1
 		[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to email@example.com, include your account number in the comments."+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="3. Credit Card (pay online, call in payment, or authorize an automated monthly charge for statement balance)"
 &		+" – Credit Card details required, ask for our secure authorization form if interested."+chr$(10)
-		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 800 Viewfield Road, Victoria BC V9A 4V1"+chr$(10)
-		[V]ZV_COLLECTIONS_MESSAGE+="5. Online Banking (available to Credit Unions, TD, BMO, CIBC and Scotiabank users) Payee: Monk Office Supply Ltd."+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 123 Fake Street, City, PV A0A 0A0"+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="5. Online Banking (available to Credit Unions, TD, BMO, CIBC and Scotiabank users) Payee: Some Company Ltd."+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="6. PAD (Pre-Authorized Debit) – Banking details required – ask for authorization form."+chr$(10)+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="Past due balances will accrue interest fees at a rate of 2% monthly. "+chr$(10)+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="Regards,"+chr$(10)+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="Accounts Receivable"+chr$(10)
-		[V]ZV_COLLECTIONS_MESSAGE+="Monk Office Supply"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="3335 Oak Street"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="Victoria, BC V8X 1R2"+chr$(10)
+		[V]ZV_COLLECTIONS_MESSAGE+="Some Company"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="123 Fake Street"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="City, PV A0A 0A0"+chr$(10)
 		[V]ZV_COLLECTIONS_MESSAGE+="P: 123-456-7890 E: email@example.com"+chr$(10)
 
 		#[V]ZV_COLLECTIONS_MESSAGE+=[L]ZL_BPCEML
@@ -201,16 +201,16 @@ For [ZCOL]
         	[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to email@example.com, include your account number in the comments."+chr$(10)
         	[V]ZV_COLLECTIONS_MESSAGE+="3. Credit Card (pay online, call in payment, or authorize an automated monthly charge for statement balance)"
 &			+" – Credit Card details required, ask for our secure authorization form if interested."+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 800 Viewfield Road, Victoria BC V9A 4V1"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="5. Online Banking (available to Credit Unions, TD, BMO, CIBC and Scotiabank users) Payee: Monk Office Supply Ltd."+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 123 Fake Street, City, PV A0A 0A0"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="5. Online Banking (available to Credit Unions, TD, BMO, CIBC and Scotiabank users) Payee: Some Company Ltd."+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="6. PAD (Pre-Authorized Debit) – Banking details required – ask for authorization form."+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Past due balances will accrue interest fees at a rate of 2% monthly, extended periods of non-payment "
 &			+"will result in account holds and service disruptions."+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Regards,"+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Accounts Receivable"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="Monk Office Supply"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="3335 Oak Street"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="Victoria, BC V8X 1R2"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Some Company"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="123 Fake Street"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="City, PV A0A 0A0"+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="P: 123-456-7890 E: email@example.com"+chr$(10)
 
     		[V]ZV_COLLECTIONS_FICHIER="Invoice "+[F:ZCOL]NUM+" and Account Statement"
@@ -262,16 +262,16 @@ For [ZCOL]
         	[V]ZV_COLLECTIONS_MESSAGE+="2. E-Transfer (Email Transfer) – sent to email@example.com, include your account number in the comments."+chr$(10)
         	[V]ZV_COLLECTIONS_MESSAGE+="3. Credit Card (pay online, call in payment, or authorize an automated monthly charge for statement balance)"
 &			+" – Credit Card details required, ask for our secure authorization form if interested."+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 800 Viewfield Road, Victoria BC V9A 4V1"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="5. Online Banking (available to Credit Unions, TD, BMO, CIBC and Scotiabank users) Payee: Monk Office Supply Ltd."+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="4. Cheque – Remit to 123 Fake Street, City, PV A0A 0A0"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="5. Online Banking (available to Credit Unions, TD, BMO, CIBC and Scotiabank users) Payee: Some Company Ltd."+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="6. PAD (Pre-Authorized Debit) – Banking details required – ask for authorization form."+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Past due balances will accrue interest fees at a rate of 2% monthly, extended periods of non-payment "
 &			+"will result in account holds and service disruptions."+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Regards,"+chr$(10)+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="Accounts Receivable"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="Monk Office Supply"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="3335 Oak Street"+chr$(10)
-    		[V]ZV_COLLECTIONS_MESSAGE+="Victoria, BC V8X 1R2"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="Some Company"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="123 Fake Street"+chr$(10)
+    		[V]ZV_COLLECTIONS_MESSAGE+="City, PV A0A 0A0"+chr$(10)
     		[V]ZV_COLLECTIONS_MESSAGE+="P: 123-456-7890 E: email@example.com"+chr$(10)
 
     		[V]ZV_COLLECTIONS_FICHIER="Invoice "+[F:ZCOL]NUM

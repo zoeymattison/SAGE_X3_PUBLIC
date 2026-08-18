@@ -6,13 +6,13 @@ with supplier_address as (
 		iif(s.BPSNUM_0='V9999',s.BPSNAM_0,'MONK OFFICE') as [Supplier Name],
 		iif(s.BPSNUM_0='V9999',a.BPANUM_0,s.BPSNUM_0) as [Supplier Number],
 		iif(s.BPSNUM_0='V9999',a.BPAADDLIG_0,'ACCOUNTS PAYABLE') as [Address 1],
-		iif(s.BPSNUM_0='V9999',a.BPAADDLIG_1,'3335 OAK STREET') as [Address 2],
+		iif(s.BPSNUM_0='V9999',a.BPAADDLIG_1,'123 Fake Street') as [Address 2],
 		iif(s.BPSNUM_0='V9999',a.BPAADDLIG_2,'') as [Address 3],
 		iif(s.BPSNUM_0='V9999',a.CRY_0,'CA') as [Country Code],
 		iif(s.BPSNUM_0='V9999',a.CRYNAM_0,'CANADA') as [Country],
 		iif(s.BPSNUM_0='V9999',a.SAT_0,'BC') as [Province],
-		iif(s.BPSNUM_0='V9999',a.POSCOD_0,'V8X 1R2') as [Postal Code],
-		iif(s.BPSNUM_0='V9999',a.CTY_0,'VICTORIA') as [City],
+		iif(s.BPSNUM_0='V9999',a.POSCOD_0,'A0A 0A0') as [Postal Code],
+		iif(s.BPSNUM_0='V9999',a.CTY_0,'CITY') as [City],
 		iif(s.BPSNUM_0='V9999',a.WEB_0,'') as [Email]
 	from
 		LIVE.BPADDRESS a

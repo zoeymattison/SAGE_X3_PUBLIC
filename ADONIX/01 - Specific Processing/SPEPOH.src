@@ -35,7 +35,7 @@ If BOUT="b" # Consolidated PO Quantities
 
     Filter [ZVPB2] Where POHNUM=[M:POH0]POHNUM
     For [ZVPB2]
-    	[L]PATH="sageemmain.monk.ca@D:\Sage\X3\folders\LIVE\ZATTACH\ARCHIVE\"+[F:ZVPB2]POHNUM+"_"+timestamp$+".csv"
+    	[L]PATH="your.server.com@D:\Sage\X3\folders\LIVE\ZATTACH\ARCHIVE\"+[F:ZVPB2]POHNUM+"_"+timestamp$+".csv"
     	Openo [L]PATH Using [ZZZ]
     	adxifs=chr$(9)
     	adxirs=chr$(13)+chr$(10)
