@@ -36,12 +36,12 @@ For [ZBIE]
                 [V]ZG_SIHSND="email@example.com"
                 [V]ZG_SIHEML=[L]BPC_EML
                 [V]ZG_SIHECC="email@example.com"
-                [V]ZG_SIHSBJ="Monk Office "+tolower(mess(val(func AFNC.INTFLD("SINVOICE","INVTYP",[F:ZBIE]NUM)),645,1))+' - '+[F:ZBIE]NUM
+                [V]ZG_SIHSBJ="Your Company "+tolower(mess(val(func AFNC.INTFLD("SINVOICE","INVTYP",[F:ZBIE]NUM)),645,1))+' - '+[F:ZBIE]NUM
                 [V]ZG_SIHMES+="Hello, this is an automated message intended for "+func AFNC.INTFLD('BPCUSTOMER','BPCNAM',[F:ZBIE]SHIPTO)+"."+chr$(10)+chr$(10)
-                [V]ZG_SIHMES+="Please find attached your "+tolower(mess(val(func AFNC.INTFLD('SINVOICE','INVTYP',[F:ZBIE]NUM)),645,1))+" from Monk Office."+chr$(10)+chr$(10)
+                [V]ZG_SIHMES+="Please find attached your "+tolower(mess(val(func AFNC.INTFLD('SINVOICE','INVTYP',[F:ZBIE]NUM)),645,1))+" from Your Company."+chr$(10)+chr$(10)
                 [V]ZG_SIHMES+="Thank you,"+chr$(10)+chr$(10)
                 [V]ZG_SIHMES+="Accounts Receivable"+chr$(10)
-                [V]ZG_SIHMES+="Monk Office"+chr$(10)
+                [V]ZG_SIHMES+="Your Company"+chr$(10)
                 [V]ZG_SIHMES+="123 Fake Street"+chr$(10)
                 [V]ZG_SIHMES+="City, PV A0A 0A0"+chr$(10)
                 [V]ZG_SIHMES+="P: 123-456-7890 E: email@example.com"

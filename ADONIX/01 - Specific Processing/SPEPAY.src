@@ -123,7 +123,7 @@ Return
 ## WHEN THE RECORD IS OPENED, DISPLAY THE ORIGINAL CUSTOMER IN A NEW FIELD          ##
 ## DATE CREATED: 2024-01-09                                                         ##
 ## DATE MODIFIED: 2024-01-10                                                        ##
-## AUTHOR (COMPANY): MOZM (MONK OFFICE)                                             ##
+## AUTHOR (COMPANY): MOZM (Your Company)                                             ##
 ## NOTES: 1. DISREGARD INFOPOS RECORDS. MOST DO NOT CONTAIN PAY1 MASK.              ##
 ##        2. DISREGARD SALES ORDER PREPAYMENTS UNTIL END AND USE INTFLD ONLY (THEY DO ##
 ##           NOT EXIST IN GACCENTRYD)                                               ##

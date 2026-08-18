@@ -62,7 +62,7 @@ SELECT
     UPPER(SLD.CTY_0) AS [Shipping Site City],
     UPPER(SLD.POSCOD_0) AS [Shipping Site POSCOD],
     UPPER(SLD.SAT_0) AS [Shipping Site Province],
-   isnull( UPPER(SLD.BPCNAM_0),'MONK OFFICE') AS [Shipping Site Name],
+   isnull( UPPER(SLD.BPCNAM_0),'Your Company') AS [Shipping Site Name],
     SLD.WEB_0 AS [Shipping Site Email],
     SLD.TEL_0 AS [Shipping Site Phone],
     /* SHIP-TO */

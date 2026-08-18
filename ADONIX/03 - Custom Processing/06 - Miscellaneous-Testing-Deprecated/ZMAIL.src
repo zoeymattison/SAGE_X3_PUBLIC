@@ -78,7 +78,7 @@ $SOHSIG
     #CC_USER(2)="email@example.com"
     CC_USER(1)="email@example.com"
 
-    HEADER='Monk Office Order for your Approval'-[F:SOH]SOHNUM
+    HEADER='Your Company Order for your Approval'-[F:SOH]SOHNUM
     ISSUERMAIL='email@example.com'
     TRACE = 2
  

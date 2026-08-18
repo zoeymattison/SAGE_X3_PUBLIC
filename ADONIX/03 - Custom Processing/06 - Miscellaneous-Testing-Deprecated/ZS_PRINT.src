@@ -67,7 +67,7 @@ $SOH_SIGNATURE
 Gosub ACTIVATE_GLOBALS
 [V]ZG_DEST = "email@example.com"
 [V]ZG_CCUSR = "email@example.com"
-[V]ZG_SUBJECT = "NOTICE - Monk Office Order for your Approval "+[F:SOH]SOHNUM
+[V]ZG_SUBJECT = "NOTICE - Your Company Order for your Approval "+[F:SOH]SOHNUM
 [V]ZG_MESSAGE = "This is an automated message."+chr$(10)+chr$(10)
 &+"A sales order was created that needs approval!"+chr$(10)+chr$(10)
 &+"Order: "+[F:SOH]SOHNUM+chr$(10)

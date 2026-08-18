@@ -3,7 +3,7 @@
  , BPS_ADDR_CTY_0 , BPS_ADDR_EM_0 ) As 
 with supplier_address as (
 	select
-		iif(s.BPSNUM_0='V9999',s.BPSNAM_0,'MONK OFFICE') as [Supplier Name],
+		iif(s.BPSNUM_0='V9999',s.BPSNAM_0,'Your Company') as [Supplier Name],
 		iif(s.BPSNUM_0='V9999',a.BPANUM_0,s.BPSNUM_0) as [Supplier Number],
 		iif(s.BPSNUM_0='V9999',a.BPAADDLIG_0,'ACCOUNTS PAYABLE') as [Address 1],
 		iif(s.BPSNUM_0='V9999',a.BPAADDLIG_1,'123 Fake Street') as [Address 2],

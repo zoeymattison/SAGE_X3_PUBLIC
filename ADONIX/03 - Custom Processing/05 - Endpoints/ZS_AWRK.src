@@ -11,14 +11,14 @@ Local Char FICHIER(240)
 Local Integer STAT
 Case [F:AWA]CODE
 When "ZW_POHRPTM" : Gosub POHNUMBER
-When "ZW_GESSIH" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Monk Office Invoice - "+[F:SIV]NUM+".pdf" : Gosub RENAME
-When "ZW_EFTMLM" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Monk Office Payment - "+[M:PAY0]NUM+".pdf" : Gosub RENAME
-When "ZW_GESSIHR" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Monk Office Invoice - "+[F:ZBIE]NUM+".pdf" : Gosub RENAME
+When "ZW_GESSIH" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Your Company Invoice - "+[F:SIV]NUM+".pdf" : Gosub RENAME
+When "ZW_EFTMLM" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Your Company Payment - "+[M:PAY0]NUM+".pdf" : Gosub RENAME
+When "ZW_GESSIHR" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Your Company Invoice - "+[F:ZBIE]NUM+".pdf" : Gosub RENAME
 When "ZW_COLLECT" : [L]FICHIER=filpath("","","")+"\YARCHIVE\"+[V]ZV_COLLECTIONS_FICHIER+".pdf" : Gosub RENAME
 When "ZW_LTRCOL" : [L]FICHIER=filpath("","","")+"\YARCHIVE\"+[V]ZV_LTR_FICHIER+".pdf" : Gosub RENAME
 When "ZW_SIHEDD" : [L]FICHIER=[V]ZG_FICHIER_ZW_SIHEDD : Gosub RENAME : GPE=1
 When "ZW_RELEDD" : [L]FICHIER=[V]ZG_FICHIER_ZW_RELEDD : Gosub RENAME : GPE=1
-When "ZW_MNKINV" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Monk Office Invoice.pdf" : Gosub RENAME
+When "ZW_MNKINV" : [L]FICHIER=filpath("","","")+"\YARCHIVE\Your Company Invoice.pdf" : Gosub RENAME
 When Default
 Endcase
 Return
